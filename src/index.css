@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Poppins', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --color-green-950: #0B190B;
+  --color-green-900: #132A13;
+  --color-green-800: #31572C;
+  --color-green-700: #4F772D;
+  --color-green-500: #90A955;
+  --color-green-200: #ECF39E;
+}
+
+:root {
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: light;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ensure Poppins is applied uniformly across all elements and form controls */
+html,
+body,
+input,
+button,
+select,
+textarea,
+optgroup,
+h1, h2, h3, h4, h5, h6, p, span, a, label {
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Tabular numerals for sensor meters, voltages, percentages, and counters */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Prevent unwanted horizontal overflow */
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Clean minimal scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f3;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #90A955;
+}
