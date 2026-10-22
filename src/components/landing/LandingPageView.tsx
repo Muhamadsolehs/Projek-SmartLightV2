@@ -1305,133 +1305,155 @@ export const LandingPageView: React.FC = () => {
       </section>
 
       {/* 7. SECTION INTERAKTIF: ANATOMI PERANGKAT & SENSOR */}
-      <section id="anatomi-hardware" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-[#FAFDF9] to-[#F2F7F4] border-b border-[#D8E2DC]">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center max-w-2xl mx-auto mb-12">
+      <section id="anatomi-hardware" className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-[#FAFDF9] to-[#F2F7F4] border-b border-[#D8E2DC]">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center max-w-xl mx-auto mb-10 sm:mb-12">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-[#84A98C]/20 text-[#2D6A4F] border border-[#84A98C]/30">
               <Layers className="h-3.5 w-3.5 text-[#2D6A4F]" />
               Rekayasa Perangkat Keras
             </span>
-            <h2 className="text-2xl sm:text-4xl font-extrabold text-[#192A20] mt-2">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#192A20] mt-2 tracking-tight">
               Anatomi 6 Sub-Sistem Lapangan Teruji
             </h2>
             <p className="mt-2 text-xs sm:text-sm text-[#52796F]">
               Setiap komponen dirancang dengan sertifikasi IP65 untuk ketahanan luar ruangan terhadap kelembapan tinggi, terik matahari sawah, dan hujan tropis.
             </p>
+            <div className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-[#52796F] sm:hidden font-medium">
+              <span>Geser ke samping untuk melihat komponen</span>
+              <ArrowRight className="h-3 w-3" />
+            </div>
           </div>
 
-          <div className="flex overflow-x-auto md:grid md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 pb-4 pt-1 snap-x snap-mandatory scroll-smooth -mx-4 px-4 sm:mx-0 sm:px-0">
-            <div className="min-w-[280px] sm:min-w-[320px] md:min-w-0 flex-shrink-0 snap-start rounded-2xl border border-[#D1DCD6] bg-white p-6 shadow-xs hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-10 w-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
-                  <Sun className="h-5 w-5" />
+          <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 pb-4 pt-1 snap-x snap-mandatory scroll-smooth -mx-4 px-4 sm:mx-0 sm:px-0">
+            {/* Card 1: Panel Surya */}
+            <div className="w-[260px] sm:w-auto flex-shrink-0 snap-start rounded-2xl border border-[#D1DCD6] bg-white p-5 shadow-xs hover:shadow-md hover:border-[#2D6A4F]/40 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-9 w-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold shrink-0">
+                    <Sun className="h-4.5 w-4.5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-bold text-[#192A20] leading-snug">Panel Surya & INA226</h4>
+                    <span className="text-[10px] text-amber-700 font-semibold block">50Wp Monokristalin</span>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-sm font-bold text-[#192A20]">Panel Surya & Sensor INA226</h4>
-                  <span className="text-[11px] text-amber-600 font-semibold">50Wp Monokristalin</span>
-                </div>
+                <p className="text-xs text-[#52796F] leading-relaxed mb-3">
+                  Panel surya 50Wp miring 15° dipadukan dengan sensor arus I2C INA226 untuk memantau tegangan bus dan mA pengisian secara presisi.
+                </p>
               </div>
-              <p className="text-xs text-[#52796F] leading-relaxed mb-3">
-                Panel surya 50Wp miring 15° dipadukan dengan modul sensor arus I2C INA226 untuk memantau tegangan bus dan mA pengisian secara presisi.
-              </p>
-              <div className="bg-[#F8FAF9] p-2.5 rounded-lg text-[11px] font-mono text-[#192A20] space-y-1">
+              <div className="bg-[#F8FAF9] p-2.5 rounded-xl text-[11px] font-mono text-[#192A20] space-y-1 border border-[#E2E8F0]">
                 <div>· Baterai: LiFePO4 12.8V 20Ah</div>
-                <div>· Fitur: MPPT Solar Controller + Eco Mode</div>
+                <div>· Fitur: MPPT + Eco Cut-off</div>
               </div>
             </div>
 
-            <div className="min-w-[280px] sm:min-w-[320px] md:min-w-0 flex-shrink-0 snap-start rounded-2xl border border-[#D1DCD6] bg-white p-6 shadow-xs hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-10 w-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
-                  <Zap className="h-5 w-5" />
+            {/* Card 2: Lampu UV */}
+            <div className="w-[260px] sm:w-auto flex-shrink-0 snap-start rounded-2xl border border-[#D1DCD6] bg-white p-5 shadow-xs hover:shadow-md hover:border-[#2D6A4F]/40 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-9 w-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold shrink-0">
+                    <Zap className="h-4.5 w-4.5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-bold text-[#192A20] leading-snug">Lampu UV LED 365nm</h4>
+                    <span className="text-[10px] text-purple-700 font-semibold block">Fototaxis Terkalibrasi</span>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-sm font-bold text-[#192A20]">Lampu UV LED 365nm</h4>
-                  <span className="text-[11px] text-purple-600 font-semibold">Fototaxis Terkalibrasi</span>
-                </div>
+                <p className="text-xs text-[#52796F] leading-relaxed mb-3">
+                  Panjang gelombang emisi 365nm yang terbukti memikat serangga hama malam (wereng coklat, penggerek batang) hemat daya.
+                </p>
               </div>
-              <p className="text-xs text-[#52796F] leading-relaxed mb-3">
-                Panjang gelombang emisi 365nm yang terbukti memikat serangga hama malam (wereng coklat, penggerek batang) dengan konsumsi daya rendah.
-              </p>
-              <div className="bg-[#F8FAF9] p-2.5 rounded-lg text-[11px] font-mono text-[#192A20] space-y-1">
-                <div>· Driver: PWM Arus Konstan 850mA</div>
-                <div>· Waktu: Otomatis 18:00–05:00 WIB via RTC</div>
+              <div className="bg-[#F8FAF9] p-2.5 rounded-xl text-[11px] font-mono text-[#192A20] space-y-1 border border-[#E2E8F0]">
+                <div>· Driver: PWM Arus 850mA</div>
+                <div>· Waktu: Otomatis 18:00–05:00 WIB</div>
               </div>
             </div>
 
-            <div className="min-w-[280px] sm:min-w-[320px] md:min-w-0 flex-shrink-0 snap-start rounded-2xl border border-[#D1DCD6] bg-white p-6 shadow-xs hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-10 w-10 rounded-xl bg-cyan-100 text-cyan-700 flex items-center justify-center font-bold">
-                  <Camera className="h-5 w-5" />
+            {/* Card 3: Kamera CV */}
+            <div className="w-[260px] sm:w-auto flex-shrink-0 snap-start rounded-2xl border border-[#D1DCD6] bg-white p-5 shadow-xs hover:shadow-md hover:border-[#2D6A4F]/40 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-9 w-9 rounded-xl bg-cyan-100 text-cyan-700 flex items-center justify-center font-bold shrink-0">
+                    <Camera className="h-4.5 w-4.5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-bold text-[#192A20] leading-snug">Kamera Makro OV5640</h4>
+                    <span className="text-[10px] text-cyan-700 font-semibold block">5MP Autofokus Lensa</span>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-sm font-bold text-[#192A20]">Kamera Makro CV OV5640</h4>
-                  <span className="text-[11px] text-cyan-600 font-semibold">5 Megapixel Autofokus</span>
-                </div>
+                <p className="text-xs text-[#52796F] leading-relaxed mb-3">
+                  Modul kamera sudut terarah baki penampung untuk pemotretan fajar beresolusi tajam sebelum inferensi deteksi YOLOv8.
+                </p>
               </div>
-              <p className="text-xs text-[#52796F] leading-relaxed mb-3">
-                Modul kamera sudut terarah baki penampung untuk pemotretan fajar beresolusi tajam sebelum inferensi deteksi objek YOLOv8.
-              </p>
-              <div className="bg-[#F8FAF9] p-2.5 rounded-lg text-[11px] font-mono text-[#192A20] space-y-1">
+              <div className="bg-[#F8FAF9] p-2.5 rounded-xl text-[11px] font-mono text-[#192A20] space-y-1 border border-[#E2E8F0]">
                 <div>· Penerangan: Ring LED Diffused</div>
-                <div>· Format: JPEG Kompresi Tinggi via 4G</div>
+                <div>· Format: Kompresi JPEG via 4G</div>
               </div>
             </div>
 
-            <div className="min-w-[280px] sm:min-w-[320px] md:min-w-0 flex-shrink-0 snap-start rounded-2xl border border-[#D1DCD6] bg-white p-6 shadow-xs hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-10 w-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
-                  <Droplets className="h-5 w-5" />
+            {/* Card 4: Baki & Katup Solenoid */}
+            <div className="w-[260px] sm:w-auto flex-shrink-0 snap-start rounded-2xl border border-[#D1DCD6] bg-white p-5 shadow-xs hover:shadow-md hover:border-[#2D6A4F]/40 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-9 w-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold shrink-0">
+                    <Droplets className="h-4.5 w-4.5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-bold text-[#192A20] leading-snug">Baki & Solenoid Drain</h4>
+                    <span className="text-[10px] text-blue-700 font-semibold block">Kuras Otomatis 25 Detik</span>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-sm font-bold text-[#192A20]">Baki & Katup Solenoid Drain</h4>
-                  <span className="text-[11px] text-blue-600 font-semibold">Kuras Otomatis 25 Detik</span>
-                </div>
+                <p className="text-xs text-[#52796F] leading-relaxed mb-3">
+                  Baki penampung air bertegangan permukaan khusus. Katup solenoid 12V membuang air keruh dan pompa menyuplai air bersih.
+                </p>
               </div>
-              <p className="text-xs text-[#52796F] leading-relaxed mb-3">
-                Baki penampung berisi air dengan tegangan permukaan khusus. Katup solenoid 12V membuang air kotor dan pompa mengisi air bersih.
-              </p>
-              <div className="bg-[#F8FAF9] p-2.5 rounded-lg text-[11px] font-mono text-[#192A20] space-y-1">
-                <div>· Sensor: Turbidity NTU + Level Float</div>
-                <div>· Fitur: Dry-Run Lockout Protection</div>
-              </div>
-            </div>
-
-            <div className="min-w-[280px] sm:min-w-[320px] md:min-w-0 flex-shrink-0 snap-start rounded-2xl border border-[#D1DCD6] bg-white p-6 shadow-xs hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-10 w-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
-                  <Cpu className="h-5 w-5" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-[#192A20]">ESP32-S3 Dual-Core 240MHz</h4>
-                  <span className="text-[11px] text-emerald-600 font-semibold">Otak Mikrokontroler</span>
-                </div>
-              </div>
-              <p className="text-xs text-[#52796F] leading-relaxed mb-3">
-                Memproses sensor I2C, menjadwalkan timer RTC presisi DS3231, mengendalikan relay hidraulik, dan melakukan OTA update nirkabel.
-              </p>
-              <div className="bg-[#F8FAF9] p-2.5 rounded-lg text-[11px] font-mono text-[#192A20] space-y-1">
-                <div>· Fitur: Hardware Watchdog Timer</div>
-                <div>· Penyimpanan: Flash SPI 16MB + PSRAM</div>
+              <div className="bg-[#F8FAF9] p-2.5 rounded-xl text-[11px] font-mono text-[#192A20] space-y-1 border border-[#E2E8F0]">
+                <div>· Sensor: Turbidity NTU + Level</div>
+                <div>· Fitur: Anti Dry-Run Lockout</div>
               </div>
             </div>
 
-            <div className="min-w-[280px] sm:min-w-[320px] md:min-w-0 flex-shrink-0 snap-start rounded-2xl border border-[#D1DCD6] bg-white p-6 shadow-xs hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-10 w-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
-                  <Radio className="h-5 w-5" />
+            {/* Card 5: ESP32-S3 */}
+            <div className="w-[260px] sm:w-auto flex-shrink-0 snap-start rounded-2xl border border-[#D1DCD6] bg-white p-5 shadow-xs hover:shadow-md hover:border-[#2D6A4F]/40 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-9 w-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold shrink-0">
+                    <Cpu className="h-4.5 w-4.5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-bold text-[#192A20] leading-snug">ESP32-S3 Dual-Core</h4>
+                    <span className="text-[10px] text-emerald-700 font-semibold block">Mikrokontroler 240MHz</span>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-sm font-bold text-[#192A20]">Modem 4G LTE & MQTT</h4>
-                  <span className="text-[11px] text-indigo-600 font-semibold">Konektivitas Seluler</span>
-                </div>
+                <p className="text-xs text-[#52796F] leading-relaxed mb-3">
+                  Memproses sensor I2C, penjadwalan timer RTC DS3231, relay hidraulik baki, dan pembaruan firmware OTA nirkabel.
+                </p>
               </div>
-              <p className="text-xs text-[#52796F] leading-relaxed mb-3">
-                Mengirimkan data telemetri, foto hasil tangkapan, dan menerima perintah eksekusi dari dashboard web secara real-time di tengah sawah.
-              </p>
-              <div className="bg-[#F8FAF9] p-2.5 rounded-lg text-[11px] font-mono text-[#192A20] space-y-1">
-                <div>· Protokol: MQTT TLS / HTTPS API</div>
-                <div>· Notifikasi: Telegram Bot API Terintegrasi</div>
+              <div className="bg-[#F8FAF9] p-2.5 rounded-xl text-[11px] font-mono text-[#192A20] space-y-1 border border-[#E2E8F0]">
+                <div>· Fitur: Hardware Watchdog</div>
+                <div>· Memori: Flash 16MB + PSRAM</div>
+              </div>
+            </div>
+
+            {/* Card 6: Modem 4G */}
+            <div className="w-[260px] sm:w-auto flex-shrink-0 snap-start rounded-2xl border border-[#D1DCD6] bg-white p-5 shadow-xs hover:shadow-md hover:border-[#2D6A4F]/40 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-9 w-9 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shrink-0">
+                    <Radio className="h-4.5 w-4.5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-bold text-[#192A20] leading-snug">Modem 4G & MQTT</h4>
+                    <span className="text-[10px] text-indigo-700 font-semibold block">Konektivitas Seluler</span>
+                  </div>
+                </div>
+                <p className="text-xs text-[#52796F] leading-relaxed mb-3">
+                  Mengirimkan telemetri, foto hasil tangkapan, dan menerima perintah eksekusi dari dashboard web secara real-time.
+                </p>
+              </div>
+              <div className="bg-[#F8FAF9] p-2.5 rounded-xl text-[11px] font-mono text-[#192A20] space-y-1 border border-[#E2E8F0]">
+                <div>· Protokol: MQTT TLS Encrypted</div>
+                <div>· Notifikasi: Telegram Bot API</div>
               </div>
             </div>
           </div>
