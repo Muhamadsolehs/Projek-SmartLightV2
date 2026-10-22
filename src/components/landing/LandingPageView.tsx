@@ -35,9 +35,12 @@ import {
   Menu,
   X,
   Share2,
+  Compass,
+  ArrowUpRight,
 } from 'lucide-react';
 import { SystemLogo } from '../common/SystemLogo';
 import { ShareModal } from '../common/ShareModal';
+import { FeaturePillarsSection } from './FeaturePillarsSection';
 
 interface PestSpecieData {
   id: string;
@@ -421,439 +424,17 @@ export const LandingPageView: React.FC = () => {
         <div className="absolute top-1/4 left-10 w-96 h-96 bg-[#31572C]/25 rounded-full blur-3xl pointer-events-none" />
       </section>
 
-      {/* 3. NEW INTERACTIVE FEATURE PILLARS SECTION (SAGE, EARTH TONES, ENERGETIC GREEN) */}
-      <section id="fitur-unggulan" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-[#FAFDF9] via-[#F0F5F1] to-[#E9F0EC] border-b border-[#D8E2DC]">
-        <div className="max-w-7xl mx-auto">
-          {/* Section Header with Warm Earth & Sage Accents */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-10">
-            <div>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-[#84A98C]/20 text-[#2D6A4F] border border-[#84A98C]/30">
-                <Sparkles className="h-3.5 w-3.5 text-[#2D6A4F]" />
-                Pilar Fitur Utama Terintegrasi
-              </span>
-              <h2 className="text-2xl sm:text-4xl font-extrabold text-[#192A20] mt-2">
-                Teknologi Cerdas Perlindungan Padi Subang
-              </h2>
-            </div>
-          </div>
+      {/* 3. NEW INTERACTIVE FEATURE PILLARS SECTION (MATCHING SCREENSHOT WITH DIAMOND NAVIGATOR & 2-CARD GRID) */}
+      <FeaturePillarsSection
+        activeFeatureTab={activeFeatureTab}
+        setActiveFeatureTab={setActiveFeatureTab}
+        isCycleRunning={isCycleRunning}
+        cycleProgress={cycleProgress}
+        cycleStep={cycleStep}
+        runSimulatedFlushCycle={runSimulatedFlushCycle}
+        handleEnterDashboard={handleEnterDashboard}
+      />
 
-          {/* Interactive Category Segmented Tabs */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-8 no-scrollbar">
-            <button
-              onClick={() => setActiveFeatureTab('all')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                activeFeatureTab === 'all'
-                  ? 'bg-[#1B4332] text-white shadow-md'
-                  : 'bg-white text-[#52796F] hover:bg-[#E8F0E9] border border-[#D8E2DC]'
-              }`}
-            >
-              Semua Fitur Unggulan
-            </button>
-            <button
-              onClick={() => setActiveFeatureTab('siklus')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
-                activeFeatureTab === 'siklus'
-                  ? 'bg-[#2D6A4F] text-white shadow-md'
-                  : 'bg-white text-[#52796F] hover:bg-[#E8F0E9] border border-[#D8E2DC]'
-              }`}
-            >
-              <Droplets className="h-3.5 w-3.5 text-cyan-600" />
-              Siklus Otomatis
-            </button>
-            <button
-              onClick={() => setActiveFeatureTab('ai')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
-                activeFeatureTab === 'ai'
-                  ? 'bg-[#40916C] text-white shadow-md'
-                  : 'bg-white text-[#52796F] hover:bg-[#E8F0E9] border border-[#D8E2DC]'
-              }`}
-            >
-              <Cpu className="h-3.5 w-3.5 text-emerald-600" />
-              AI Pest Analysis
-            </button>
-            <button
-              onClick={() => setActiveFeatureTab('surya')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
-                activeFeatureTab === 'surya'
-                  ? 'bg-[#BC6C25] text-white shadow-md'
-                  : 'bg-white text-[#52796F] hover:bg-[#FAF4ED] border border-[#D8E2DC]'
-              }`}
-            >
-              <Sun className="h-3.5 w-3.5 text-amber-600" />
-              Tenaga Surya Mandiri
-            </button>
-            <button
-              onClick={() => setActiveFeatureTab('iot')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
-                activeFeatureTab === 'iot'
-                  ? 'bg-[#606C38] text-white shadow-md'
-                  : 'bg-white text-[#52796F] hover:bg-[#F3F4ED] border border-[#D8E2DC]'
-              }`}
-            >
-              <Wifi className="h-3.5 w-3.5 text-emerald-700" />
-              Telemetri 4G & Peringatan
-            </button>
-          </div>
-
-          {/* Feature Cards List - Side-by-Side (Ke Pinggir, Bukan Ke Bawah) */}
-          <div className="grid grid-cols-1 gap-6 sm:gap-7">
-            {/* PILLAR 1: SIKLUS OTOMATIS (Shade of Sage & Aqua) */}
-            {(activeFeatureTab === 'all' || activeFeatureTab === 'siklus') && (
-              <div className="group rounded-3xl border-2 border-[#84A98C]/40 bg-[#F2F7F4] p-6 sm:p-7 shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col lg:flex-row items-stretch justify-between gap-6">
-                {/* Sisi Kiri (Pinggir Kiri): Header, Judul, Deskripsi & Spesifikasi */}
-                <div className="w-full lg:w-7/12 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center gap-3 mb-3.5">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#52B788] to-[#2D6A4F] text-white shadow-xs">
-                        <Droplets className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#84A98C]/25 text-[#1B4332] inline-block">
-                          Hidraulik Otomatis
-                        </span>
-                        <h3 className="text-lg sm:text-xl font-extrabold text-[#192A20] group-hover:text-[#2D6A4F] transition-colors mt-0.5">
-                          Siklus Kuras Baki 25 Detik
-                        </h3>
-                      </div>
-                    </div>
-                    <p className="text-xs sm:text-sm text-[#52796F] leading-relaxed">
-                      Katup solenoid 12V DC Normally Closed membuka secara otomatis setiap pagi untuk membuang air kotor dan bangkai serangga, lalu pompa menyuplai air bersih baru dari tandon secara mandiri.
-                    </p>
-                  </div>
-
-                  <div className="mt-5 pt-3.5 border-t border-[#84A98C]/30 flex flex-wrap items-center justify-between text-xs font-mono text-[#31572C] gap-2">
-                    <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-[#2D6A4F]" /> Sensor Kekeruhan NTU</span>
-                    <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-[#2D6A4F]" /> Anti Dry-Run Lockout</span>
-                    <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-[#2D6A4F]" /> Solenoid Brass 12V</span>
-                  </div>
-                </div>
-
-                {/* Sisi Kanan (Pinggir Kanan): Konsol Interaktif Simulasi Kuras */}
-                <div className="w-full lg:w-5/12 bg-white/90 backdrop-blur-xs p-5 rounded-2xl border border-[#84A98C]/35 shadow-xs flex flex-col justify-center">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <span className="text-xs font-bold text-[#1B4332] block">Konsol Simulasi Kuras Baki</span>
-                      <span className="text-[10px] text-[#52796F]">Uji siklus kuras hidraulik otomatis</span>
-                    </div>
-                    <button
-                      onClick={runSimulatedFlushCycle}
-                      disabled={isCycleRunning}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
-                        isCycleRunning
-                          ? 'bg-emerald-200 text-emerald-800'
-                          : 'bg-[#2D6A4F] text-white hover:bg-[#1B4332]'
-                      }`}
-                    >
-                      <RefreshCw className={`h-3.5 w-3.5 ${isCycleRunning ? 'animate-spin' : ''}`} />
-                      <span>{isCycleRunning ? 'Memproses...' : 'Uji Kuras 25s'}</span>
-                    </button>
-                  </div>
-
-                  {/* Progress bar */}
-                  <div className="w-full bg-[#E0E7E2] h-2.5 rounded-full overflow-hidden mb-2">
-                    <div
-                      className="bg-gradient-to-r from-[#52B788] via-[#2D6A4F] to-[#1B4332] h-full transition-all duration-500"
-                      style={{ width: `${cycleProgress}%` }}
-                    />
-                  </div>
-                  <div className="text-[11px] text-[#52796F] font-mono leading-tight bg-[#F8FAF9] p-2.5 rounded-xl border border-[#E2E8F0]">
-                    {cycleStep}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* PILLAR 2: AI PEST ANALYSIS (Energetic Spring Green) */}
-            {(activeFeatureTab === 'all' || activeFeatureTab === 'ai') && (
-              <div className="group rounded-3xl border-2 border-[#52B788]/50 bg-[#EAF4EE] p-6 sm:p-7 shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col lg:flex-row items-stretch justify-between gap-6">
-                {/* Sisi Kiri (Pinggir Kiri): Header, Judul, Deskripsi & Spesifikasi */}
-                <div className="w-full lg:w-7/12 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center gap-3 mb-3.5">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#40916C] to-[#1B4332] text-white shadow-xs">
-                        <Cpu className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#52B788]/25 text-[#1B4332] inline-block">
-                          Computer Vision 94.2%
-                        </span>
-                        <h3 className="text-lg sm:text-xl font-extrabold text-[#192A20] group-hover:text-[#1B4332] transition-colors mt-0.5">
-                          AI Pest Analysis & Deteksi Makro
-                        </h3>
-                      </div>
-                    </div>
-                    <p className="text-xs sm:text-sm text-[#52796F] leading-relaxed">
-                      Kamera makro OV5640 mengambil foto permukaan baki setiap fajar. Model YOLOv8 mendeteksi Wereng Batang Coklat, Penggerek Batang Kuning, dan Walang Sangit dengan verifikasi bounding box berakurasi tinggi.
-                    </p>
-                  </div>
-
-                  <div className="mt-5 pt-3.5 border-t border-[#52B788]/30 flex flex-wrap items-center justify-between text-xs font-mono text-[#31572C] gap-2">
-                    <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-[#2D6A4F]" /> Sensor OV5640 5MP Makro</span>
-                    <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-[#2D6A4F]" /> Model YOLOv8 Edge</span>
-                    <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-[#2D6A4F]" /> Ambang PHT Kementan</span>
-                  </div>
-                </div>
-
-                {/* Sisi Kanan (Pinggir Kanan): Konsol Interaktif Akurasi AI */}
-                <div className="w-full lg:w-5/12 bg-white/90 backdrop-blur-xs p-5 rounded-2xl border border-[#52B788]/35 shadow-xs flex flex-col justify-center">
-                  <div className="flex items-center justify-between mb-3 text-xs font-bold text-[#192A20]">
-                    <div>
-                      <span className="block text-xs font-bold text-[#1B4332]">Akurasi Model YOLOv8</span>
-                      <span className="text-[10px] text-[#52796F] font-normal">Hasil evaluasi dataset hama padi</span>
-                    </div>
-                    <span className="font-mono text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-lg text-xs font-extrabold">94.2% mAP</span>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2 text-center text-[10px] font-bold font-mono mb-2.5">
-                    <div className="bg-[#D8F3DC] text-[#1B4332] py-2 rounded-xl border border-emerald-300">WBC 98%</div>
-                    <div className="bg-[#FAF0CA] text-amber-900 py-2 rounded-xl border border-amber-300">Penggerek 96%</div>
-                    <div className="bg-[#E6CCB2] text-[#8B5E34] py-2 rounded-xl border border-[#DDB892]">Walang 92%</div>
-                  </div>
-                  <p className="text-[10px] text-[#52796F] leading-tight">
-                    Dilengkapi fitur *Human-in-the-Loop* bagi agronomis untuk mengoreksi label klasifikasi langsung melalui web.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* PILLAR 3: TENAGA SURYA MANDIRI (Rich Warm Earth & Amber) */}
-            {(activeFeatureTab === 'all' || activeFeatureTab === 'surya') && (
-              <div className="group rounded-3xl border-2 border-[#D4A373]/50 bg-[#FAF4ED] p-6 sm:p-7 shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col lg:flex-row items-stretch justify-between gap-6">
-                {/* Sisi Kiri (Pinggir Kiri): Header, Judul, Deskripsi & Spesifikasi */}
-                <div className="w-full lg:w-7/12 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center gap-3 mb-3.5">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#E76F51] via-[#F4A261] to-[#BC6C25] text-white shadow-xs">
-                        <Sun className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#D4A373]/25 text-[#7F4F24] inline-block">
-                          100% Mandiri Energi
-                        </span>
-                        <h3 className="text-lg sm:text-xl font-extrabold text-[#192A20] group-hover:text-[#BC6C25] transition-colors mt-0.5">
-                          Tenaga Surya 50Wp & INA226
-                        </h3>
-                      </div>
-                    </div>
-                    <p className="text-xs sm:text-sm text-[#52796F] leading-relaxed">
-                      Panel fotovoltaik monokristalin 50Wp miring 15° mengisi baterai LiFePO4 12.8V 20Ah. Dilengkapi chip sensor arus INA226 I2C untuk pemantauan daya dan proteksi tegangan rendah.
-                    </p>
-                  </div>
-
-                  <div className="mt-5 pt-3.5 border-t border-[#D4A373]/30 flex flex-wrap items-center justify-between text-xs font-mono text-[#7F4F24] gap-2">
-                    <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-[#BC6C25]" /> Panel Monokristalin 50Wp</span>
-                    <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-[#BC6C25]" /> LiFePO4 2000+ Siklus</span>
-                    <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-[#BC6C25]" /> MPPT Eco Dimming</span>
-                  </div>
-                </div>
-
-                {/* Sisi Kanan (Pinggir Kanan): Konsol Interaktif Simulasi Cuaca */}
-                <div className="w-full lg:w-5/12 bg-white/90 backdrop-blur-xs p-5 rounded-2xl border border-[#D4A373]/35 shadow-xs flex flex-col justify-center">
-                  <div className="flex items-center justify-between mb-3 text-xs font-bold text-[#192A20]">
-                    <div>
-                      <span className="block text-xs font-bold text-[#7F4F24]">Simulasi Cuaca Lapangan</span>
-                      <span className="text-[10px] text-[#718096] font-normal">Pilih profil radiasi sinar matahari</span>
-                    </div>
-                    <span className="font-mono text-[#BC6C25] bg-[#FAF4ED] px-2.5 py-1 rounded-lg text-xs font-extrabold border border-[#D4A373]/30">
-                      {solarIrradianceMode === 'cerah' ? '14.2V · 3.8A (+53W)' : solarIrradianceMode === 'mendung' ? '12.9V · 1.1A (+14W)' : '12.7V · Discharging (-11W)'}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2 text-center text-[10px] font-bold mb-2.5">
-                    <button
-                      onClick={() => setSolarIrradianceMode('cerah')}
-                      className={`py-2 rounded-xl transition-all cursor-pointer font-bold ${
-                        solarIrradianceMode === 'cerah'
-                          ? 'bg-[#BC6C25] text-white shadow-xs'
-                          : 'bg-[#EDE0D4] text-[#7F4F24] hover:bg-[#E5D4C3]'
-                      }`}
-                    >
-                      Terik Penuh
-                    </button>
-                    <button
-                      onClick={() => setSolarIrradianceMode('mendung')}
-                      className={`py-2 rounded-xl transition-all cursor-pointer font-bold ${
-                        solarIrradianceMode === 'mendung'
-                          ? 'bg-[#BC6C25] text-white shadow-xs'
-                          : 'bg-[#EDE0D4] text-[#7F4F24] hover:bg-[#E5D4C3]'
-                      }`}
-                    >
-                      Mendung Sawah
-                    </button>
-                    <button
-                      onClick={() => setSolarIrradianceMode('malam')}
-                      className={`py-2 rounded-xl transition-all cursor-pointer font-bold ${
-                        solarIrradianceMode === 'malam'
-                          ? 'bg-[#BC6C25] text-white shadow-xs'
-                          : 'bg-[#EDE0D4] text-[#7F4F24] hover:bg-[#E5D4C3]'
-                      }`}
-                    >
-                      Malam UV Aktif
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-[#7F4F24] leading-tight">
-                    {solarIrradianceMode === 'cerah'
-                      ? 'MPPT efisiensi 98%, baterai terisi penuh dalam 4.5 jam.'
-                      : solarIrradianceMode === 'mendung'
-                      ? 'Baterai LiFePO4 sanggup bertahan hingga 3 hari cuaca mendung otonom.'
-                      : 'Beban lampu UV 850mA dan ESP32-S3 disuplai dari cadangan LiFePO4.'}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* PILLAR 4: PENARIKAN NOKTURNAL 365NM (Twilight Indigo & Sage) */}
-            {(activeFeatureTab === 'all' || activeFeatureTab === 'siklus') && (
-              <div className="group rounded-3xl border-2 border-[#A3C9A8]/50 bg-[#F0F5F1] p-6 sm:p-7 shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col lg:flex-row items-stretch justify-between gap-6">
-                {/* Sisi Kiri (Pinggir Kiri): Header, Judul, Deskripsi & Spesifikasi */}
-                <div className="w-full lg:w-7/12 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center gap-3 mb-3.5">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#7B2CBF] to-[#5A189A] text-white shadow-xs">
-                        <Zap className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-purple-100 text-purple-800 inline-block">
-                          Fototaxis UV Teruji
-                        </span>
-                        <h3 className="text-lg sm:text-xl font-extrabold text-[#192A20] group-hover:text-[#5A189A] transition-colors mt-0.5">
-                          Lampu UV LED 365nm Presisi
-                        </h3>
-                      </div>
-                    </div>
-                    <p className="text-xs sm:text-sm text-[#52796F] leading-relaxed">
-                      Panjang gelombang 365nm terbukti secara empiris menarik hama padi nokturnal (terutama wereng coklat dan penggerek batang) secara selektif tanpa menguras daya baterai.
-                    </p>
-                  </div>
-
-                  <div className="mt-5 pt-3.5 border-t border-[#A3C9A8]/40 flex flex-wrap items-center justify-between text-xs font-mono text-[#31572C] gap-2">
-                    <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-[#5A189A]" /> Spektrum 365nm UV-A</span>
-                    <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-[#5A189A]" /> RTC DS3231 Presisi</span>
-                    <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-[#5A189A]" /> Proteksi Lampu Putus</span>
-                  </div>
-                </div>
-
-                {/* Sisi Kanan (Pinggir Kanan): Konsol Jadwal UV */}
-                <div className="w-full lg:w-5/12 bg-white/90 backdrop-blur-xs p-5 rounded-2xl border border-[#A3C9A8]/45 shadow-xs flex flex-col justify-center space-y-2 text-xs">
-                  <span className="block text-xs font-bold text-purple-900">Jadwal & Spesifikasi Lampu UV</span>
-                  <div className="flex justify-between items-center bg-[#F9F7FB] p-2.5 rounded-xl border border-purple-100 text-[11px]">
-                    <span className="text-[#52796F]">Jadwal Otomatis:</span>
-                    <span className="font-mono font-bold text-[#192A20]">18:00 - 05:00 WIB</span>
-                  </div>
-                  <div className="flex justify-between items-center bg-[#F9F7FB] p-2.5 rounded-xl border border-purple-100 text-[11px]">
-                    <span className="text-[#52796F]">Sensor Pewaktu:</span>
-                    <span className="font-mono font-semibold text-purple-700">RTC DS3231 + Backup Koin</span>
-                  </div>
-                  <div className="flex justify-between items-center bg-[#F9F7FB] p-2.5 rounded-xl border border-purple-100 text-[11px]">
-                    <span className="text-[#52796F]">Arus Driver LED:</span>
-                    <span className="font-mono font-bold text-emerald-700">PWM 850 mA Konstan</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* PILLAR 5: TELEMETRI 4G & BOT TELEGRAM (Sage-Green & Earth Loam) */}
-            {(activeFeatureTab === 'all' || activeFeatureTab === 'iot') && (
-              <div className="group rounded-3xl border-2 border-[#606C38]/40 bg-[#F4F6EE] p-6 sm:p-7 shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col lg:flex-row items-stretch justify-between gap-6">
-                {/* Sisi Kiri (Pinggir Kiri): Header, Judul, Deskripsi & Spesifikasi */}
-                <div className="w-full lg:w-7/12 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center gap-3 mb-3.5">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#606C38] to-[#283618] text-white shadow-xs">
-                        <Radio className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#606C38]/20 text-[#283618] inline-block">
-                          IoT Seluler & Offline Sync
-                        </span>
-                        <h3 className="text-lg sm:text-xl font-extrabold text-[#192A20] group-hover:text-[#606C38] transition-colors mt-0.5">
-                          Modem 4G LTE & Bot Telegram
-                        </h3>
-                      </div>
-                    </div>
-                    <p className="text-xs sm:text-sm text-[#52796F] leading-relaxed">
-                      Mengirimkan telemetri dan notifikasi peringatan ambang batas seketika ke grup Telegram agronomis. Dilengkapi buffer MicroSD lokal sehingga data aman jika sinyal seluler hilang.
-                    </p>
-                  </div>
-
-                  <div className="mt-5 pt-3.5 border-t border-[#606C38]/30 flex flex-wrap items-center justify-between text-xs font-mono text-[#283618] gap-2">
-                    <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-[#606C38]" /> MQTT TLS Enkripsi</span>
-                    <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-[#606C38]" /> Buffer MicroSD Lokal</span>
-                    <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-[#606C38]" /> Firmware OTA Update</span>
-                  </div>
-                </div>
-
-                {/* Sisi Kanan (Pinggir Kanan): Konsol Komunikasi 4G */}
-                <div className="w-full lg:w-5/12 bg-white/90 backdrop-blur-xs p-5 rounded-2xl border border-[#606C38]/35 shadow-xs flex flex-col justify-center space-y-2 text-xs">
-                  <span className="block text-xs font-bold text-[#283618]">Status Konektivitas & Notifikasi</span>
-                  <div className="flex justify-between items-center bg-[#F8FAF9] p-2.5 rounded-xl border border-[#E2E8F0] text-[11px]">
-                    <span className="text-[#52796F]">Koneksi Utama:</span>
-                    <span className="font-mono font-bold text-[#192A20]">4G Cat-1 MQTT TLS</span>
-                  </div>
-                  <div className="flex justify-between items-center bg-[#F8FAF9] p-2.5 rounded-xl border border-[#E2E8F0] text-[11px]">
-                    <span className="text-[#52796F]">Penyimpanan Cadangan:</span>
-                    <span className="font-mono font-semibold text-emerald-700">MicroSD SPI (Auto-Sync)</span>
-                  </div>
-                  <div className="flex justify-between items-center bg-[#F8FAF9] p-2.5 rounded-xl border border-[#E2E8F0] text-[11px]">
-                    <span className="text-[#52796F]">Notifikasi Instan:</span>
-                    <span className="font-mono font-bold text-[#606C38]">Telegram Bot API</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* PILLAR 6: AMBANG KENDALI PHT KEMENTAN (Forest Emerald) */}
-            {(activeFeatureTab === 'all' || activeFeatureTab === 'ai') && (
-              <div className="group rounded-3xl border-2 border-[#2D6A4F]/40 bg-[#E8F1EC] p-6 sm:p-7 shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col lg:flex-row items-stretch justify-between gap-6">
-                {/* Sisi Kiri (Pinggir Kiri): Header, Judul, Deskripsi & Spesifikasi */}
-                <div className="w-full lg:w-7/12 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center gap-3 mb-3.5">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2D6A4F] to-[#1B4332] text-white shadow-xs">
-                        <ShieldCheck className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-200 text-emerald-900 inline-block">
-                          Standar PHT Nasional
-                        </span>
-                        <h3 className="text-lg sm:text-xl font-extrabold text-[#192A20] group-hover:text-[#1B4332] transition-colors mt-0.5">
-                          Pengendalian Hama Terpadu Presisi
-                        </h3>
-                      </div>
-                    </div>
-                    <p className="text-xs sm:text-sm text-[#52796F] leading-relaxed">
-                      Menghilangkan kebiasaan semprot terjadwal membabi buta. Petani hanya menyemprot jika data tangkapan baki melampaui kurva ambang ekonomi, menghemat 42% biaya pestisida.
-                    </p>
-                  </div>
-
-                  <div className="mt-5 pt-3.5 border-t border-[#2D6A4F]/30 flex flex-wrap items-center justify-between text-xs font-mono text-[#1B4332] gap-2">
-                    <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-[#2D6A4F]" /> Beras Rendah Residu</span>
-                    <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-[#2D6A4F]" /> Ekosistem Sawah Sehat</span>
-                    <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-[#2D6A4F]" /> Perlindungan Kepik Mirid</span>
-                  </div>
-                </div>
-
-                {/* Sisi Kanan (Pinggir Kanan): Konsol Ambang Batas PHT */}
-                <div className="w-full lg:w-5/12 bg-white/90 backdrop-blur-xs p-5 rounded-2xl border border-[#2D6A4F]/35 shadow-xs flex flex-col justify-center space-y-2 text-xs">
-                  <span className="block text-xs font-bold text-[#1B4332]">Efisiensi & Rekomendasi PHT</span>
-                  <div className="flex justify-between items-center bg-[#F4F9F6] p-2.5 rounded-xl border border-emerald-100 text-[11px]">
-                    <span className="text-[#52796F]">Pengurangan Racun Kimia:</span>
-                    <span className="font-mono font-bold text-emerald-700">-42% per Musim</span>
-                  </div>
-                  <div className="flex justify-between items-center bg-[#F4F9F6] p-2.5 rounded-xl border border-emerald-100 text-[11px]">
-                    <span className="text-[#52796F]">Penyelamatan Musuh Alami:</span>
-                    <span className="font-mono font-semibold text-[#1B4332]">Kepik Mirid & Laba-laba</span>
-                  </div>
-                  <div className="flex justify-between items-center bg-[#F4F9F6] p-2.5 rounded-xl border border-emerald-100 text-[11px]">
-                    <span className="text-[#52796F]">Dukungan Petugas PPL:</span>
-                    <span className="font-mono font-bold text-[#2D6A4F]">Laporan Harian PDF/CSV</span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
 
       {/* 4. SECTION INTERAKTIF: AI INSECT CLASSIFIER & AMBANG KENDALI PHT */}
       <section id="ai-classifier" className="py-20 px-4 sm:px-6 lg:px-8 bg-[#F6F9F5] border-b border-[#90A955]/25">
@@ -874,10 +455,10 @@ export const LandingPageView: React.FC = () => {
             </p>
           </div>
 
-          {/* Interactive Classifier Playground Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+          {/* Interactive Classifier Playground Grid (Equal Height & Flush Alignment) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-stretch">
             {/* Left Controls & Species Selector (5 Cols) */}
-            <div className="lg:col-span-5 space-y-4">
+            <div className="lg:col-span-5 flex flex-col justify-between h-full space-y-4">
               {/* Card 1: Species Selector */}
               <div className="rounded-2xl border border-[#90A955]/30 bg-white p-4 sm:p-5 shadow-xs space-y-3">
                 <div className="flex items-center justify-between">
@@ -955,19 +536,21 @@ export const LandingPageView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Card 3: Damage Symptoms & Optical Spectrum Info */}
-              <div className="rounded-2xl border border-[#90A955]/30 bg-white p-4 sm:p-5 shadow-xs space-y-3">
-                <div className="flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-[#4F772D]" />
-                  <h4 className="text-xs font-bold text-[#132A13]">
-                    Gejala Serangan di Sawah Subang:
-                  </h4>
+              {/* Card 3: Damage Symptoms & Optical Spectrum Info (Expands to align with right side) */}
+              <div className="rounded-2xl border border-[#90A955]/30 bg-white p-4 sm:p-5 shadow-xs space-y-3 flex-1 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Activity className="h-4 w-4 text-[#4F772D]" />
+                    <h4 className="text-xs font-bold text-[#132A13]">
+                      Gejala Serangan di Sawah Subang:
+                    </h4>
+                  </div>
+                  <p className="text-xs text-[#31572C] leading-relaxed">
+                    {selectedPest.damageSymptom}
+                  </p>
                 </div>
-                <p className="text-xs text-[#31572C] leading-relaxed">
-                  {selectedPest.damageSymptom}
-                </p>
 
-                <div className="pt-3 border-t border-[#90A955]/20 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-[11px]">
+                <div className="pt-3 border-t border-[#90A955]/20 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-[11px] mt-auto">
                   <span className="text-[#31572C] font-medium">Panjang Gelombang Lampu:</span>
                   <span className="font-semibold text-[#132A13] bg-[#ECF39E]/40 px-2 py-0.5 rounded-md border border-[#90A955]/30 self-start sm:self-auto">
                     {selectedPest.wavelength}
@@ -976,8 +559,8 @@ export const LandingPageView: React.FC = () => {
               </div>
             </div>
 
-            {/* Right Interactive Viewfinder & Decision Box (7 Cols) */}
-            <div className="lg:col-span-7 space-y-4">
+            {/* Right Interactive Viewfinder & Decision Box (7 Cols, Equal Height) */}
+            <div className="lg:col-span-7 flex flex-col justify-between h-full space-y-4">
               {/* Simulated Camera Viewfinder */}
               <div className="relative rounded-2xl overflow-hidden border-2 border-[#31572C] bg-[#0c1e17] p-4 sm:p-5 shadow-xl text-white">
                 <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-3">
@@ -1059,9 +642,9 @@ export const LandingPageView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Dynamic Action Decision Box (Neat & Harmonious) */}
+              {/* Dynamic Action Decision Box (Equal Height with Card 3) */}
               <div
-                className={`p-4 sm:p-5 rounded-2xl border-2 transition-all shadow-xs ${
+                className={`p-4 sm:p-5 rounded-2xl border-2 transition-all shadow-xs flex-1 flex flex-col justify-center ${
                   simulatedCount >= selectedPest.thresholdValue
                     ? 'border-red-400 bg-red-50/95 text-red-950'
                     : simulatedCount >= selectedPest.thresholdValue * 0.6

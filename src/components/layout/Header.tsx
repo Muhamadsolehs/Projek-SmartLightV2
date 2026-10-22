@@ -33,7 +33,7 @@ export const Header: React.FC<{
   const onlineCount = devices.filter((d) => d.status === 'online').length;
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 sm:h-16 w-full items-center justify-between border-b border-[#90A955]/30 bg-white/95 px-4 backdrop-blur-md sm:px-6 text-[#132A13]">
+    <header className="sticky top-0 z-40 flex h-14 sm:h-16 w-full items-center justify-between border-b border-[#90A955]/30 bg-white/95 px-4 backdrop-blur-md sm:px-6 text-[#132A13] shadow-xs">
       {/* Sisi Kiri: Hamburger Menu Mobile + Breadcrumb Desktop */}
       <div className="flex items-center gap-3 min-w-0">
         <button

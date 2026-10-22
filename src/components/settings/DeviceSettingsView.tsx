@@ -74,12 +74,12 @@ export const DeviceSettingsView: React.FC<{ onOpenSimulator?: () => void }> = ({
         </div>
 
         {/* Device Picker */}
-        <div className="flex items-center gap-2 text-xs self-start sm:self-auto">
-          <span className="text-[#718096]">Unit Konfigurasi:</span>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 text-xs w-full sm:w-auto max-w-full">
+          <span className="text-[#718096] shrink-0 font-medium">Unit Konfigurasi:</span>
           <select
             value={selectedDevice.id}
             onChange={(e) => setSelectedDeviceId(e.target.value)}
-            className="rounded-lg border border-[#E2E8F0] bg-white px-3 py-1.5 font-mono text-xs font-bold text-[#192A20] focus:border-[#2D6A4F] focus:outline-hidden"
+            className="w-full sm:w-auto max-w-full truncate rounded-lg border border-[#E2E8F0] bg-white px-3 py-1.5 font-mono text-xs font-bold text-[#192A20] focus:border-[#2D6A4F] focus:outline-hidden shadow-2xs cursor-pointer"
           >
             {devices.map((d) => (
               <option key={d.id} value={d.id}>
