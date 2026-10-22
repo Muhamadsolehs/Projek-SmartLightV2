@@ -275,17 +275,6 @@ export const LandingPageView: React.FC = () => {
             </button>
           )}
 
-          {/* Tombol Bagikan Link & Poster Media Sosial */}
-          <button
-            onClick={() => setIsShareModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#31572C]/70 hover:bg-[#4F772D] text-[#ECF39E] hover:text-white border border-[#90A955]/40 text-xs font-bold transition-all cursor-pointer shadow-xs"
-            title="Bagikan Tautan & Lihat Pratinjau Poster"
-            aria-label="Bagikan Tautan"
-          >
-            <Share2 className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Bagikan</span>
-          </button>
-
           {/* Hamburger Menu Toggle Button for Mobile (< lg) */}
           <button
             onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
