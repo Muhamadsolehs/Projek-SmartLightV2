@@ -34,8 +34,10 @@ import {
   LogOut,
   Menu,
   X,
+  Share2,
 } from 'lucide-react';
 import { SystemLogo } from '../common/SystemLogo';
+import { ShareModal } from '../common/ShareModal';
 
 interface PestSpecieData {
   id: string;
@@ -124,6 +126,9 @@ export const LandingPageView: React.FC = () => {
 
   // Mobile Navigation Menu Drawer State
   const [isMobileNavOpen, setIsMobileNavOpen] = useState<boolean>(false);
+
+  // Social Share & Poster Modal State
+  const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
 
   // Active Interactive Feature Pillar Tab ('all' | 'siklus' | 'ai' | 'surya' | 'iot')
   const [activeFeatureTab, setActiveFeatureTab] = useState<'all' | 'siklus' | 'ai' | 'surya' | 'iot'>('all');
@@ -269,6 +274,17 @@ export const LandingPageView: React.FC = () => {
               <span>Masuk ke Akun</span>
             </button>
           )}
+
+          {/* Tombol Bagikan Link & Poster Media Sosial */}
+          <button
+            onClick={() => setIsShareModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#31572C]/70 hover:bg-[#4F772D] text-[#ECF39E] hover:text-white border border-[#90A955]/40 text-xs font-bold transition-all cursor-pointer shadow-xs"
+            title="Bagikan Tautan & Lihat Pratinjau Poster"
+            aria-label="Bagikan Tautan"
+          >
+            <Share2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Bagikan</span>
+          </button>
 
           {/* Hamburger Menu Toggle Button for Mobile (< lg) */}
           <button

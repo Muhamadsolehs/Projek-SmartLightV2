@@ -50,7 +50,6 @@ export const Sidebar: React.FC<{ isMobileOpen?: boolean; onCloseMobile?: () => v
     { id: 'water', label: 'Siklus & Air Baki', icon: Droplets },
     { id: 'alerts', label: 'Pusat Notifikasi', icon: Bell, badgeCount: unacknowledgedAlerts },
     { id: 'settings', label: 'Pengaturan & OTA', icon: Settings },
-    { id: 'architecture', label: 'Arsitektur & API', icon: Code2 },
   ];
 
   return (
