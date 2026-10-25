@@ -124,12 +124,14 @@ interface DeviceContextType {
     fullName: string
   ) => Promise<{ success: boolean; needsConfirmation: boolean; error: string | null }>;
   loginAsDemo: (demoUser: UserProfile) => void;
+  logout: () => Promise<void>;
   // Device CRUD actions (Admin only)
   createDevice: (data: any) => Promise<SmartLightTrapDevice>;
   updateDevice: (id: string, updates: any) => Promise<boolean>;
   deleteDevice: (id: string) => Promise<boolean>;
   // Live connectivity & state
   dataSource: DataSourceMode;
+  dataSourceMode?: DataSourceMode;
   setDataSource: (mode: DataSourceMode) => void;
   isLiveConnected: boolean;
   isLoadingData: boolean;
@@ -874,6 +876,7 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updateDevice,
         deleteDevice,
         dataSource,
+        dataSourceMode: dataSource,
         setDataSource,
         isLiveConnected,
         isLoadingData,

@@ -38,8 +38,8 @@
 // ============================================================================
 // 2. KREDENSIAL JARINGAN (WI-FI)
 // ============================================================================
-#define WIFI_SSID     "SMART_TRAP_AP"
-#define WIFI_PASSWORD "PadiSubang2026"
+#define WIFI_SSID     "Amj"
+#define WIFI_PASSWORD "Alya123*"
 
 // Wi-Fi Connection Timeout & Retry parameters
 #define WIFI_CONNECT_TIMEOUT_MS 15000
@@ -48,7 +48,7 @@
 // ============================================================================
 // 3. ENDPOINT SUPABASE EDGE FUNCTIONS (HTTPS)
 // ============================================================================
-#define SUPABASE_BASE_URL "https://nrskcmbnctpdxywhigtu.supabase.co/functions/v1"
+#define SUPABASE_BASE_URL "https://nrskcmbnctpdxywhigtu.supabase.co"
 
 #define URL_COMMAND_POLL  SUPABASE_BASE_URL "/device-command-poll"
 #define URL_COMMAND_ACK   SUPABASE_BASE_URL "/device-command-ack"

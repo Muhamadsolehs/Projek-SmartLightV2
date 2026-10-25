@@ -180,3 +180,17 @@ export interface UserProfile {
   assignedRegion: string;
 }
 
+export interface DailyPestTrend {
+  date: string;
+  dayLabel: string;
+  stemBorer: number;
+  planthopper: number;
+  armyworm: number;
+  riceBug: number;
+  leafFolder: number;
+  otherInsects: number;
+  totalTarget: number;
+  totalAll: number;
+  thresholdAlert: boolean;
+}
+

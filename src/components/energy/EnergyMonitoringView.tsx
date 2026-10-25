@@ -206,7 +206,7 @@ export const EnergyMonitoringView: React.FC = () => {
                   ? MOCK_BATTERY_24H.map((m) => ({
                       timeLabel: m.hour,
                       busVoltageV: m.busVoltageV,
-                      currentMa: m.solarCurrentMa,
+                      currentMa: m.currentMa,
                     }))
                   : history.map((h) => ({
                       timeLabel: h.timeLabel,

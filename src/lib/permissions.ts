@@ -26,6 +26,7 @@ export type Permission =
   | 'view:user_management'
   | 'export:reports'
   | 'control:devices'
+  | 'manage:devices'
   | 'manage:device_settings'
   | 'manage:device_ota'
   | 'manage:devices_create_delete'
@@ -101,6 +102,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
     'view:user_management',
     'export:reports',
     'control:devices',
+    'manage:devices',
     'manage:device_settings',
     'manage:device_ota',
     'manage:devices_create_delete',
@@ -122,6 +124,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
     'view:architecture',
     'export:reports',
     'control:devices',
+    'manage:devices',
     'manage:device_settings',
     'manage:device_ota',
     'action:acknowledge_alert',
