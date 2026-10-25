@@ -12,22 +12,71 @@ import {
   CheckCircle2,
   Cpu,
   Layers,
+  RotateCw,
+  Database,
+  Sparkles,
+  AlertCircle,
+  Loader2,
+  Plus,
+  Edit2,
+  Trash2,
 } from 'lucide-react';
 import { useDevice } from '../../context/DeviceContext';
 import { SmartLightTrapDevice } from '../../types';
 import { DeviceDetailModal } from './DeviceDetailModal';
+import { DeviceFormModal } from './DeviceFormModal';
+import { hasPermission } from '../../lib/permissions';
 
 export const DeviceListView: React.FC = () => {
   const {
     devices,
     selectedDeviceId,
     setSelectedDeviceId,
+    devicesLoading,
+    devicesEmpty,
+    devicesError,
+    dataSource,
+    refreshData,
+    setIsLoginModalOpen,
+    deleteDevice,
+    currentUser,
   } = useDevice();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'online' | 'warning' | 'offline'>('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [activeModalDevice, setActiveModalDevice] = useState<SmartLightTrapDevice | null>(null);
+
+  // Form Modal state (Tambah / Edit Perangkat)
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [deviceToEdit, setDeviceToEdit] = useState<SmartLightTrapDevice | null>(null);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
+
+  const canManageDevices = hasPermission(currentUser?.role, 'manage:devices');
+
+  const handleDeleteDevice = async (device: SmartLightTrapDevice, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!canManageDevices) return;
+
+    const confirmDelete = window.confirm(
+      `PERINGATAN: Anda akan menghapus unit '${device.code} - ${device.name}' secara permanen dari Supabase. Seluruh data telemetri dan log terkait akan ikut terhapus. Lanjutkan?`
+    );
+    if (!confirmDelete) return;
+
+    try {
+      await deleteDevice(device.id);
+      setActionNotice(`Perangkat ${device.code} berhasil dihapus dari database.`);
+      setTimeout(() => setActionNotice(null), 4000);
+    } catch (err: any) {
+      alert(`Gagal menghapus perangkat: ${err?.message}`);
+    }
+  };
+
+  const handleOpenEdit = (device: SmartLightTrapDevice, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeviceToEdit(device);
+    setIsFormModalOpen(true);
+  };
 
   // Status counts for quick KPI strip
   const totalCount = devices.length;
@@ -71,13 +120,96 @@ export const DeviceListView: React.FC = () => {
             Monitoring Perangkat
           </h1>
           <p className="text-xs sm:text-sm text-[#52796F] mt-1 max-w-2xl">
-            Pemantauan status operasional armada perangkap serangga pintar, sensor energi INA226, baki air, dan transmisi 4G di lahan sawah.
+            Pemantauan status operasional armada perangkap serangga pintar, sensor energi INA226, baki air, dan transmisi 4G di lahan sawah Subang.
           </p>
         </div>
-        <span className="text-xs text-[#718096] self-start sm:self-auto mt-1 sm:mt-0">
-          Menampilkan <span className="font-semibold text-[#192A20]">{filteredDevices.length}</span> dari {devices.length} unit
-        </span>
+        <div className="flex items-center gap-2 self-start sm:self-auto mt-2 sm:mt-0">
+          {canManageDevices && (
+            <button
+              onClick={() => {
+                setDeviceToEdit(null);
+                setIsFormModalOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#31572C] text-white text-xs font-semibold hover:bg-[#4F772D] transition-all cursor-pointer shadow-xs"
+              title="Daftarkan Unit Smart Light Trap Baru"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Tambah Perangkat</span>
+            </button>
+          )}
+          <button
+            onClick={() => refreshData()}
+            disabled={devicesLoading}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#90A955]/40 bg-white text-xs font-semibold text-[#132A13] hover:bg-[#ECF39E]/20 transition-all cursor-pointer shadow-2xs"
+            title="Segarkan data dari Supabase"
+          >
+            <RotateCw className={`h-3.5 w-3.5 text-[#31572C] ${devicesLoading ? 'animate-spin' : ''}`} />
+            <span>{devicesLoading ? 'Menyinkronkan...' : 'Segarkan Data'}</span>
+          </button>
+          <span className="text-xs text-[#718096]">
+            <span className="font-semibold text-[#192A20]">{filteredDevices.length}</span> dari {devices.length} unit
+          </span>
+        </div>
       </div>
+
+      {/* Action Notification Banner */}
+      {actionNotice && (
+        <div className="p-3 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-xs flex items-center gap-2 animate-fadeIn">
+          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+          <span>{actionNotice}</span>
+        </div>
+      )}
+
+      {/* Data Source Notice Banner */}
+      {dataSource === 'simulation_demo' ? (
+        <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-xs text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-amber-600 shrink-0" />
+            <span>
+              <strong>Mode Simulasi Aktif:</strong> Menampilkan data mock tiruan lokal untuk preview desain antarmuka. Data ini bukan bacaan sensor riil dari database Supabase.
+            </span>
+          </div>
+          <button
+            onClick={() => setIsLoginModalOpen(true)}
+            className="px-3 py-1 rounded-lg bg-amber-600 text-white text-[11px] font-bold hover:bg-amber-700 transition-colors shrink-0 cursor-pointer"
+          >
+            Masuk Akun Supabase Live
+          </button>
+        </div>
+      ) : (
+        <div className="p-3 rounded-xl bg-[#EAF4EE] border border-[#4F772D]/30 text-xs text-[#132A13] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-2xs">
+          <div className="flex items-center gap-2">
+            <Database className="h-4 w-4 text-[#31572C] shrink-0" />
+            <span>
+              <strong>Database Supabase Terautentikasi:</strong> Data perangkat dibaca langsung dari tabel <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-[#4F772D]/20">public.devices</code> (RLS Active, Region Subang).
+            </span>
+          </div>
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold shrink-0">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
+            Live PostgreSQL
+          </span>
+        </div>
+      )}
+
+      {/* Error Alert Banner */}
+      {devicesError && (
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-xs text-red-900 flex items-start gap-3 shadow-2xs">
+          <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+          <div className="space-y-1 flex-1">
+            <div className="font-bold">Gagal Mengambil Data Armada dari Supabase</div>
+            <p className="text-red-700">{devicesError}</p>
+            <div className="text-[11px] text-red-600">
+              Periksa kebijakan RLS, status login pengguna, atau jaringan internet Anda.
+            </div>
+          </div>
+          <button
+            onClick={() => refreshData()}
+            className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700 transition-colors shrink-0 cursor-pointer"
+          >
+            Coba Lagi
+          </button>
+        </div>
+      )}
 
       {/* 3. Ringkasan Status Perangkat (KPI Status Strip) */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -210,8 +342,53 @@ export const DeviceListView: React.FC = () => {
         </div>
       </div>
 
+      {/* 4A. LOADING STATE */}
+      {devicesLoading && (
+        <div className="p-12 text-center bg-white rounded-2xl border border-[#90A955]/30 shadow-xs flex flex-col items-center justify-center gap-3">
+          <Loader2 className="h-8 w-8 text-[#31572C] animate-spin" />
+          <div className="text-sm font-bold text-[#132A13]">Menghubungkan & Membaca Data Armada Supabase...</div>
+          <p className="text-xs text-[#52796F] max-w-sm">
+            Mengeksekusi kueri terautentikasi ke tabel devices, telemetri INA226, dan status baki air di region Subang.
+          </p>
+        </div>
+      )}
+
+      {/* 4B. EMPTY DATABASE STATE (Ketika tabel devices 0 baris) */}
+      {!devicesLoading && devices.length === 0 && (
+        <div className="p-10 text-center bg-white rounded-2xl border-2 border-dashed border-[#90A955]/40 shadow-xs flex flex-col items-center justify-center gap-3">
+          <div className="h-14 w-14 rounded-2xl bg-[#EAF4EE] flex items-center justify-center text-[#31572C]">
+            <Cpu className="h-7 w-7 text-[#4F772D]" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-base font-bold text-[#132A13]">Belum Ada Perangkat Smart Light Trap Terdaftar</h3>
+            <p className="text-xs text-[#52796F] max-w-md mx-auto leading-relaxed">
+              Koneksi ke Supabase berhasil, namun tabel <code className="font-mono bg-[#F6F9F5] px-1.5 py-0.5 rounded text-[#31572C]">public.devices</code> tidak mengembalikan data. Pastikan migrasi data awal <code className="font-mono text-[#31572C]">00004_initial_seed.sql</code> telah dijalankan di Supabase.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            <button
+              onClick={() => refreshData()}
+              className="px-4 py-2 rounded-xl bg-[#31572C] text-white text-xs font-bold hover:bg-[#4F772D] transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
+            >
+              <RotateCw className="h-3.5 w-3.5" />
+              <span>Segarkan Kueri</span>
+            </button>
+            {dataSource !== 'simulation_demo' && (
+              <button
+                onClick={() => setIsLoginModalOpen(true)}
+                className="px-4 py-2 rounded-xl border border-[#90A955]/40 bg-[#F6F9F5] text-[#132A13] text-xs font-semibold hover:bg-white transition-colors cursor-pointer"
+              >
+                Gunakan Mode Simulasi
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* 5A. TAMPILAN DESKTOP: TABEL RAMPING 7 KOLOM (hidden on mobile / lg:block) */}
-      <div className="hidden lg:block rounded-xl border border-[#E2E8F0] bg-white shadow-xs overflow-hidden">
+      {!devicesLoading && devices.length > 0 && (
+        <>
+          <div className="hidden lg:block rounded-xl border border-[#E2E8F0] bg-white shadow-xs overflow-hidden">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="border-b border-[#90A955]/30 bg-[#F6F9F5] text-[#31572C] font-semibold text-[11px] uppercase tracking-wider">
@@ -338,16 +515,38 @@ export const DeviceListView: React.FC = () => {
 
                   {/* Kolom 7: Aksi */}
                   <td className="py-3.5 px-4 text-center">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenDetail(device);
-                      }}
-                      className="inline-flex items-center gap-1 rounded-lg border border-[#D1DCD6] bg-white px-3 py-1.5 text-xs font-semibold text-[#1B4332] hover:bg-[#EAF4EE] transition-colors"
-                    >
-                      <span>Lihat Detail</span>
-                      <ChevronRight className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="flex items-center justify-center gap-1.5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenDetail(device);
+                        }}
+                        className="inline-flex items-center gap-1 rounded-lg border border-[#D1DCD6] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#1B4332] hover:bg-[#EAF4EE] transition-colors cursor-pointer"
+                        title="Lihat Telemetri & Kontrol Perangkat"
+                      >
+                        <span>Detail</span>
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </button>
+
+                      {canManageDevices && (
+                        <>
+                          <button
+                            onClick={(e) => handleOpenEdit(device, e)}
+                            className="p-1.5 rounded-lg border border-[#90A955]/40 text-[#31572C] hover:bg-[#ECF39E]/30 transition-colors cursor-pointer"
+                            title="Edit Data Perangkat"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteDevice(device, e)}
+                            className="p-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                            title="Hapus Perangkat dari Database"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
@@ -471,7 +670,7 @@ export const DeviceListView: React.FC = () => {
                 </div>
               )}
 
-              {/* Bagian Bawah: Status Kesiapan PHT (Tanpa Field Waktu) */}
+              {/* Bagian Bawah: Status Kesiapan PHT */}
               <div className="pt-2 border-t border-[#90A955]/20 flex items-center justify-between text-xs">
                 <span className="text-[#31572C] font-medium">Status Pengendalian:</span>
                 <span className="font-semibold text-[#132A13] bg-[#ECF39E]/40 px-2.5 py-0.5 rounded-full border border-[#90A955]/30">
@@ -479,13 +678,34 @@ export const DeviceListView: React.FC = () => {
                 </span>
               </div>
 
-              <button
-                onClick={() => handleOpenDetail(device)}
-                className="w-full min-h-[44px] py-2.5 px-4 bg-[#1B4332] text-white rounded-lg text-xs font-semibold hover:bg-[#2D6A4F] transition-colors flex items-center justify-center gap-2"
-              >
-                <span>Lihat Detail Perangkat</span>
-                <ChevronRight className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  onClick={() => handleOpenDetail(device)}
+                  className="flex-1 min-h-[40px] py-2 px-3 bg-[#1B4332] text-white rounded-lg text-xs font-semibold hover:bg-[#2D6A4F] transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <span>Lihat Detail</span>
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+                {canManageDevices && (
+                  <>
+                    <button
+                      onClick={(e) => handleOpenEdit(device, e)}
+                      className="min-h-[40px] px-3 rounded-lg border border-[#90A955]/40 text-[#31572C] hover:bg-[#ECF39E]/30 text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                      title="Edit Perangkat"
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      onClick={(e) => handleDeleteDevice(device, e)}
+                      className="min-h-[40px] px-3 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                      title="Hapus Perangkat"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           );
         })}
@@ -496,12 +716,24 @@ export const DeviceListView: React.FC = () => {
           </div>
         )}
       </div>
+    </>
+  )}
 
       {/* Detail Modal */}
       <DeviceDetailModal
         device={activeModalDevice}
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
+      />
+
+      {/* Form Modal (Tambah / Edit Perangkat - Admin only) */}
+      <DeviceFormModal
+        isOpen={isFormModalOpen}
+        onClose={() => {
+          setIsFormModalOpen(false);
+          setDeviceToEdit(null);
+        }}
+        deviceToEdit={deviceToEdit}
       />
     </div>
   );

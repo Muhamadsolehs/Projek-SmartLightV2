@@ -112,7 +112,8 @@ export interface DeviceCommand {
     | 'SYNC_MICROSD'
     | 'REBOOT_ESP32'
     | 'UPDATE_FIRMWARE_OTA'
-    | 'SET_SCHEDULE';
+    | 'SET_SCHEDULE'
+    | 'SET_RELAY';
   parameters?: Record<string, any>;
   status: 'PENDING' | 'SENT' | 'ACKNOWLEDGED' | 'COMPLETED' | 'FAILED';
   createdAt: string;
@@ -168,11 +169,14 @@ export interface WaterChangeLog {
   status: 'SUCCESS' | 'ABORTED_EMPTY_TANK' | 'OVERFLOW_SAFETY_STOP';
 }
 
+export type UserRole = 'admin' | 'operator' | 'analyst' | 'viewer';
+
 export interface UserProfile {
   id: string;
   name: string;
   email: string;
-  role: 'Agronomis Lapangan' | 'Operator Teknis Subang' | 'Supervisor PHT';
+  role: UserRole;
   avatarInitials: string;
   assignedRegion: string;
 }
+

@@ -14,10 +14,22 @@ import {
   ChevronRight,
   Sliders,
 } from 'lucide-react';
+import { useDevice } from '../../context/DeviceContext';
+import { hasPermission } from '../../lib/permissions';
+import { AccessDenied } from '../common/AccessDenied';
 
 export const ArchitectureApiView: React.FC<{ onOpenSimulator?: () => void }> = ({ onOpenSimulator }) => {
+  const { currentUser } = useDevice();
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const [activeSchemaTab, setActiveSchemaTab] = useState<'sql' | 'api' | 'hardware'>('sql');
+
+  if (!hasPermission(currentUser?.role, 'view:architecture')) {
+    return (
+      <AccessDenied
+        requiredPermissionDescription="Dokumentasi teknis arsitektur perangkat keras dan endpoint API dibatasi untuk Administrator, Operator, dan Analis."
+      />
+    );
+  }
 
   const copyToClipboard = (text: string, sectionId: string) => {
     navigator.clipboard.writeText(text);
@@ -158,18 +170,20 @@ CREATE TABLE device_commands (
 );`;
 
   const apiSnippet = `// ============================================================================
-// SMART LIGHT TRAP IoT REST / MQTT API CONTRACT SPECIFICATION
-// Base URL: https://api.smartlighttrap.agri/v1
-// Auth: Bearer Token (X-Device-Token Header)
+// SMART LIGHT TRAP IoT SUPABASE EDGE FUNCTIONS SPECIFICATION
+// Base URL: https://<PROJECT-REF>.supabase.co/functions/v1
+// Auth: Bearer Token (X-Device-Token Header) - Verified with SHA-256 hash in DB
+// Region Scope: Subang, Jawa Barat
 // ============================================================================
 
-// 1. ENDPOINT TELEMETRI REGULER PERANGKAT (KIRIM TIAP 5 MENIT)
-// POST /api/v1/telemetry
+// 1. ENDPOINT TELEMETRI REGULER PERANGKAT ESP32-S3 (TIAP 5 MENIT)
+// POST /functions/v1/device-telemetry
 // Request Headers:
 //   Content-Type: application/json
-//   X-Device-Token: slt_sec_99a8b7c6d5e4...
+//   X-Device-Code: SLT-SBG-01
+//   X-Device-Token: slt_token_sbg01_secret_2026
 {
-  "device_id": "SLT-KRW-01",
+  "device_code": "SLT-SBG-01",
   "timestamp": "2026-10-21T20:45:00+07:00",
   "sequence_number": 4892,
   "battery": {
@@ -177,7 +191,9 @@ CREATE TABLE device_commands (
     "shunt_voltage_mv": -42.50,
     "current_ma": -860,
     "power_mw": 11334,
-    "is_charging": false
+    "is_charging": false,
+    "solar_voltage_v": 0.0,
+    "solar_current_ma": 0.0
   },
   "water": {
     "tray_level_percent": 82,
@@ -202,37 +218,35 @@ CREATE TABLE device_commands (
     "operator": "Telkomsel IoT SIM",
     "unsynced_microsd_packets": 0
   },
-  "rtc": {
-    "chip": "DS3231",
-    "status": "synced"
-  }
+  "temperature_c": 25.8,
+  "humidity_percent": 88
 }
 
 // 2. ENDPOINT UPLOAD HASIL INFERENSI KAMERA & DETEKSI CV
-// POST /api/v1/detections/upload
+// POST /functions/v1/device-detections
 {
-  "device_id": "SLT-KRW-02",
+  "device_code": "SLT-SBG-02",
   "timestamp": "2026-10-21T20:00:00+07:00",
-  "image_filename": "cap_krw02_20261021_2000.jpg",
+  "image_storage_path": "devices/SLT-SBG-02/2026/10/photo_01.jpg",
   "resolution": "1920x1080",
   "model_version": "YOLOv8-AgriPest v1.4-Edge",
   "total_detected": 86,
   "detections": [
     {
-      "species_id": "scirpophaga_incertulas",
+      "species_code": "scirpophaga_incertulas",
       "confidence": 0.97,
-      "bbox": { "x": 22.0, "y": 34.0, "w": 9.0, "h": 12.0 }
+      "bbox": { "x": 22.0, "y": 34.0, "width": 9.0, "height": 12.0 }
     },
     {
-      "species_id": "nilaparvata_lugens",
+      "species_code": "nilaparvata_lugens",
       "confidence": 0.96,
-      "bbox": { "x": 55.0, "y": 48.0, "w": 6.0, "h": 7.0 }
+      "bbox": { "x": 55.0, "y": 48.0, "width": 6.0, "height": 7.0 }
     }
   ]
 }
 
 // 3. ENDPOINT POLLING KOMANDO JARAK JAUH DARI MIKROKONTROLER
-// GET /api/v1/commands/poll?device_id=SLT-KRW-01
+// GET /functions/v1/device-command-poll?device_code=SLT-SBG-01
 // Response:
 {
   "has_command": true,

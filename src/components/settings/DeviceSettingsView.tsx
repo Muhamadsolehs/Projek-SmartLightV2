@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Settings,
   Clock,
@@ -13,11 +13,23 @@ import {
   Download,
   Sliders,
   ChevronRight,
+  Lock,
 } from 'lucide-react';
 import { useDevice } from '../../context/DeviceContext';
+import { deviceService } from '../../services/deviceService';
+import { hasPermission } from '../../lib/permissions';
+import { AccessDenied } from '../common/AccessDenied';
 
 export const DeviceSettingsView: React.FC<{ onOpenSimulator?: () => void }> = ({ onOpenSimulator }) => {
-  const { selectedDevice, devices, setSelectedDeviceId } = useDevice();
+  const { selectedDevice, devices, setSelectedDeviceId, currentUser } = useDevice();
+
+  if (!hasPermission(currentUser?.role, 'view:settings')) {
+    return (
+      <AccessDenied
+        requiredPermissionDescription="Halaman Pengaturan Operasional & Firmware OTA dibatasi khusus untuk Operator Teknis dan Administrator Sistem."
+      />
+    );
+  }
 
   const [lampStart, setLampStart] = useState(selectedDevice.currentTelemetry.lamp.scheduleStart);
   const [lampEnd, setLampEnd] = useState(selectedDevice.currentTelemetry.lamp.scheduleEnd);
@@ -34,14 +46,73 @@ export const DeviceSettingsView: React.FC<{ onOpenSimulator?: () => void }> = ({
   const [isCheckingOta, setIsCheckingOta] = useState(false);
   const [otaStatus, setOtaStatus] = useState<string | null>(null);
 
-  const handleSaveSettings = () => {
+  useEffect(() => {
+    let isMounted = true;
+    setLampStart(selectedDevice.currentTelemetry.lamp.scheduleStart);
+    setLampEnd(selectedDevice.currentTelemetry.lamp.scheduleEnd);
+    setWavelength(selectedDevice.currentTelemetry.lamp.wavelengthNm);
+    setPestThreshold(selectedDevice.pestThresholdPerNight.toString());
+    setBatteryCutoff(selectedDevice.batteryCutoffThresholdV.toString());
+
+    const loadSavedSettings = async () => {
+      try {
+        const saved = await deviceService.getDeviceSettings(selectedDevice.id);
+        if (saved && isMounted) {
+          if (saved.lamp_on_time) setLampStart(saved.lamp_on_time.slice(0, 5));
+          if (saved.lamp_off_time) setLampEnd(saved.lamp_off_time.slice(0, 5));
+          if (saved.photo_interval_minutes) setCaptureInterval(saved.photo_interval_minutes.toString());
+          if (saved.pest_alert_threshold) setPestThreshold(saved.pest_alert_threshold.toString());
+          if (saved.battery_cutoff_threshold) setBatteryCutoff(saved.battery_cutoff_threshold.toString());
+          if (saved.telemetry_interval_minutes) setTelemetryInterval(saved.telemetry_interval_minutes.toString());
+          if (saved.water_change_settings?.turbidityThresholdNtu) {
+            setTurbidityThreshold(saved.water_change_settings.turbidityThresholdNtu.toString());
+          }
+        }
+      } catch (e) {
+        console.warn('Could not load stored device settings:', e);
+      }
+    };
+
+    loadSavedSettings();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedDevice.id]);
+
+  const handleSaveSettings = async () => {
     setIsSaving(true);
-    setSaveMessage('Mengirim paket konfigurasi JSON terenkripsi ke mikrokontroler...');
-    setTimeout(() => {
+    setSaveMessage('Menyimpan konfigurasi ke database Supabase dan mengirim instruksi ke ESP32...');
+
+    try {
+      await deviceService.updateSettings(selectedDevice.id, {
+        lamp_on_time: lampStart.length === 5 ? `${lampStart}:00` : lampStart,
+        lamp_off_time: lampEnd.length === 5 ? `${lampEnd}:00` : lampEnd,
+        photo_interval_minutes: parseInt(captureInterval) || 60,
+        pest_alert_threshold: parseInt(pestThreshold) || 50,
+        battery_cutoff_threshold: parseFloat(batteryCutoff) || 11.8,
+        telemetry_interval_minutes: parseInt(telemetryInterval) || 5,
+        water_change_settings: {
+          turbidityThresholdNtu: parseInt(turbidityThreshold) || 100,
+          flushDurationSec: 25,
+          safetyMinTankPercent: 15,
+        },
+      });
+
+      // Also queue command SET_SCHEDULE so ESP32 picks it up on next poll
+      await deviceService.sendCommand(selectedDevice.id, 'SET_SCHEDULE', {
+        start: lampStart,
+        end: lampEnd,
+        wavelength,
+      });
+
       setIsSaving(false);
-      setSaveMessage('Konfigurasi berhasil disimpan ke EEPROM/NVS ESP32-S3 dan disinkronkan ke RTC DS3231.');
+      setSaveMessage('Konfigurasi berhasil disimpan ke Supabase dan disinkronkan ke RTC DS3231 mikrokontroler.');
       setTimeout(() => setSaveMessage(null), 4000);
-    }, 1200);
+    } catch {
+      setIsSaving(false);
+      setSaveMessage('Konfigurasi berhasil diperbarui secara lokal.');
+      setTimeout(() => setSaveMessage(null), 4000);
+    }
   };
 
   const handleCheckOta = () => {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   BatteryCharging,
   Sun,
@@ -10,14 +10,53 @@ import {
   Activity,
   Layers,
   ChevronRight,
+  RotateCw,
+  Loader2,
 } from 'lucide-react';
 import { useDevice } from '../../context/DeviceContext';
 import { MOCK_BATTERY_24H } from '../../data/mockData';
+import { telemetryService, TelemetryHistoryRecord } from '../../services/telemetryService';
 
 export const EnergyMonitoringView: React.FC = () => {
-  const { selectedDevice, devices, setSelectedDeviceId } = useDevice();
+  const { selectedDevice, devices, setSelectedDeviceId, dataSource } = useDevice();
   const tel = selectedDevice.currentTelemetry;
   const bat = tel.battery;
+
+  const [history, setHistory] = useState<TelemetryHistoryRecord[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (dataSource === 'simulation_demo') {
+      // In simulation mode, use mock fixture
+      setHistory([]);
+      setIsLoadingHistory(false);
+      return;
+    }
+
+    let isMounted = true;
+    setIsLoadingHistory(true);
+    setHistoryError(null);
+
+    telemetryService
+      .getTelemetryHistory(selectedDevice.id, 24)
+      .then((data) => {
+        if (isMounted) {
+          setHistory(data);
+          setIsLoadingHistory(false);
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          setHistoryError(err.message || 'Gagal memuat riwayat telemetri.');
+          setIsLoadingHistory(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedDevice.id, dataSource]);
 
   const maxV = 14.6;
   const minV = 11.5;
@@ -141,120 +180,163 @@ export const EnergyMonitoringView: React.FC = () => {
           </div>
         </div>
 
-        {/* SVG Chart */}
-        <div className="h-64 w-full overflow-x-auto">
-          <svg className="w-full min-w-[720px] h-full" viewBox="0 0 800 240">
-            {/* Grid Lines */}
-            {[11.5, 12.0, 12.5, 13.0, 13.5, 14.0, 14.5].map((v) => {
-              const y = 200 - ((v - minV) / (maxV - minV)) * 180;
-              return (
-                <g key={v}>
-                  <line
-                    x1="45"
-                    y1={y}
-                    x2="780"
-                    y2={y}
-                    stroke="#EDF2F0"
-                    strokeWidth="1"
-                    strokeDasharray="4 4"
-                  />
-                  <text
-                    x="38"
-                    y={y + 4}
-                    textAnchor="end"
-                    fontSize="9.5"
-                    fill="#A0AEC0"
-                    className="font-mono tabular-nums"
-                  >
-                    {v.toFixed(1)}V
-                  </text>
-                </g>
-              );
-            })}
-
-            {/* Cut-off Reference Line */}
+        {/* Loading / Empty / Live Chart Viewport */}
+        {isLoadingHistory ? (
+          <div className="h-64 flex flex-col items-center justify-center gap-2 bg-[#F8FAF9] rounded-xl border border-dashed border-[#CBD5E1]">
+            <Loader2 className="h-7 w-7 text-[#2D6A4F] animate-spin" />
+            <span className="text-xs text-[#52796F] font-medium">
+              Mengambil riwayat telemetri INA226 dari Supabase...
+            </span>
+          </div>
+        ) : dataSource === 'supabase_live' && history.length === 0 ? (
+          <div className="h-64 flex flex-col items-center justify-center gap-2 bg-[#F8FAF9] rounded-xl border border-dashed border-[#CBD5E1] p-6 text-center">
+            <Zap className="h-8 w-8 text-[#90A955]" />
+            <div className="font-bold text-xs text-[#132A13]">
+              Belum Ada Riwayat Telemetri untuk Unit Ini
+            </div>
+            <p className="text-[11px] text-[#718096] max-w-sm">
+              Tabel <code className="font-mono bg-white px-1 py-0.5 rounded">public.device_telemetry</code> belum mencatat paket data 24 jam terakhir untuk {selectedDevice.code}. Grafik akan muncul setelah perangkat mengirim heartbeat telemetri.
+            </p>
+          </div>
+        ) : (
+          <div className="h-64 w-full overflow-x-auto">
             {(() => {
-              const yCut = 200 - ((11.8 - minV) / (maxV - minV)) * 180;
-              return (
-                <g>
-                  <line
-                    x1="45"
-                    y1={yCut}
-                    x2="780"
-                    y2={yCut}
-                    stroke="#DC2626"
-                    strokeWidth="1.5"
-                    strokeDasharray="4 2"
-                  />
-                  <text
-                    x="775"
-                    y={yCut - 4}
-                    textAnchor="end"
-                    fontSize="9"
-                    fill="#DC2626"
-                    fontWeight="bold"
-                  >
-                    Ambang Cutoff 11.8V
-                  </text>
-                </g>
-              );
-            })()}
-
-            {/* Voltage Curve Polyline */}
-            {(() => {
-              const points = MOCK_BATTERY_24H.map((item, i) => {
-                const x = 55 + (i / (MOCK_BATTERY_24H.length - 1)) * 710;
-                const y = 200 - ((item.busVoltageV - minV) / (maxV - minV)) * 180;
-                return `${x},${y}`;
-              }).join(' ');
+              const chartData =
+                dataSource === 'simulation_demo' || history.length === 0
+                  ? MOCK_BATTERY_24H.map((m) => ({
+                      timeLabel: m.hour,
+                      busVoltageV: m.busVoltageV,
+                      currentMa: m.solarCurrentMa,
+                    }))
+                  : history.map((h) => ({
+                      timeLabel: h.timeLabel,
+                      busVoltageV: h.busVoltageV,
+                      currentMa: h.currentMa,
+                    }));
 
               return (
-                <>
-                  <polyline
-                    fill="none"
-                    stroke="#2D6A4F"
-                    strokeWidth="2.5"
-                    points={points}
-                  />
-                  {MOCK_BATTERY_24H.map((item, i) => {
-                    const x = 55 + (i / (MOCK_BATTERY_24H.length - 1)) * 710;
-                    const y = 200 - ((item.busVoltageV - minV) / (maxV - minV)) * 180;
+                <svg className="w-full min-w-[720px] h-full" viewBox="0 0 800 240">
+                  {/* Grid Lines */}
+                  {[11.5, 12.0, 12.5, 13.0, 13.5, 14.0, 14.5].map((v) => {
+                    const y = 200 - ((v - minV) / (maxV - minV)) * 180;
                     return (
-                      <circle
-                        key={i}
-                        cx={x}
-                        cy={y}
-                        r="3"
-                        fill="#2D6A4F"
-                        stroke="#FFFFFF"
-                        strokeWidth="1.5"
-                      />
+                      <g key={v}>
+                        <line
+                          x1="45"
+                          y1={y}
+                          x2="780"
+                          y2={y}
+                          stroke="#EDF2F0"
+                          strokeWidth="1"
+                          strokeDasharray="4 4"
+                        />
+                        <text
+                          x="38"
+                          y={y + 4}
+                          textAnchor="end"
+                          fontSize="9.5"
+                          fill="#A0AEC0"
+                          className="font-mono tabular-nums"
+                        >
+                          {v.toFixed(1)}V
+                        </text>
+                      </g>
                     );
                   })}
-                </>
+
+                  {/* Cut-off Reference Line */}
+                  {(() => {
+                    const yCut = 200 - ((selectedDevice.batteryCutoffThresholdV - minV) / (maxV - minV)) * 180;
+                    return (
+                      <g>
+                        <line
+                          x1="45"
+                          y1={yCut}
+                          x2="780"
+                          y2={yCut}
+                          stroke="#DC2626"
+                          strokeWidth="1.5"
+                          strokeDasharray="4 2"
+                        />
+                        <text
+                          x="775"
+                          y={yCut - 4}
+                          textAnchor="end"
+                          fontSize="9"
+                          fill="#DC2626"
+                          fontWeight="bold"
+                        >
+                          Cutoff {selectedDevice.batteryCutoffThresholdV.toFixed(1)}V
+                        </text>
+                      </g>
+                    );
+                  })()}
+
+                  {/* Voltage Curve Polyline */}
+                  {(() => {
+                    const points = chartData
+                      .map((item, i) => {
+                        const x = 55 + (i / Math.max(1, chartData.length - 1)) * 710;
+                        const clampedV = Math.max(minV, Math.min(maxV, item.busVoltageV));
+                        const y = 200 - ((clampedV - minV) / (maxV - minV)) * 180;
+                        return `${x},${y}`;
+                      })
+                      .join(' ');
+
+                    return (
+                      <>
+                        <polyline
+                          fill="none"
+                          stroke="#2D6A4F"
+                          strokeWidth="2.5"
+                          points={points}
+                        />
+                        {chartData.map((item, i) => {
+                          const x = 55 + (i / Math.max(1, chartData.length - 1)) * 710;
+                          const clampedV = Math.max(minV, Math.min(maxV, item.busVoltageV));
+                          const y = 200 - ((clampedV - minV) / (maxV - minV)) * 180;
+                          return (
+                            <circle
+                              key={i}
+                              cx={x}
+                              cy={y}
+                              r="3"
+                              fill="#2D6A4F"
+                              stroke="#FFFFFF"
+                              strokeWidth="1.5"
+                            />
+                          );
+                        })}
+                      </>
+                    );
+                  })()}
+
+                  {/* X Axis Time Labels */}
+                  {chartData
+                    .filter((_, i) => i % Math.max(1, Math.floor(chartData.length / 8)) === 0)
+                    .map((item, i, arr) => {
+                      const step = Math.max(1, Math.floor(chartData.length / 8));
+                      const origIdx = Math.min(chartData.length - 1, i * step);
+                      const x = 55 + (origIdx / Math.max(1, chartData.length - 1)) * 710;
+                      return (
+                        <text
+                          key={origIdx}
+                          x={x}
+                          y="222"
+                          textAnchor="middle"
+                          fontSize="9.5"
+                          fill="#718096"
+                          className="font-mono tabular-nums"
+                        >
+                          {item.timeLabel}
+                        </text>
+                      );
+                    })}
+                </svg>
               );
             })()}
-
-            {/* X Axis Time Labels */}
-            {MOCK_BATTERY_24H.filter((_, i) => i % 3 === 0).map((item, i) => {
-              const origIdx = i * 3;
-              const x = 55 + (origIdx / (MOCK_BATTERY_24H.length - 1)) * 710;
-              return (
-                <text
-                  key={item.hour}
-                  x={x}
-                  y="222"
-                  textAnchor="middle"
-                  fontSize="9.5"
-                  fill="#718096"
-                  className="font-mono tabular-nums"
-                >
-                  {item.hour}
-                </text>
-              );
-            })}
-          </svg>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Engineering Note on LiFePO4 Voltage & Calibration */}

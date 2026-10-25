@@ -11,9 +11,11 @@ import {
   Clock,
   Filter,
   ChevronRight,
+  Lock,
 } from 'lucide-react';
 import { useDevice } from '../../context/DeviceContext';
 import { DeviceAlert } from '../../types';
+import { hasPermission } from '../../lib/permissions';
 
 export const AlertsView: React.FC = () => {
   const {
@@ -22,10 +24,14 @@ export const AlertsView: React.FC = () => {
     telegramConfig,
     updateTelegramConfig,
     testTelegramNotification,
+    currentUser,
   } = useDevice();
 
   const [severityFilter, setSeverityFilter] = useState<'all' | 'critical' | 'warning' | 'info'>('all');
   const [isTestingTelegram, setIsTestingTelegram] = useState(false);
+
+  const canAcknowledge = hasPermission(currentUser?.role, 'action:acknowledge_alert');
+  const canManageSettings = hasPermission(currentUser?.role, 'manage:system_settings');
 
   const filteredAlerts = alerts.filter((a) => {
     if (severityFilter === 'all') return true;
@@ -192,71 +198,88 @@ export const AlertsView: React.FC = () => {
           </span>
         </div>
 
-        <div className="divide-y divide-[#E2E8F0]">
-          {filteredAlerts.map((alert) => {
-            const isCrit = alert.severity === 'critical';
-            const isWarn = alert.severity === 'warning';
+        {filteredAlerts.length === 0 ? (
+          <div className="p-8 text-center text-xs text-[#718096] bg-[#F8FAF9] rounded-lg border border-dashed border-[#E2E8F0]">
+            <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-[#2D6A4F]" />
+            <p className="font-semibold text-[#192A20]">Semua Sistem Normal</p>
+            <p className="text-[11px] text-[#52796F] mt-0.5">
+              {severityFilter === 'all'
+                ? 'Tidak ada peringatan aktif saat ini. Seluruh parameter tegangan, air baki, dan ambang batas hama dalam kondisi aman.'
+                : `Tidak ada peringatan dengan kategori "${severityFilter}" saat ini.`}
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-[#E2E8F0]">
+            {filteredAlerts.map((alert) => {
+              const isCrit = alert.severity === 'critical';
+              const isWarn = alert.severity === 'warning';
 
-            return (
-              <div key={alert.id} className="py-4 space-y-2 text-xs">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`h-2.5 w-2.5 rounded-full shrink-0 ${
-                        isCrit ? 'bg-[#DC2626]' : isWarn ? 'bg-[#D97706]' : 'bg-[#2B6CB0]'
-                      }`}
-                    />
-                    <span className="font-bold text-[#192A20] text-sm">{alert.title}</span>
-                    <span className="font-mono text-[11px] text-[#718096]">· {alert.deviceName}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2 pl-4 sm:pl-0">
-                    <span className="font-mono text-[11px] text-[#718096] flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {alert.timestamp.split('T')[1].slice(0, 8)} WIB
-                    </span>
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
-                        isCrit
-                          ? 'bg-[#FEE2E2] text-[#DC2626]'
-                          : isWarn
-                          ? 'bg-[#FEF3C7] text-[#D97706]'
-                          : 'bg-[#EBF8FF] text-[#2B6CB0]'
-                      }`}
-                    >
-                      {alert.severity}
-                    </span>
-                  </div>
-                </div>
-
-                <p className="text-[#4A5568] pl-4 leading-relaxed">
-                  {alert.message}
-                </p>
-
-                <div className="pl-4 pt-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <div className="text-[11px] text-[#718096]">
-                    Lokasi: <span className="font-semibold text-[#192A20]">{alert.location}</span>
-                  </div>
-
-                  {alert.isAcknowledged ? (
-                    <div className="flex items-center gap-1.5 text-[11px] text-[#2D6A4F] font-semibold">
-                      <Check className="h-3.5 w-3.5" />
-                      <span>Dikonfirmasi oleh {alert.acknowledgedBy || 'Operator'}</span>
+              return (
+                <div key={alert.id} className="py-4 space-y-2 text-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`h-2.5 w-2.5 rounded-full shrink-0 ${
+                          isCrit ? 'bg-[#DC2626]' : isWarn ? 'bg-[#D97706]' : 'bg-[#2B6CB0]'
+                        }`}
+                      />
+                      <span className="font-bold text-[#192A20] text-sm">{alert.title}</span>
+                      <span className="font-mono text-[11px] text-[#718096]">· {alert.deviceName}</span>
                     </div>
-                  ) : (
-                    <button
-                      onClick={() => acknowledgeAlert(alert.id, 'Pak Rahmat (Agronomis)')}
-                      className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1 bg-[#1B4332] text-white rounded text-xs font-semibold hover:bg-[#2D6A4F] transition-colors"
-                    >
-                      <Check className="h-3.5 w-3.5" />
-                      <span>Konfirmasi Tindakan</span>
-                    </button>
-                  )}
+
+                    <div className="flex items-center gap-2 pl-4 sm:pl-0">
+                      <span className="font-mono text-[11px] text-[#718096] flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {alert.timestamp.split('T')[1].slice(0, 8)} WIB
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
+                          isCrit
+                            ? 'bg-[#FEE2E2] text-[#DC2626]'
+                            : isWarn
+                            ? 'bg-[#FEF3C7] text-[#D97706]'
+                            : 'bg-[#EBF8FF] text-[#2B6CB0]'
+                        }`}
+                      >
+                        {alert.severity}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="text-[#4A5568] pl-4 leading-relaxed">
+                    {alert.message}
+                  </p>
+
+                  <div className="pl-4 pt-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div className="text-[11px] text-[#718096]">
+                      Lokasi: <span className="font-semibold text-[#192A20]">{alert.location}</span>
+                    </div>
+
+                    {alert.isAcknowledged ? (
+                      <div className="flex items-center gap-1.5 text-[11px] text-[#2D6A4F] font-semibold">
+                        <Check className="h-3.5 w-3.5" />
+                        <span>Dikonfirmasi oleh {alert.acknowledgedBy || 'Operator'}</span>
+                      </div>
+                    ) : canAcknowledge ? (
+                      <button
+                        onClick={() => acknowledgeAlert(alert.id, currentUser?.name || 'Operator Lapangan')}
+                        className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1 bg-[#1B4332] text-white rounded text-xs font-semibold hover:bg-[#2D6A4F] transition-colors cursor-pointer"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                        <span>Konfirmasi Tindakan</span>
+                      </button>
+                    ) : (
+                      <span className="self-start sm:self-auto inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-medium bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A]">
+                        <Lock className="h-3 w-3 text-[#D97706]" />
+                        <span>Menunggu Konfirmasi Operator</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

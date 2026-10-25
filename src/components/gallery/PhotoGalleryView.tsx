@@ -14,18 +14,22 @@ import {
   Eye,
   Info,
   ChevronRight,
+  Lock,
 } from 'lucide-react';
 import { useDevice } from '../../context/DeviceContext';
 import { CaptureImage, InsectSpeciesId } from '../../types';
 import { INSECT_SPECIES_LIST } from '../../data/mockData';
+import { hasPermission } from '../../lib/permissions';
 
 export const PhotoGalleryView: React.FC = () => {
-  const { captures, updateBoundingBoxLabel } = useDevice();
-  const [selectedCapture, setSelectedCapture] = useState<CaptureImage>(captures[0]);
+  const { captures, updateBoundingBoxLabel, currentUser } = useDevice();
+  const [selectedCaptureId, setSelectedCaptureId] = useState<string | null>(null);
   const [activeBoxId, setActiveBoxId] = useState<string | null>(null);
   const [filterVerified, setFilterVerified] = useState<'all' | 'verified' | 'unverified'>('all');
   const [editingSpecies, setEditingSpecies] = useState<InsectSpeciesId>('scirpophaga_incertulas');
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+
+  const canVerify = hasPermission(currentUser?.role, 'action:verify_detection');
 
   const filteredCaptures = captures.filter((cap) => {
     if (filterVerified === 'verified') return cap.isManuallyVerified;
@@ -33,15 +37,16 @@ export const PhotoGalleryView: React.FC = () => {
     return true;
   });
 
-  const activeBox = selectedCapture.bboxes.find((b) => b.id === activeBoxId);
+  const selectedCapture = captures.find((c) => c.id === selectedCaptureId) || filteredCaptures[0] || captures[0] || null;
+  const activeBox = selectedCapture?.bboxes.find((b) => b.id === activeBoxId);
 
   const handleSaveCorrection = () => {
-    if (!activeBoxId) return;
+    if (!selectedCapture || !activeBoxId || !canVerify) return;
     updateBoundingBoxLabel(
       selectedCapture.id,
       activeBoxId,
       editingSpecies,
-      'Pak Rahmat (Agronomis Lapangan)'
+      currentUser?.name || 'Operator Lapangan'
     );
     setSaveSuccessMsg('Label berhasil diperbarui dan dicatat dalam dataset pelatihan AI.');
     setTimeout(() => setSaveSuccessMsg(null), 3000);
@@ -102,7 +107,16 @@ export const PhotoGalleryView: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Split: Photo Inspector on Left, Captures list & Box Editor on Right */}
+      {!selectedCapture ? (
+        <div className="rounded-xl border border-dashed border-[#CBD5E1] bg-white p-12 text-center">
+          <Camera className="mx-auto h-12 w-12 text-[#94A3B8]" />
+          <h3 className="mt-4 text-base font-bold text-[#192A20]">Belum Ada Citra Baki Perangkap</h3>
+          <p className="mt-1 text-xs text-[#52796F] max-w-md mx-auto">
+            Citra foto baki air akan otomatis tersimpan di Supabase Storage & Database saat ESP32-CAM menyelesaikan siklus pemotretan terjadwal.
+          </p>
+        </div>
+      ) : (
+      /* Main Split: Photo Inspector on Left, Captures list & Box Editor on Right */
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Photo Canvas & Bounding Boxes (2 cols) */}
         <div className="lg:col-span-2 rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-xs space-y-4">
@@ -140,8 +154,16 @@ export const PhotoGalleryView: React.FC = () => {
 
           {/* Interactive Bounding Box Canvas */}
           <div className="relative aspect-video w-full rounded-xl border border-[#CBD5E1] bg-[#121A15] overflow-hidden flex items-center justify-center shadow-inner select-none">
-            {/* Illumination LED Lighting Backdrop */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(80,180,120,0.3)_0%,_rgba(10,22,14,0.95)_75%)]" />
+            {selectedCapture.imageUrl ? (
+              <img
+                src={selectedCapture.imageUrl}
+                alt={`Tangkapan Baki ${selectedCapture.id}`}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            ) : (
+              /* Illumination LED Lighting Backdrop (Tray Simulation) */
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(80,180,120,0.3)_0%,_rgba(10,22,14,0.95)_75%)]" />
+            )}
 
             {/* Scientific Grid overlay */}
             <svg className="absolute inset-0 w-full h-full opacity-20 pointer-events-none" viewBox="0 0 100 100">
@@ -263,12 +285,20 @@ export const PhotoGalleryView: React.FC = () => {
                   </select>
                 </div>
 
+                {!canVerify && (
+                  <div className="p-2.5 rounded-lg border border-red-200 bg-red-50 text-[11px] text-red-800 flex items-start gap-1.5">
+                    <Lock className="h-3.5 w-3.5 text-red-600 shrink-0 mt-0.5" />
+                    <span>Mode Baca-Saja: Koreksi label bounding box AI hanya dapat disimpan oleh Operator Lapangan atau Administrator.</span>
+                  </div>
+                )}
+
                 <button
+                  disabled={!canVerify}
                   onClick={handleSaveCorrection}
-                  className="w-full py-2 px-3 bg-[#1B4332] text-white rounded-lg text-xs font-semibold hover:bg-[#2D6A4F] transition-colors flex items-center justify-center gap-1.5"
+                  className="w-full py-2 px-3 bg-[#1B4332] text-white rounded-lg text-xs font-semibold hover:bg-[#2D6A4F] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5"
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  <span>Simpan Koreksi Label</span>
+                  <span>{!canVerify ? 'Dibatasi (Hanya Operator/Admin)' : 'Simpan Koreksi Label'}</span>
                 </button>
 
                 {saveSuccessMsg && (
@@ -299,7 +329,7 @@ export const PhotoGalleryView: React.FC = () => {
                   <div
                     key={cap.id}
                     onClick={() => {
-                      setSelectedCapture(cap);
+                      setSelectedCaptureId(cap.id);
                       setActiveBoxId(null);
                     }}
                     className={`p-3 rounded-lg border text-xs cursor-pointer transition-colors ${
@@ -324,6 +354,7 @@ export const PhotoGalleryView: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };

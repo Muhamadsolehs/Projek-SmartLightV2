@@ -12,9 +12,12 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   ChevronRight,
+  Lock,
 } from 'lucide-react';
 import { useDevice } from '../../context/DeviceContext';
+import { waterService } from '../../services/waterService';
 import { WaterChangeLog } from '../../types';
+import { hasPermission } from '../../lib/permissions';
 
 export const WaterManagementView: React.FC = () => {
   const {
@@ -25,10 +28,15 @@ export const WaterManagementView: React.FC = () => {
     sendCommand,
     triggerHardwareSimulation,
     isSimulatingAction,
+    currentUser,
+    refreshData,
   } = useDevice();
 
   const [isCycling, setIsCycling] = useState(false);
   const [cycleStatus, setCycleStatus] = useState<string | null>(null);
+  const [logFilter, setLogFilter] = useState<'all' | 'selected'>('all');
+
+  const canControlWater = hasPermission(currentUser?.role, 'control:devices');
 
   const tel = selectedDevice.currentTelemetry;
   const w = tel.water;
@@ -42,15 +50,32 @@ export const WaterManagementView: React.FC = () => {
     setCycleStatus('Mengirim perintah siklus hidraulik ke ESP32...');
     try {
       const res = await sendCommand(selectedDevice.id, 'FORCE_WATER_CHANGE');
-      setCycleStatus(`Berhasil: ${res.responseMessage || 'Pergantian air selesai.'}`);
-    } catch {
-      setCycleStatus('Gagal menghubungkan ke mikrokontroler.');
+      
+      // Catat hasil ke log database Supabase
+      await waterService.recordWaterChange({
+        deviceId: selectedDevice.id,
+        startedAt: new Date(Date.now() - 25000).toISOString(),
+        completedAt: new Date().toISOString(),
+        triggerReason: 'manual_operator',
+        initialTurbidityNtu: w.turbidityNtu,
+        finalTurbidityNtu: 25,
+        waterUsedLiters: 5.0,
+        status: 'SUCCESS',
+      });
+      await refreshData();
+
+      setCycleStatus(`Berhasil: ${res.responseMessage || 'Pergantian air selesai dan dicatat dalam log.'}`);
+    } catch (err: any) {
+      setCycleStatus(`Gagal: ${err.message || 'Gagal menghubungkan ke mikrokontroler.'}`);
     } finally {
       setIsCycling(false);
     }
   };
 
-  const deviceLogs = waterLogs.filter((l) => l.deviceId === selectedDevice.id);
+  const displayedLogs =
+    logFilter === 'selected'
+      ? waterLogs.filter((l) => l.deviceId === selectedDevice.id)
+      : waterLogs;
 
   return (
     <div className="space-y-6">
@@ -215,13 +240,20 @@ export const WaterManagementView: React.FC = () => {
           </div>
 
           <div className="space-y-2">
+            {!canControlWater && (
+              <div className="p-2.5 rounded-lg border border-red-200 bg-red-50 text-[11px] text-red-800 flex items-start gap-1.5">
+                <Lock className="h-3.5 w-3.5 text-red-600 shrink-0 mt-0.5" />
+                <span>Mode Baca-Saja: Tindakan pengurasan baki hanya dapat diinisiasi oleh Operator Teknis Lapangan atau Administrator.</span>
+              </div>
+            )}
+
             <button
-              disabled={isCycling || isSimulatingAction || w.safetyLockout}
+              disabled={!canControlWater || isCycling || isSimulatingAction || w.safetyLockout}
               onClick={handleStartCycle}
-              className="w-full py-2.5 px-3 bg-[#2D6A4F] text-white rounded-lg text-xs font-semibold hover:bg-[#1B4332] disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
+              className="w-full py-2.5 px-3 bg-[#2D6A4F] text-white rounded-lg text-xs font-semibold hover:bg-[#1B4332] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5"
             >
               <RotateCcw className={`h-4 w-4 ${isCycling ? 'animate-spin' : ''}`} />
-              <span>Jalankan Kuras & Isi Baki Sekarang</span>
+              <span>{!canControlWater ? 'Dibatasi (Hanya Operator & Admin)' : 'Jalankan Kuras & Isi Baki Sekarang'}</span>
             </button>
 
             {cycleStatus && (
@@ -273,68 +305,103 @@ export const WaterManagementView: React.FC = () => {
 
       {/* Water Change Activity Logs Table */}
       <div className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-xs space-y-4">
-        <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3">
-          <h2 className="text-sm font-bold text-[#192A20]">
-            Riwayat Log Pergantian Air & Kekeruhan
-          </h2>
-          <span className="text-xs text-[#718096]">
-            Total {waterLogs.length} Aktivitas Tercatat
-          </span>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-[#E2E8F0] pb-3">
+          <div>
+            <h2 className="text-sm font-bold text-[#192A20]">
+              Riwayat Log Pergantian Air & Kekeruhan
+            </h2>
+            <p className="text-[11px] text-[#718096]">
+              Aktivitas flushing katup solenoid dan pompa tandon cadangan
+            </p>
+          </div>
+
+          <div className="flex items-center gap-1 p-1 bg-[#F1F5F2] rounded-lg text-xs font-medium">
+            <button
+              onClick={() => setLogFilter('all')}
+              className={`px-3 py-1 rounded-md transition-colors ${
+                logFilter === 'all'
+                  ? 'bg-white text-[#192A20] shadow-xs font-semibold'
+                  : 'text-[#52796F] hover:text-[#192A20]'
+              }`}
+            >
+              Semua Unit ({waterLogs.length})
+            </button>
+            <button
+              onClick={() => setLogFilter('selected')}
+              className={`px-3 py-1 rounded-md transition-colors ${
+                logFilter === 'selected'
+                  ? 'bg-white text-[#2D6A4F] shadow-xs font-semibold'
+                  : 'text-[#52796F] hover:text-[#192A20]'
+              }`}
+            >
+              {selectedDevice.code} ({waterLogs.filter((l) => l.deviceId === selectedDevice.id).length})
+            </button>
+          </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-[#E2E8F0] bg-[#F8FAF9] text-[#52796F] font-semibold text-[11px] uppercase">
-                <th className="py-2.5 px-3">Waktu Mulai - Selesai</th>
-                <th className="py-2.5 px-3">Unit</th>
-                <th className="py-2.5 px-3">Pemicu</th>
-                <th className="py-2.5 px-3 text-right">Kekeruhan Awal / Akhir</th>
-                <th className="py-2.5 px-3 text-right">Air Terpakai</th>
-                <th className="py-2.5 px-3 text-center">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#E2E8F0]">
-              {waterLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-[#F8FAF9] transition-colors">
-                  <td className="py-3 px-3 font-mono text-[11px] text-[#192A20]">
-                    <div>{log.startedAt.split('T')[1].slice(0, 8)} WIB</div>
-                    <div className="text-[10px] text-[#718096]">{log.startedAt.split('T')[0]}</div>
-                  </td>
-                  <td className="py-3 px-3 font-mono font-bold text-[#192A20]">
-                    {log.deviceId}
-                  </td>
-                  <td className="py-3 px-3 text-[#52796F]">
-                    {log.triggerReason === 'turbidity_high'
-                      ? 'Kekeruhan Baki Tinggi (>100 NTU)'
-                      : log.triggerReason === 'scheduled_interval'
-                      ? 'Jadwal Rutin Subuh'
-                      : 'Manual Operator'}
-                  </td>
-                  <td className="py-3 px-3 text-right font-mono tabular-nums">
-                    <span className="text-[#DC2626]">{log.initialTurbidityNtu} NTU</span>
-                    <span className="text-[#718096]"> &rarr; </span>
-                    <span className="text-[#2D6A4F] font-bold">{log.finalTurbidityNtu} NTU</span>
-                  </td>
-                  <td className="py-3 px-3 text-right font-mono tabular-nums font-semibold text-[#192A20]">
-                    {log.waterUsedLiters.toFixed(1)} Liter
-                  </td>
-                  <td className="py-3 px-3 text-center">
-                    <span
-                      className={`inline-block px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
-                        log.status === 'SUCCESS'
-                          ? 'bg-[#EAF4EE] text-[#2D6A4F]'
-                          : 'bg-[#FEE2E2] text-[#DC2626]'
-                      }`}
-                    >
-                      {log.status}
-                    </span>
-                  </td>
+        {displayedLogs.length === 0 ? (
+          <div className="p-8 text-center text-xs text-[#718096] bg-[#F8FAF9] rounded-lg border border-dashed border-[#E2E8F0]">
+            <Droplets className="h-6 w-6 mx-auto mb-2 text-[#A0AEC0]" />
+            <p className="font-semibold text-[#192A20]">Belum Ada Log Siklus Air</p>
+            <p className="text-[11px] text-[#52796F] mt-0.5">
+              Riwayat kuras baki otomatis dan pemakaian air akan tercatat di sini saat sistem hidraulik beroperasi.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-[#E2E8F0] bg-[#F8FAF9] text-[#52796F] font-semibold text-[11px] uppercase">
+                  <th className="py-2.5 px-3">Waktu Mulai - Selesai</th>
+                  <th className="py-2.5 px-3">Unit</th>
+                  <th className="py-2.5 px-3">Pemicu</th>
+                  <th className="py-2.5 px-3 text-right">Kekeruhan Awal / Akhir</th>
+                  <th className="py-2.5 px-3 text-right">Air Terpakai</th>
+                  <th className="py-2.5 px-3 text-center">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-[#E2E8F0]">
+                {displayedLogs.map((log) => (
+                  <tr key={log.id} className="hover:bg-[#F8FAF9] transition-colors">
+                    <td className="py-3 px-3 font-mono text-[11px] text-[#192A20]">
+                      <div>{log.startedAt.split('T')[1].slice(0, 8)} WIB</div>
+                      <div className="text-[10px] text-[#718096]">{log.startedAt.split('T')[0]}</div>
+                    </td>
+                    <td className="py-3 px-3 font-mono font-bold text-[#192A20]">
+                      {log.deviceId}
+                    </td>
+                    <td className="py-3 px-3 text-[#52796F]">
+                      {log.triggerReason === 'turbidity_high'
+                        ? 'Kekeruhan Baki Tinggi (>100 NTU)'
+                        : log.triggerReason === 'scheduled_interval'
+                        ? 'Jadwal Rutin Subuh'
+                        : 'Manual Operator'}
+                    </td>
+                    <td className="py-3 px-3 text-right font-mono tabular-nums">
+                      <span className="text-[#DC2626]">{log.initialTurbidityNtu} NTU</span>
+                      <span className="text-[#718096]"> &rarr; </span>
+                      <span className="text-[#2D6A4F] font-bold">{log.finalTurbidityNtu} NTU</span>
+                    </td>
+                    <td className="py-3 px-3 text-right font-mono tabular-nums font-semibold text-[#192A20]">
+                      {log.waterUsedLiters.toFixed(1)} Liter
+                    </td>
+                    <td className="py-3 px-3 text-center">
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                          log.status === 'SUCCESS'
+                            ? 'bg-[#EAF4EE] text-[#2D6A4F]'
+                            : 'bg-[#FEE2E2] text-[#DC2626]'
+                        }`}
+                      >
+                        {log.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

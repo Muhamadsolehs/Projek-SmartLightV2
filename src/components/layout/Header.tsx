@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Menu, Bell, ChevronRight, User, LogOut, Shield, ChevronDown } from 'lucide-react';
 import { useDevice, NavigationTab } from '../../context/DeviceContext';
+import { getRoleMetadata } from '../../lib/permissions';
 
 const TAB_TITLES: Record<NavigationTab, string> = {
   overview: 'Ringkasan Lahan',
@@ -12,6 +13,7 @@ const TAB_TITLES: Record<NavigationTab, string> = {
   alerts: 'Pusat Notifikasi',
   settings: 'Pengaturan & OTA',
   architecture: 'Arsitektur & API',
+  users: 'Pengguna & Role',
 };
 
 export const Header: React.FC<{
@@ -26,6 +28,8 @@ export const Header: React.FC<{
     isAuthenticated,
     logout,
     setIsLoginModalOpen,
+    isLiveConnected,
+    dataSource,
   } = useDevice();
 
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -60,8 +64,36 @@ export const Header: React.FC<{
       </div>
 
       {/* Sisi Kanan: Status Unit Online, Notifikasi & Profil / Autentikasi */}
-      <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-        {/* Indikator Status Armada Ringkas (Hanya di layar sm ke atas) */}
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        {/* Indikator Status Database Supabase */}
+        <div
+          className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold ${
+            dataSource === 'simulation_demo'
+              ? 'bg-amber-50 border-amber-300 text-amber-900'
+              : isLiveConnected
+              ? 'bg-[#EAF4EE] border-[#4F772D]/30 text-[#132A13]'
+              : 'bg-red-50 border-red-200 text-red-900'
+          }`}
+        >
+          <span
+            className={`h-2 w-2 rounded-full ${
+              dataSource === 'simulation_demo'
+                ? 'bg-amber-500'
+                : isLiveConnected
+                ? 'bg-emerald-500 animate-pulse'
+                : 'bg-red-500'
+            }`}
+          />
+          <span>
+            {dataSource === 'simulation_demo'
+              ? 'Mode Simulasi (Mock)'
+              : isLiveConnected
+              ? 'Supabase Terhubung'
+              : 'Koneksi Terputus'}
+          </span>
+        </div>
+
+        {/* Indikator Status Armada Ringkas */}
         <div className="hidden md:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#ECF39E]/40 border border-[#90A955]/40 text-[#132A13] text-xs font-medium">
           <span className="h-2 w-2 rounded-full bg-[#4F772D] shrink-0" />
           <span className="tabular-nums font-bold">{onlineCount}/{devices.length}</span>
@@ -97,8 +129,8 @@ export const Header: React.FC<{
                 <span className="text-xs font-bold text-[#132A13] block leading-tight">
                   {currentUser.name}
                 </span>
-                <span className="text-[10px] font-medium text-[#4F772D] block leading-none mt-0.5">
-                  {currentUser.role}
+                <span className="text-[10px] font-semibold text-[#4F772D] block leading-none mt-0.5">
+                  {getRoleMetadata(currentUser.role).label}
                 </span>
               </div>
               <ChevronDown className="h-3.5 w-3.5 text-[#90A955] hidden sm:block" />
@@ -115,9 +147,9 @@ export const Header: React.FC<{
                   <div className="pb-2.5 mb-2 border-b border-[#90A955]/20">
                     <div className="font-bold text-[#132A13]">{currentUser.name}</div>
                     <div className="text-[11px] text-[#4F772D]">{currentUser.email}</div>
-                    <div className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold text-[#31572C] bg-[#ECF39E]/40 px-2 py-0.5 rounded-md">
-                      <Shield className="h-3 w-3" />
-                      <span>{currentUser.role}</span>
+                    <div className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border bg-[#ECF39E]/40 text-[#132A13] border-[#90A955]/40">
+                      <Shield className="h-3 w-3 text-[#31572C]" />
+                      <span>{getRoleMetadata(currentUser.role).label}</span>
                     </div>
                   </div>
 

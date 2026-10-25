@@ -17,14 +17,19 @@ import { WaterManagementView } from './components/water/WaterManagementView';
 import { AlertsView } from './components/alerts/AlertsView';
 import { DeviceSettingsView } from './components/settings/DeviceSettingsView';
 import { ArchitectureApiView } from './components/architecture/ArchitectureApiView';
+import { UserManagementView } from './components/users/UserManagementView';
 import { HardwareSimulatorModal } from './components/simulator/HardwareSimulatorModal';
 import { LoginModal } from './components/auth/LoginModal';
-import { Sliders } from 'lucide-react';
+import { SupabaseHealthModal } from './components/common/SupabaseHealthModal';
+import { AccessDenied } from './components/common/AccessDenied';
+import { canAccessTab, hasPermission } from './lib/permissions';
+import { Sliders, Database } from 'lucide-react';
 
 const AppContent: React.FC = () => {
-  const { activeTab, appMode, isAuthenticated } = useDevice();
+  const { activeTab, appMode, isAuthenticated, currentUser } = useDevice();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
+  const [isHealthModalOpen, setIsHealthModalOpen] = useState(false);
 
   // ROUTE PROTECTION:
   // Jika pengguna belum login (!isAuthenticated) ATAU sedang dalam mode landing,
@@ -35,9 +40,30 @@ const AppContent: React.FC = () => {
       <>
         <LandingPageView />
         <LoginModal />
+
+        {/* Development & Diagnostics Buttons on Landing Page */}
+        <div className="fixed bottom-4 left-4 z-30">
+          <button
+            onClick={() => setIsHealthModalOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#4F772D]/40 bg-white/95 px-3 py-1.5 text-xs font-semibold text-[#132A13] shadow-md hover:bg-[#ECF39E]/30 transition-all cursor-pointer backdrop-blur-xs"
+            title="Diagnostik Koneksi Supabase & Uji RLS"
+          >
+            <Database className="h-3.5 w-3.5 text-[#31572C]" />
+            <span className="hidden sm:inline">Status Supabase</span>
+            <span className="sm:hidden">DB</span>
+          </button>
+        </div>
+
+        <SupabaseHealthModal
+          isOpen={isHealthModalOpen}
+          onClose={() => setIsHealthModalOpen(false)}
+        />
       </>
     );
   }
+
+  // Cek apakah role pengguna memiliki izin membuka activeTab yang diminta
+  const isAllowedTab = canAccessTab(currentUser?.role, activeTab);
 
   // Dashboard Mode with Fixed Sidebar & Independent Main Content Scrolling
   return (
@@ -55,37 +81,67 @@ const AppContent: React.FC = () => {
           onToggleMobile={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         />
 
-        {/* Dynamic Main Viewport (Responsive, neat margins and padding) */}
+        {/* Dynamic Main Viewport (Responsive, protected by RBAC) */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
-          {activeTab === 'overview' && <OverviewView />}
-          {activeTab === 'devices' && <DeviceListView />}
-          {activeTab === 'pests' && <PestAnalyticsView />}
-          {activeTab === 'gallery' && <PhotoGalleryView />}
-          {activeTab === 'energy' && <EnergyMonitoringView />}
-          {activeTab === 'water' && <WaterManagementView />}
-          {activeTab === 'alerts' && <AlertsView />}
-          {activeTab === 'settings' && <DeviceSettingsView onOpenSimulator={() => setIsSimulatorOpen(true)} />}
-          {activeTab === 'architecture' && <ArchitectureApiView onOpenSimulator={() => setIsSimulatorOpen(true)} />}
+          {!isAllowedTab ? (
+            <AccessDenied />
+          ) : (
+            <>
+              {activeTab === 'overview' && <OverviewView />}
+              {activeTab === 'devices' && <DeviceListView />}
+              {activeTab === 'pests' && <PestAnalyticsView />}
+              {activeTab === 'gallery' && <PhotoGalleryView />}
+              {activeTab === 'energy' && <EnergyMonitoringView />}
+              {activeTab === 'water' && <WaterManagementView />}
+              {activeTab === 'alerts' && <AlertsView />}
+              {activeTab === 'settings' && <DeviceSettingsView onOpenSimulator={() => setIsSimulatorOpen(true)} />}
+              {activeTab === 'architecture' && <ArchitectureApiView onOpenSimulator={() => setIsSimulatorOpen(true)} />}
+              {activeTab === 'users' && <UserManagementView />}
+            </>
+          )}
         </main>
       </div>
 
-      {/* Discreet Development / Testing Floating Button */}
-      <div className="fixed bottom-4 right-4 z-30">
+      {/* Floating Diagnostics Button (Bottom Left) */}
+      <div className="fixed bottom-4 left-4 z-30 lg:left-68">
         <button
-          onClick={() => setIsSimulatorOpen(true)}
+          onClick={() => setIsHealthModalOpen(true)}
           className="inline-flex items-center gap-1.5 rounded-full border border-[#4F772D]/40 bg-white/95 px-3 py-1.5 text-xs font-semibold text-[#132A13] shadow-md hover:bg-[#ECF39E]/30 transition-all cursor-pointer backdrop-blur-xs"
-          title="Buka Simulator Hardware ESP32-S3 Lapangan (Mode Pengujian)"
+          title="Diagnostik Koneksi Supabase & Uji RLS"
         >
-          <Sliders className="h-3.5 w-3.5 text-[#31572C]" />
-          <span className="hidden sm:inline">Uji Hardware</span>
-          <span className="sm:hidden">Sim</span>
+          <Database className="h-3.5 w-3.5 text-[#31572C]" />
+          <span className="hidden sm:inline">Status Supabase</span>
+          <span className="sm:hidden">DB</span>
         </button>
       </div>
 
+      {/* Discreet Development / Testing Floating Button (Bottom Right) - Only for Operator & Admin */}
+      {hasPermission(currentUser?.role, 'manage:system_settings') && (
+        <div className="fixed bottom-4 right-4 z-30">
+          <button
+            onClick={() => setIsSimulatorOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#4F772D]/40 bg-white/95 px-3 py-1.5 text-xs font-semibold text-[#132A13] shadow-md hover:bg-[#ECF39E]/30 transition-all cursor-pointer backdrop-blur-xs"
+            title="Buka Simulator Hardware ESP32-S3 Lapangan (Mode Pengujian)"
+          >
+            <Sliders className="h-3.5 w-3.5 text-[#31572C]" />
+            <span className="hidden sm:inline">Uji Hardware</span>
+            <span className="sm:hidden">Sim</span>
+          </button>
+        </div>
+      )}
+
       {/* Interactive Hardware & ESP32-S3 Simulator Modal */}
-      <HardwareSimulatorModal
-        isOpen={isSimulatorOpen}
-        onClose={() => setIsSimulatorOpen(false)}
+      {hasPermission(currentUser?.role, 'manage:system_settings') && (
+        <HardwareSimulatorModal
+          isOpen={isSimulatorOpen}
+          onClose={() => setIsSimulatorOpen(false)}
+        />
+      )}
+
+      {/* Supabase Health & Diagnostics Modal */}
+      <SupabaseHealthModal
+        isOpen={isHealthModalOpen}
+        onClose={() => setIsHealthModalOpen(false)}
       />
 
       {/* Authentication Login Modal */}

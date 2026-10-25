@@ -395,7 +395,7 @@ export const INITIAL_ALERTS: DeviceAlert[] = [
 export const INITIAL_COMMANDS: DeviceCommand[] = [
   {
     id: 'cmd_098',
-    deviceId: 'dev_01_krw_a1',
+    deviceId: 'dev_01_sbg_01',
     commandType: 'FORCE_WATER_CHANGE',
     status: 'COMPLETED',
     createdAt: '2026-10-20T17:10:00+07:00',
@@ -497,8 +497,8 @@ export const MOCK_CAPTURES: CaptureImage[] = [
     notes: 'Kerapatan serangga tinggi pada kuadran tengah baki air.',
   },
   {
-    id: 'cap_krw01_20261021_1930',
-    deviceId: 'dev_01_krw_a1',
+    id: 'cap_sbg01_20261021_1930',
+    deviceId: 'dev_01_sbg_01',
     timestamp: '2026-10-21T19:30:00+07:00',
     imageUrl: '',
     resolution: '1920x1080 (OV5640 5MP Sensor)',

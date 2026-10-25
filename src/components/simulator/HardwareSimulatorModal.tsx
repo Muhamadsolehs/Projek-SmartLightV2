@@ -13,6 +13,7 @@ import {
   Lightbulb,
 } from 'lucide-react';
 import { useDevice } from '../../context/DeviceContext';
+import { hasPermission } from '../../lib/permissions';
 
 export const HardwareSimulatorModal: React.FC<{
   isOpen: boolean;
@@ -27,9 +28,10 @@ export const HardwareSimulatorModal: React.FC<{
     isSimulatingAction,
     simulatedActionMessage,
     sendCommand,
+    currentUser,
   } = useDevice();
 
-  if (!isOpen) return null;
+  if (!isOpen || !hasPermission(currentUser?.role, 'manage:system_settings')) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">

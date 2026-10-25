@@ -16,19 +16,34 @@ import {
   Layers,
   Sparkles,
   Wifi,
+  Lock,
+  Cpu,
+  Power,
+  Zap,
 } from 'lucide-react';
 import { SmartLightTrapDevice, DeviceCommand } from '../../types';
 import { useDevice } from '../../context/DeviceContext';
+import { hasPermission, getRoleMetadata } from '../../lib/permissions';
 
 export const DeviceDetailModal: React.FC<{
   device: SmartLightTrapDevice | null;
   isOpen: boolean;
   onClose: () => void;
 }> = ({ device, isOpen, onClose }) => {
-  const { commands, sendCommand, captures, triggerHardwareSimulation } = useDevice();
+  const { commands, sendCommand, captures, triggerHardwareSimulation, currentUser } = useDevice();
   const [activeSubTab, setActiveSubTab] = useState<'telemetry' | 'camera' | 'controls' | 'audit'>('telemetry');
   const [isExecutingCmd, setIsExecutingCmd] = useState(false);
   const [cmdFeedback, setCmdFeedback] = useState<string | null>(null);
+
+  const [relayStates, setRelayStates] = useState<Record<number, boolean>>({
+    1: device?.currentTelemetry?.water?.fillPumpStatus === 'running',
+    2: device?.currentTelemetry?.water?.drainValveStatus === 'open',
+    3: device?.currentTelemetry?.lamp?.isActive || false,
+    4: false,
+  });
+
+  const canControl = hasPermission(currentUser?.role, 'control:devices');
+  const roleMeta = getRoleMetadata(currentUser?.role);
 
   if (!isOpen || !device) return null;
 
@@ -47,6 +62,13 @@ export const DeviceDetailModal: React.FC<{
     } finally {
       setIsExecutingCmd(false);
     }
+  };
+
+  const toggleRelay = async (channel: number) => {
+    const nextState = !relayStates[channel];
+    const strState = nextState ? 'ON' : 'OFF';
+    setRelayStates((prev) => ({ ...prev, [channel]: nextState }));
+    await handleCommand('SET_RELAY', { relay: channel, state: strState });
   };
 
   return (
@@ -263,6 +285,7 @@ export const DeviceDetailModal: React.FC<{
 
           {/* TAB 2: CAMERA & CV */}
           {activeSubTab === 'camera' && (
+            latestCapture ? (
             <div className="space-y-4">
               <div className="flex items-center justify-between text-xs">
                 <div>
@@ -340,21 +363,230 @@ export const DeviceDetailModal: React.FC<{
                 </div>
               </div>
             </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-[#CBD5E1] bg-white p-12 text-center">
+                <Camera className="mx-auto h-12 w-12 text-[#94A3B8]" />
+                <h3 className="mt-4 text-base font-bold text-[#192A20]">Belum Ada Snapshot Kamera</h3>
+                <p className="mt-1 text-xs text-[#52796F] max-w-md mx-auto">
+                  Belum ada sesi tangkapan citra baki air untuk unit {device.code}. Sesi pemotretan otomatis dijalankan setiap malam saat lampu UV aktif.
+                </p>
+              </div>
+            )
           )}
 
           {/* TAB 3: SAFE REMOTE CONTROLS */}
           {activeSubTab === 'controls' && (
             <div className="space-y-4">
-              <div className="p-3.5 rounded-lg border border-[#FDE68A] bg-[#FEFCE8] text-xs text-[#92400E] flex items-start gap-2.5">
-                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                <div>
-                  <div className="font-bold">Protokol Kontrol Jarak Jauh Berautentikasi</div>
-                  <p className="mt-0.5 text-[11px] leading-relaxed">
-                    Setiap perintah memerlukan token sesi aman dan diverifikasi oleh firmware ESP32-S3 sebelum eksekusi aktuator fisik. Katup dan pompa dilindungi oleh fail-safe limit switch.
-                  </p>
+              {!canControl ? (
+                <div className="p-4 rounded-xl border border-red-200 bg-red-50 text-xs text-red-900 flex items-start gap-3 shadow-2xs">
+                  <Lock className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <div className="font-bold">Mode Baca-Saja (Akses Kontrol Terbatas)</div>
+                    <p className="text-[11px] text-red-700 leading-relaxed">
+                      Role Anda saat ini adalah <strong>{roleMeta.label}</strong>. Eksekusi perintah aktuator fisik (kuras air, saklar lampu, snapshot kamera, dan reboot mikrokontroler) dibatasi demi keselamatan operasional dan hanya dapat dijalankan oleh <strong>Operator Teknis Lapangan</strong> atau <strong>Administrator Sistem</strong>.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3.5 rounded-lg border border-[#FDE68A] bg-[#FEFCE8] text-xs text-[#92400E] flex items-start gap-2.5">
+                  <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-bold">Protokol Kontrol Jarak Jauh Berautentikasi</div>
+                    <p className="mt-0.5 text-[11px] leading-relaxed">
+                      Setiap perintah memerlukan token sesi aman dan diverifikasi oleh firmware ESP32-S3 sebelum eksekusi aktuator fisik. Katup dan pompa dilindungi oleh fail-safe limit switch.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* SEKSI KONTROL 4-CHANNEL RELAY ESP32 (ACTIVE LOW) */}
+              <div className="p-4 rounded-xl border border-[#2D6A4F]/25 bg-[#F4F9F6] space-y-3.5 shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#2D6A4F]/15 pb-3">
+                  <div>
+                    <h3 className="font-bold text-xs sm:text-sm text-[#1B4332] flex items-center gap-2">
+                      <Cpu className="h-4 w-4 text-[#2D6A4F]" />
+                      Kontrol Fisik 4-Channel Relay ESP32
+                    </h3>
+                    <p className="text-[11px] text-[#52796F] mt-0.5">
+                      Terkoneksi langsung via Supabase HTTPS Polling &amp; Persistensi NVS Flash
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                    <span className="bg-[#EAF4EE] text-[#1B4332] font-mono px-2 py-0.5 rounded font-bold border border-[#2D6A4F]/30">
+                      Active LOW: 0V=ON | 3.3V=OFF
+                    </span>
+                    <span className={`font-mono px-2 py-0.5 rounded font-bold ${
+                      device.status === 'online' ? 'bg-[#D1FAE5] text-[#065F46]' : 'bg-[#FEE2E2] text-[#991B1B]'
+                    }`}>
+                      {device.status === 'online' ? '● Node Online' : '○ Node Offline (Antrean)'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Grid 4 Channel Relay */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Channel 1 */}
+                  <div className={`p-3 rounded-lg border transition-all ${
+                    relayStates[1] ? 'bg-white border-[#2D6A4F] shadow-xs' : 'bg-white/90 border-[#E2E8F0]'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`flex h-7 w-7 items-center justify-center rounded-md font-mono text-xs font-bold ${
+                          relayStates[1] ? 'bg-[#2D6A4F] text-white' : 'bg-[#E2E8F0] text-[#718096]'
+                        }`}>
+                          R1
+                        </span>
+                        <div>
+                          <div className="font-bold text-xs text-[#192A20]">Relay 1: Pompa Pengisi</div>
+                          <div className="text-[10px] font-mono text-[#718096]">GPIO 12 · Submersible Tandon</div>
+                        </div>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                        relayStates[1] ? 'bg-[#D1FAE5] text-[#065F46]' : 'bg-[#F1F5F9] text-[#64748B]'
+                      }`}>
+                        {relayStates[1] ? 'ON (0V)' : 'OFF (3.3V)'}
+                      </span>
+                    </div>
+                    <div className="mt-2.5 flex items-center justify-between border-t border-[#F1F5F9] pt-2">
+                      <span className="text-[10px] text-[#718096]">Kontak: NO ↔ COM</span>
+                      <button
+                        disabled={!canControl || isExecutingCmd}
+                        onClick={() => toggleRelay(1)}
+                        className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+                          relayStates[1]
+                            ? 'bg-[#DC2626] text-white hover:bg-[#B91C1C]'
+                            : 'bg-[#2D6A4F] text-white hover:bg-[#1B4332]'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        {relayStates[1] ? 'Matikan Pompa' : 'Nyalakan Pompa'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Channel 2 */}
+                  <div className={`p-3 rounded-lg border transition-all ${
+                    relayStates[2] ? 'bg-white border-[#2D6A4F] shadow-xs' : 'bg-white/90 border-[#E2E8F0]'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`flex h-7 w-7 items-center justify-center rounded-md font-mono text-xs font-bold ${
+                          relayStates[2] ? 'bg-[#2D6A4F] text-white' : 'bg-[#E2E8F0] text-[#718096]'
+                        }`}>
+                          R2
+                        </span>
+                        <div>
+                          <div className="font-bold text-xs text-[#192A20]">Relay 2: Katup Solenoid</div>
+                          <div className="text-[10px] font-mono text-[#718096]">GPIO 14 · Drain Kuras Baki</div>
+                        </div>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                        relayStates[2] ? 'bg-[#D1FAE5] text-[#065F46]' : 'bg-[#F1F5F9] text-[#64748B]'
+                      }`}>
+                        {relayStates[2] ? 'ON (0V)' : 'OFF (3.3V)'}
+                      </span>
+                    </div>
+                    <div className="mt-2.5 flex items-center justify-between border-t border-[#F1F5F9] pt-2">
+                      <span className="text-[10px] text-[#718096]">Kontak: NO ↔ COM</span>
+                      <button
+                        disabled={!canControl || isExecutingCmd}
+                        onClick={() => toggleRelay(2)}
+                        className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+                          relayStates[2]
+                            ? 'bg-[#DC2626] text-white hover:bg-[#B91C1C]'
+                            : 'bg-[#2D6A4F] text-white hover:bg-[#1B4332]'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        {relayStates[2] ? 'Tutup Katup' : 'Buka Katup'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Channel 3 */}
+                  <div className={`p-3 rounded-lg border transition-all ${
+                    relayStates[3] ? 'bg-white border-[#2D6A4F] shadow-xs' : 'bg-white/90 border-[#E2E8F0]'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`flex h-7 w-7 items-center justify-center rounded-md font-mono text-xs font-bold ${
+                          relayStates[3] ? 'bg-[#D97706] text-white' : 'bg-[#E2E8F0] text-[#718096]'
+                        }`}>
+                          R3
+                        </span>
+                        <div>
+                          <div className="font-bold text-xs text-[#192A20]">Relay 3: LED UV Penarik</div>
+                          <div className="text-[10px] font-mono text-[#718096]">GPIO 27 · Lampu Nokturnal 365nm</div>
+                        </div>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                        relayStates[3] ? 'bg-[#FEF3C7] text-[#92400E]' : 'bg-[#F1F5F9] text-[#64748B]'
+                      }`}>
+                        {relayStates[3] ? 'ON (0V)' : 'OFF (3.3V)'}
+                      </span>
+                    </div>
+                    <div className="mt-2.5 flex items-center justify-between border-t border-[#F1F5F9] pt-2">
+                      <span className="text-[10px] text-[#718096]">Kontak: NO ↔ COM</span>
+                      <button
+                        disabled={!canControl || isExecutingCmd}
+                        onClick={() => toggleRelay(3)}
+                        className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+                          relayStates[3]
+                            ? 'bg-[#DC2626] text-white hover:bg-[#B91C1C]'
+                            : 'bg-[#2D6A4F] text-white hover:bg-[#1B4332]'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        {relayStates[3] ? 'Matikan LED' : 'Nyalakan LED'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Channel 4 */}
+                  <div className={`p-3 rounded-lg border transition-all ${
+                    relayStates[4] ? 'bg-white border-[#2D6A4F] shadow-xs' : 'bg-white/90 border-[#E2E8F0]'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`flex h-7 w-7 items-center justify-center rounded-md font-mono text-xs font-bold ${
+                          relayStates[4] ? 'bg-[#2D6A4F] text-white' : 'bg-[#E2E8F0] text-[#718096]'
+                        }`}>
+                          R4
+                        </span>
+                        <div>
+                          <div className="font-bold text-xs text-[#192A20]">Relay 4: Auxiliary Beban</div>
+                          <div className="text-[10px] font-mono text-[#718096]">GPIO 26 · Port Tambahan / Spare</div>
+                        </div>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                        relayStates[4] ? 'bg-[#D1FAE5] text-[#065F46]' : 'bg-[#F1F5F9] text-[#64748B]'
+                      }`}>
+                        {relayStates[4] ? 'ON (0V)' : 'OFF (3.3V)'}
+                      </span>
+                    </div>
+                    <div className="mt-2.5 flex items-center justify-between border-t border-[#F1F5F9] pt-2">
+                      <span className="text-[10px] text-[#718096]">Kontak: NO ↔ COM</span>
+                      <button
+                        disabled={!canControl || isExecutingCmd}
+                        onClick={() => toggleRelay(4)}
+                        className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+                          relayStates[4]
+                            ? 'bg-[#DC2626] text-white hover:bg-[#B91C1C]'
+                            : 'bg-[#2D6A4F] text-white hover:bg-[#1B4332]'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        {relayStates[4] ? 'Matikan Aux' : 'Nyalakan Aux'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-[#52796F] bg-white p-2.5 rounded-lg border border-[#2D6A4F]/15 flex items-start gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-[#2D6A4F] shrink-0 mt-0.5" />
+                  <span>
+                    <strong>Konfirmasi Pemetaan &amp; Keselamatan:</strong> Pompa (Ch 1) dan LED (Ch 3) terhubung pada modul relay active LOW. Status fisik disimpan di NVS Flash ESP32 agar output aman dan tidak berubah saat reboot.
+                  </span>
                 </div>
               </div>
 
+              {/* Kontrol Makro & Perintah Khusus */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 {/* Kontrol 1: Force Water Change */}
                 <div className="p-4 rounded-lg border border-[#E2E8F0] bg-white space-y-2">
@@ -366,11 +598,11 @@ export const DeviceDetailModal: React.FC<{
                     Membuka solenoid drain selama 25 detik dan memompa 5L air bersih dari tandon untuk membersihkan bangkai serangga.
                   </p>
                   <button
-                    disabled={isExecutingCmd}
+                    disabled={!canControl || isExecutingCmd}
                     onClick={() => handleCommand('FORCE_WATER_CHANGE')}
-                    className="w-full mt-2 py-2 px-3 bg-[#2D6A4F] text-white rounded-lg font-semibold hover:bg-[#1B4332] disabled:opacity-50 transition-colors"
+                    className="w-full mt-2 py-2 px-3 bg-[#2D6A4F] text-white rounded-lg font-semibold hover:bg-[#1B4332] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    Kirim Perintah Kuras Air
+                    {!canControl ? 'Dibatasi (Hanya Operator/Admin)' : 'Kirim Perintah Kuras Air'}
                   </button>
                 </div>
 
@@ -384,11 +616,11 @@ export const DeviceDetailModal: React.FC<{
                     Nyalakan/matikan lampu LED penarik serangga untuk menguji kesehatan driver arus dan sensor INA226.
                   </p>
                   <button
-                    disabled={isExecutingCmd}
+                    disabled={!canControl || isExecutingCmd}
                     onClick={() => handleCommand('TOGGLE_LAMP')}
-                    className="w-full mt-2 py-2 px-3 border border-[#E2E8F0] bg-[#F8FAF9] text-[#192A20] rounded-lg font-semibold hover:bg-[#E2E8F0] disabled:opacity-50 transition-colors"
+                    className="w-full mt-2 py-2 px-3 border border-[#E2E8F0] bg-[#F8FAF9] text-[#192A20] rounded-lg font-semibold hover:bg-[#E2E8F0] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    Toggle Lampu UV
+                    {!canControl ? 'Dibatasi (Hanya Operator/Admin)' : 'Toggle Lampu UV'}
                   </button>
                 </div>
 
@@ -402,11 +634,11 @@ export const DeviceDetailModal: React.FC<{
                     Nyalakan LED iluminasi baki dan picu kamera OV5640 untuk snapshot instan di luar jadwal reguler.
                   </p>
                   <button
-                    disabled={isExecutingCmd}
+                    disabled={!canControl || isExecutingCmd}
                     onClick={() => handleCommand('CAPTURE_NOW')}
-                    className="w-full mt-2 py-2 px-3 border border-[#E2E8F0] bg-[#F8FAF9] text-[#192A20] rounded-lg font-semibold hover:bg-[#E2E8F0] disabled:opacity-50 transition-colors"
+                    className="w-full mt-2 py-2 px-3 border border-[#E2E8F0] bg-[#F8FAF9] text-[#192A20] rounded-lg font-semibold hover:bg-[#E2E8F0] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    Ambil Snapshot
+                    {!canControl ? 'Dibatasi (Hanya Operator/Admin)' : 'Ambil Snapshot'}
                   </button>
                 </div>
 
@@ -420,11 +652,11 @@ export const DeviceDetailModal: React.FC<{
                     Lakukan soft restart pada mikrokontroler tanpa mereset data konfigurasi RTC dan EEPROM/NVS.
                   </p>
                   <button
-                    disabled={isExecutingCmd}
+                    disabled={!canControl || isExecutingCmd}
                     onClick={() => handleCommand('REBOOT_ESP32')}
-                    className="w-full mt-2 py-2 px-3 border border-[#E2E8F0] bg-[#F8FAF9] text-[#718096] rounded-lg font-semibold hover:bg-[#E2E8F0] disabled:opacity-50 transition-colors"
+                    className="w-full mt-2 py-2 px-3 border border-[#E2E8F0] bg-[#F8FAF9] text-[#718096] rounded-lg font-semibold hover:bg-[#E2E8F0] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    Soft Restart ESP32
+                    {!canControl ? 'Dibatasi (Hanya Operator/Admin)' : 'Soft Restart ESP32'}
                   </button>
                 </div>
               </div>

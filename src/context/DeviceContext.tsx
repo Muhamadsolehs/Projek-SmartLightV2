@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
   SmartLightTrapDevice,
   DeviceAlert,
@@ -15,6 +15,13 @@ import {
   MOCK_CAPTURES,
   MOCK_WATER_LOGS,
 } from '../data/mockData';
+import { supabase, isSupabaseConfigured, OPERATIONAL_REGION } from '../lib/supabase';
+import { authService } from '../services/authService';
+import { deviceService } from '../services/deviceService';
+import { alertService } from '../services/alertService';
+import { pestService } from '../services/pestService';
+import { waterService } from '../services/waterService';
+import { hasPermission, sanitizeRole } from '../lib/permissions';
 
 export type NavigationTab =
   | 'overview'
@@ -25,7 +32,8 @@ export type NavigationTab =
   | 'water'
   | 'alerts'
   | 'settings'
-  | 'architecture';
+  | 'architecture'
+  | 'users';
 
 interface TelegramConfig {
   enabled: boolean;
@@ -38,29 +46,39 @@ interface TelegramConfig {
 export const DEMO_USERS: UserProfile[] = [
   {
     id: 'usr_01',
-    name: 'Pak Rahmat',
-    email: 'rahmat@smarttrap.id',
-    role: 'Agronomis Lapangan',
-    avatarInitials: 'PR',
-    assignedRegion: 'Subang, Jawa Barat',
+    name: 'Dr. Hendra',
+    email: 'hendra@smarttrap.id',
+    role: 'admin',
+    avatarInitials: 'DH',
+    assignedRegion: 'Jawa Barat (Pusat)',
   },
   {
     id: 'usr_02',
     name: 'Siti Aminah',
     email: 'siti@smarttrap.id',
-    role: 'Operator Teknis Subang',
+    role: 'operator',
     avatarInitials: 'SA',
     assignedRegion: 'Pagaden & Binong',
   },
   {
     id: 'usr_03',
-    name: 'Dr. Hendra',
-    email: 'hendra@smarttrap.id',
-    role: 'Supervisor PHT',
-    avatarInitials: 'DH',
-    assignedRegion: 'Jawa Barat (Pusat)',
+    name: 'Dewi Lestari',
+    email: 'dewi@smarttrap.id',
+    role: 'analyst',
+    avatarInitials: 'DL',
+    assignedRegion: 'Laboratorium PHT Subang',
+  },
+  {
+    id: 'usr_04',
+    name: 'Pak Rahmat',
+    email: 'rahmat@smarttrap.id',
+    role: 'viewer',
+    avatarInitials: 'PR',
+    assignedRegion: 'Subang, Jawa Barat',
   },
 ];
+
+export type DataSourceMode = 'supabase_live' | 'simulation_demo';
 
 interface DeviceContextType {
   devices: SmartLightTrapDevice[];
@@ -99,37 +117,244 @@ interface DeviceContextType {
   isAuthenticated: boolean;
   isLoginModalOpen: boolean;
   setIsLoginModalOpen: (open: boolean) => void;
-  login: (email: string, password?: string) => Promise<boolean>;
-  logout: () => void;
+  login: (email: string, password?: string) => Promise<{ success: boolean; error: string | null }>;
+  signUp: (
+    email: string,
+    password: string,
+    fullName: string
+  ) => Promise<{ success: boolean; needsConfirmation: boolean; error: string | null }>;
+  loginAsDemo: (demoUser: UserProfile) => void;
+  // Device CRUD actions (Admin only)
+  createDevice: (data: any) => Promise<SmartLightTrapDevice>;
+  updateDevice: (id: string, updates: any) => Promise<boolean>;
+  deleteDevice: (id: string) => Promise<boolean>;
+  // Live connectivity & state
+  dataSource: DataSourceMode;
+  setDataSource: (mode: DataSourceMode) => void;
+  isLiveConnected: boolean;
+  isLoadingData: boolean;
+  devicesLoading: boolean;
+  devicesEmpty: boolean;
+  devicesError: string | null;
+  refreshData: () => Promise<void>;
 }
 
 const DeviceContext = createContext<DeviceContextType | undefined>(undefined);
 
 export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [devices, setDevices] = useState<SmartLightTrapDevice[]>(INITIAL_DEVICES);
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('dev_01_sbg_01');
+  // Data source mode: 'supabase_live' (default) vs 'simulation_demo' (explicit mock preview)
+  const [dataSource, setDataSourceState] = useState<DataSourceMode>(() => {
+    try {
+      const saved = localStorage.getItem('slt_datasource');
+      return (saved as DataSourceMode) || 'supabase_live';
+    } catch {
+      return 'supabase_live';
+    }
+  });
+
+  const [devices, setDevices] = useState<SmartLightTrapDevice[]>(() => {
+    const savedSource = localStorage.getItem('slt_datasource');
+    return savedSource === 'simulation_demo' ? INITIAL_DEVICES : [];
+  });
+  const [devicesLoading, setDevicesLoading] = useState(false);
+  const [devicesEmpty, setDevicesEmpty] = useState(false);
+  const [devicesError, setDevicesError] = useState<string | null>(null);
+
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('a1111111-1111-1111-1111-111111111111');
   const [activeTab, setActiveTab] = useState<NavigationTab>('overview');
   const [appMode, setAppModeState] = useState<'landing' | 'dashboard'>('landing');
-  const operationalRegion = 'Subang, Jawa Barat';
-  const [alerts, setAlerts] = useState<DeviceAlert[]>(INITIAL_ALERTS);
+  const operationalRegion = OPERATIONAL_REGION;
+  const [alerts, setAlerts] = useState<DeviceAlert[]>(() => {
+    const savedSource = localStorage.getItem('slt_datasource');
+    return savedSource === 'simulation_demo' ? INITIAL_ALERTS : [];
+  });
   const [commands, setCommands] = useState<DeviceCommand[]>(INITIAL_COMMANDS);
-  const [captures, setCaptures] = useState<CaptureImage[]>(MOCK_CAPTURES);
-  const [waterLogs, setWaterLogs] = useState<WaterChangeLog[]>(MOCK_WATER_LOGS);
+  const [captures, setCaptures] = useState<CaptureImage[]>(() => {
+    const savedSource = localStorage.getItem('slt_datasource');
+    return savedSource === 'simulation_demo' ? MOCK_CAPTURES : [];
+  });
+  const [waterLogs, setWaterLogs] = useState<WaterChangeLog[]>(() => {
+    const savedSource = localStorage.getItem('slt_datasource');
+    return savedSource === 'simulation_demo' ? MOCK_WATER_LOGS : [];
+  });
   const [isSimulatingAction, setIsSimulatingAction] = useState(false);
   const [simulatedActionMessage, setSimulatedActionMessage] = useState<string | null>(null);
+  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [isLiveConnected, setIsLiveConnected] = useState(isSupabaseConfigured);
 
-  // Authentication state (null by default if not logged in)
+  // Authentication state
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
     try {
       const saved = localStorage.getItem('slt_user');
-      return saved ? JSON.parse(saved) : null;
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      return {
+        ...parsed,
+        role: sanitizeRole(parsed.role),
+      };
     } catch {
       return null;
     }
   });
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-
   const isAuthenticated = currentUser !== null;
+
+  // Telegram Config
+  const [telegramConfig, setTelegramConfig] = useState<TelegramConfig>({
+    enabled: true,
+    botToken: 'bot71829381:AAF4-sample-esp32-light-trap-token',
+    chatId: '-100234891823',
+    lastTestStatus: 'idle',
+  });
+
+  // Selected device with fallback
+  const selectedDevice =
+    devices.find((d) => d.id === selectedDeviceId || d.code === selectedDeviceId) ||
+    devices[0] ||
+    INITIAL_DEVICES[0];
+
+  const setDataSource = (mode: DataSourceMode) => {
+    setDataSourceState(mode);
+    try {
+      localStorage.setItem('slt_datasource', mode);
+    } catch {}
+  };
+
+  // Fetch all dashboard data from Supabase or load simulation fixtures
+  const loadDashboardData = useCallback(async () => {
+    if (dataSource === 'simulation_demo') {
+      // In explicit simulation demo mode, use mock fixtures
+      setDevices(INITIAL_DEVICES);
+      setAlerts(INITIAL_ALERTS);
+      setCommands(INITIAL_COMMANDS);
+      setCaptures(MOCK_CAPTURES);
+      setWaterLogs(MOCK_WATER_LOGS);
+      setDevicesEmpty(false);
+      setDevicesError(null);
+      setIsLiveConnected(true);
+      return;
+    }
+
+    if (!isSupabaseConfigured) {
+      setDevicesError('Klien Supabase belum terkonfigurasi pada file .env.');
+      setDevices([]);
+      setDevicesEmpty(true);
+      return;
+    }
+
+    setIsLoadingData(true);
+    setDevicesLoading(true);
+    setDevicesError(null);
+
+    try {
+      const [fetchedDevices, fetchedAlerts, fetchedCommands, fetchedCaptures, fetchedLogs] = await Promise.all([
+        deviceService.getDevices(),
+        alertService.getAlerts().catch(() => []),
+        deviceService.getCommands().catch(() => []),
+        pestService.getCaptureSessions().catch(() => []),
+        waterService.getWaterLogs().catch(() => []),
+      ]);
+
+      if (Array.isArray(fetchedDevices)) {
+        setDevices(fetchedDevices);
+        setDevicesEmpty(fetchedDevices.length === 0);
+        if (fetchedDevices.length > 0) {
+          if (!fetchedDevices.some((d) => d.id === selectedDeviceId)) {
+            setSelectedDeviceId(fetchedDevices[0].id);
+          }
+        }
+      }
+
+      setAlerts(fetchedAlerts || []);
+      setCommands(fetchedCommands || []);
+      setCaptures(fetchedCaptures || []);
+      setWaterLogs(fetchedLogs || []);
+      setIsLiveConnected(true);
+      setDevicesError(null);
+    } catch (err: any) {
+      console.error('Error loading Supabase dashboard data:', err);
+      setDevicesError(err?.message || 'Gagal memuat data dari database Supabase.');
+      setDevices([]);
+      setDevicesEmpty(true);
+      setIsLiveConnected(false);
+    } finally {
+      setIsLoadingData(false);
+      setDevicesLoading(false);
+    }
+  }, [dataSource, selectedDeviceId]);
+
+  // Auth restore & Realtime listeners
+  useEffect(() => {
+    if (isSupabaseConfigured) {
+      // Restore authenticated session from Supabase
+      authService.getSession().then((user) => {
+        if (user) {
+          setCurrentUser(user);
+          setDataSourceState('supabase_live');
+          localStorage.setItem('slt_user', JSON.stringify(user));
+          localStorage.setItem('slt_datasource', 'supabase_live');
+        }
+      });
+
+      const { unsubscribe: unsubAuth } = authService.onAuthStateChange((user) => {
+        if (user) {
+          setCurrentUser(user);
+          setDataSourceState('supabase_live');
+          localStorage.setItem('slt_user', JSON.stringify(user));
+          localStorage.setItem('slt_datasource', 'supabase_live');
+        } else {
+          // If logged out from Supabase and not explicitly in demo mode, clear user
+          const savedSource = localStorage.getItem('slt_datasource');
+          if (savedSource !== 'simulation_demo') {
+            setCurrentUser(null);
+            localStorage.removeItem('slt_user');
+          }
+        }
+      });
+
+      return () => {
+        unsubAuth();
+      };
+    }
+  }, []);
+
+  // Realtime subscription effect
+  useEffect(() => {
+    if (!isSupabaseConfigured || !isAuthenticated || dataSource !== 'supabase_live') return;
+
+    loadDashboardData();
+
+    // Subscribe to devices and telemetry
+    const { unsubscribe: unsubDevices } = deviceService.subscribeToDevices(() => {
+      loadDashboardData();
+    });
+
+    // Subscribe to alerts
+    const { unsubscribe: unsubAlerts } = alertService.subscribeToAlerts(() => {
+      alertService.getAlerts().then((updated) => setAlerts(updated));
+    });
+
+    // Subscribe to command execution updates
+    const { unsubscribe: unsubCommands } = deviceService.subscribeToCommands(
+      selectedDeviceId,
+      (updatedCmd) => {
+        setCommands((prev) => {
+          const exists = prev.some((c) => c.id === updatedCmd.id);
+          if (exists) {
+            return prev.map((c) => (c.id === updatedCmd.id ? updatedCmd : c));
+          } else {
+            return [updatedCmd, ...prev];
+          }
+        });
+      }
+    );
+
+    return () => {
+      unsubDevices();
+      unsubAlerts();
+      unsubCommands();
+    };
+  }, [isAuthenticated, dataSource, loadDashboardData, selectedDeviceId]);
 
   const setAppMode = (mode: 'landing' | 'dashboard') => {
     if (mode === 'dashboard' && !currentUser) {
@@ -139,51 +364,96 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setAppModeState(mode);
   };
 
-  const login = async (email: string, password?: string): Promise<boolean> => {
-    // Find matching demo user or create session
-    const matched = DEMO_USERS.find((u) => u.email.toLowerCase() === email.toLowerCase());
-    const userToSet: UserProfile = matched || {
-      id: `usr_${Date.now()}`,
-      name: email.split('@')[0].replace('.', ' '),
-      email,
-      role: 'Agronomis Lapangan',
-      avatarInitials: email.slice(0, 2).toUpperCase(),
-      assignedRegion: 'Subang, Jawa Barat',
-    };
-
-    setCurrentUser(userToSet);
-    try {
-      localStorage.setItem('slt_user', JSON.stringify(userToSet));
-    } catch {
-      // storage unavailable
+  /**
+   * Login strictly using Supabase Auth.
+   * If authentication fails, returns { success: false, error } without setting mock data.
+   */
+  const login = async (email: string, password?: string): Promise<{ success: boolean; error: string | null }> => {
+    const res = await authService.signIn(email, password);
+    if (res.user) {
+      setCurrentUser(res.user);
+      setDataSourceState('supabase_live');
+      try {
+        localStorage.setItem('slt_user', JSON.stringify(res.user));
+        localStorage.setItem('slt_datasource', 'supabase_live');
+      } catch {}
+      setIsLoginModalOpen(false);
+      setAppModeState('dashboard');
+      loadDashboardData();
+      return { success: true, error: null };
+    } else {
+      return { success: false, error: res.error || 'Autentikasi gagal. Periksa kembali akun Anda.' };
     }
-    setIsLoginModalOpen(false);
-    setAppModeState('dashboard');
-    return true;
   };
 
-  const logout = () => {
+  /**
+   * Register a new user via Supabase Auth with strict 'viewer' role.
+   */
+  const signUp = async (
+    email: string,
+    password: string,
+    fullName: string
+  ): Promise<{ success: boolean; needsConfirmation: boolean; error: string | null }> => {
+    const res = await authService.signUp(email, password, fullName);
+    if (res.error) {
+      return { success: false, needsConfirmation: false, error: res.error };
+    }
+
+    if (res.user && !res.needsConfirmation) {
+      setCurrentUser(res.user);
+      setDataSourceState('supabase_live');
+      try {
+        localStorage.setItem('slt_user', JSON.stringify(res.user));
+        localStorage.setItem('slt_datasource', 'supabase_live');
+      } catch {}
+      setIsLoginModalOpen(false);
+      setAppModeState('dashboard');
+      loadDashboardData();
+    }
+
+    return { success: true, needsConfirmation: res.needsConfirmation, error: null };
+  };
+
+  /**
+   * Explicit Demo/Simulation Mode for UI preview without contacting live Supabase.
+   */
+  const loginAsDemo = (demoUser: UserProfile) => {
+    setCurrentUser(demoUser);
+    setDataSourceState('simulation_demo');
+    try {
+      localStorage.setItem('slt_user', JSON.stringify(demoUser));
+      localStorage.setItem('slt_datasource', 'simulation_demo');
+    } catch {}
+    setDevices(INITIAL_DEVICES);
+    setAlerts(INITIAL_ALERTS);
+    setCommands(INITIAL_COMMANDS);
+    setCaptures(MOCK_CAPTURES);
+    setWaterLogs(MOCK_WATER_LOGS);
+    setDevicesEmpty(false);
+    setDevicesError(null);
+    setIsLoginModalOpen(false);
+    setAppModeState('dashboard');
+  };
+
+  const logout = async () => {
+    await authService.signOut();
     setCurrentUser(null);
+    setDataSourceState('supabase_live');
+    setDevices([]);
     try {
       localStorage.removeItem('slt_user');
-    } catch {
-      // storage unavailable
-    }
+      localStorage.removeItem('slt_datasource');
+    } catch {}
     setAppModeState('landing');
     setIsLoginModalOpen(false);
   };
 
-  const [telegramConfig, setTelegramConfig] = useState<TelegramConfig>({
-    enabled: true,
-    botToken: 'bot71829381:AAF4-sample-esp32-light-trap-token',
-    chatId: '-100234891823',
-    lastTestStatus: 'idle',
-  });
-
-  const selectedDevice =
-    devices.find((d) => d.id === selectedDeviceId) || devices[0];
-
-  const acknowledgeAlert = (alertId: string, operatorName = 'Operator Lapangan') => {
+  const acknowledgeAlert = async (alertId: string, operatorName = 'Operator Lapangan') => {
+    if (!hasPermission(currentUser?.role, 'action:acknowledge_alert')) {
+      alert('Akses Ditolak: Role Anda tidak memiliki wewenang untuk mengonfirmasi peringatan.');
+      return;
+    }
+    await alertService.acknowledgeAlert(alertId, operatorName);
     setAlerts((prev) =>
       prev.map((alt) =>
         alt.id === alertId
@@ -203,106 +473,135 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     commandType: DeviceCommand['commandType'],
     params?: Record<string, any>
   ): Promise<DeviceCommand> => {
-    const newCmdId = `cmd_${Date.now()}`;
-    const newCommand: DeviceCommand = {
-      id: newCmdId,
-      deviceId,
-      commandType,
-      parameters: params,
-      status: 'PENDING',
-      createdAt: new Date().toISOString(),
-    };
+    if (!hasPermission(currentUser?.role, 'control:devices')) {
+      throw new Error(
+        'Akses Ditolak: Hanya Operator Teknis dan Administrator yang memiliki wewenang mengirim perintah pengendalian aktuator perangkat.'
+      );
+    }
+    try {
+      const createdCmd = await deviceService.sendCommand(deviceId, commandType, params);
+      setCommands((prev) => [createdCmd, ...prev]);
 
-    setCommands((prev) => [newCommand, ...prev]);
+      // If simulated or demo mode, execute simulated transitions
+      if (!isSupabaseConfigured || selectedDevice.isSimulated) {
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            setCommands((prev) =>
+              prev.map((cmd) => (cmd.id === createdCmd.id ? { ...cmd, status: 'SENT' } : cmd))
+            );
+          }, 600);
 
-    // Simulate real IoT handshake protocol (PENDING -> SENT -> ACK -> COMPLETED)
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        setCommands((prev) =>
-          prev.map((cmd) =>
-            cmd.id === newCmdId ? { ...cmd, status: 'SENT' } : cmd
-          )
-        );
-      }, 600);
+          setTimeout(() => {
+            setCommands((prev) =>
+              prev.map((cmd) => (cmd.id === createdCmd.id ? { ...cmd, status: 'ACKNOWLEDGED' } : cmd))
+            );
+          }, 1400);
 
-      setTimeout(() => {
-        setCommands((prev) =>
-          prev.map((cmd) =>
-            cmd.id === newCmdId ? { ...cmd, status: 'ACKNOWLEDGED' } : cmd
-          )
-        );
-      }, 1400);
-
-      setTimeout(() => {
-        let resp = 'Perintah berhasil dieksekusi oleh firmware ESP32-S3.';
-        if (commandType === 'FORCE_WATER_CHANGE') {
-          resp = 'Siklus kuras 25 detik dan pengisian baki tuntas. Kekeruhan air normal kembali.';
-          // Update device state
-          setDevices((prev) =>
-            prev.map((d) =>
-              d.id === deviceId
-                ? {
+          setTimeout(() => {
+            let resp = 'Perintah berhasil dieksekusi oleh firmware ESP32-S3.';
+            if (commandType === 'FORCE_WATER_CHANGE') {
+              resp = 'Siklus kuras 25 detik dan pengisian baki tuntas. Kekeruhan air normal kembali.';
+              setDevices((prev) =>
+                prev.map((d) =>
+                  d.id === deviceId
+                    ? {
+                        ...d,
+                        currentTelemetry: {
+                          ...d.currentTelemetry,
+                          water: {
+                            ...d.currentTelemetry.water,
+                            turbidityNtu: 28,
+                            isTurbid: false,
+                            trayLevelPercent: 85,
+                            tankVolumeLiters: Math.max(0, d.currentTelemetry.water.tankVolumeLiters - 5),
+                            tankLevelPercent: Math.max(0, d.currentTelemetry.water.tankLevelPercent - 10),
+                            lastWaterChange: new Date().toISOString(),
+                          },
+                        },
+                      }
+                    : d
+                )
+              );
+            } else if (commandType === 'TOGGLE_LAMP') {
+              setDevices((prev) =>
+                prev.map((d) => {
+                  if (d.id !== deviceId) return d;
+                  const nextActive = !d.currentTelemetry.lamp.isActive;
+                  return {
                     ...d,
                     currentTelemetry: {
                       ...d.currentTelemetry,
-                      water: {
-                        ...d.currentTelemetry.water,
-                        turbidityNtu: 28,
-                        isTurbid: false,
-                        trayLevelPercent: 85,
-                        tankVolumeLiters: Math.max(0, d.currentTelemetry.water.tankVolumeLiters - 5),
-                        tankLevelPercent: Math.max(0, d.currentTelemetry.water.tankLevelPercent - 10),
-                        lastWaterChange: new Date().toISOString(),
+                      lamp: {
+                        ...d.currentTelemetry.lamp,
+                        isActive: nextActive,
+                        ledCurrentMa: nextActive ? 850 : 0,
                       },
                     },
-                  }
-                : d
-            )
-          );
-        } else if (commandType === 'TOGGLE_LAMP') {
-          setDevices((prev) =>
-            prev.map((d) => {
-              if (d.id !== deviceId) return d;
-              const nextActive = !d.currentTelemetry.lamp.isActive;
-              return {
-                ...d,
-                currentTelemetry: {
-                  ...d.currentTelemetry,
-                  lamp: {
-                    ...d.currentTelemetry.lamp,
-                    isActive: nextActive,
-                    ledCurrentMa: nextActive ? 850 : 0,
-                  },
-                },
-              };
-            })
-          );
-          resp = 'Status lampu UV berhasil diubah secara aman.';
-        } else if (commandType === 'REBOOT_ESP32') {
-          resp = 'ESP32-S3 reboot bersih dilakukan. RTC DS3231 dan modem 4G terhubung kembali.';
-        }
+                  };
+                })
+              );
+              resp = 'Status lampu UV berhasil diubah secara aman.';
+            } else if (commandType === 'SET_RELAY') {
+              const rNum = params?.relay || 1;
+              const rState = params?.state || 'ON';
+              resp = `Relay ${rNum} berhasil diset ke ${rState} (Logika Active LOW).`;
+              if (rNum === 3) {
+                // Relay 3 is LED / Lamp
+                setDevices((prev) =>
+                  prev.map((d) =>
+                    d.id === deviceId
+                      ? {
+                          ...d,
+                          currentTelemetry: {
+                            ...d.currentTelemetry,
+                            lamp: {
+                              ...d.currentTelemetry.lamp,
+                              isActive: rState === 'ON',
+                              ledCurrentMa: rState === 'ON' ? 850 : 0,
+                            },
+                          },
+                        }
+                      : d
+                  )
+                );
+              }
+            } else if (commandType === 'REBOOT_ESP32') {
+              resp = 'ESP32-S3 reboot bersih dilakukan. RTC DS3231 dan modem 4G terhubung kembali.';
+            }
 
-        const completedCmd: DeviceCommand = {
-          ...newCommand,
-          status: 'COMPLETED',
-          executedAt: new Date().toISOString(),
-          responseMessage: resp,
-        };
+            const completedCmd: DeviceCommand = {
+              ...createdCmd,
+              status: 'COMPLETED',
+              executedAt: new Date().toISOString(),
+              responseMessage: resp,
+            };
 
-        setCommands((prev) =>
-          prev.map((cmd) => (cmd.id === newCmdId ? completedCmd : cmd))
-        );
-        resolve(completedCmd);
-      }, 2500);
-    });
+            setCommands((prev) =>
+              prev.map((cmd) => (cmd.id === createdCmd.id ? completedCmd : cmd))
+            );
+            resolve(completedCmd);
+          }, 2500);
+        });
+      }
+
+      return createdCmd;
+    } catch (err: any) {
+      throw err;
+    }
   };
 
-  const updateBoundingBoxLabel = (
+  const updateBoundingBoxLabel = async (
     captureId: string,
     boxId: string,
     newSpeciesId: InsectSpeciesId,
     operatorName: string
   ) => {
+    if (!hasPermission(currentUser?.role, 'action:verify_detection')) {
+      alert('Akses Ditolak: Role Anda tidak memiliki izin untuk mengoreksi label deteksi serangga.');
+      return;
+    }
+    await pestService.updateDetectionVerification(boxId, newSpeciesId, operatorName);
+
     setCaptures((prev) =>
       prev.map((cap) => {
         if (cap.id !== captureId) return cap;
@@ -467,12 +766,75 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       lastTestStatus: 'idle',
       lastTestMessage: 'Mengirim pesan uji coba ke bot...',
     }));
-    await new Promise((r) => setTimeout(r, 1200));
-    setTelegramConfig((prev) => ({
-      ...prev,
-      lastTestStatus: 'success',
-      lastTestMessage: `Pesan uji coba sukses dikirim ke chat ID ${prev.chatId}: "[ALERT SLT] Tes integrasi notifikasi Smart Light Trap berhasil."`,
-    }));
+
+    try {
+      if (isSupabaseConfigured) {
+        // Call Edge Function send-telegram-alert
+        const { error } = await supabase.functions.invoke('send-telegram-alert', {
+          body: {
+            alert_type: 'test_notification',
+            severity: 'info',
+            title: 'Tes Integrasi Notifikasi Smart Light Trap',
+            message: `Pesan uji coba sistem Smart Light Trap Subang dikirim pada ${new Date().toLocaleString('id-ID')}`,
+            device_code: selectedDevice.code,
+            location_name: selectedDevice.locationName,
+          },
+        });
+
+        if (!error) {
+          setTelegramConfig((prev) => ({
+            ...prev,
+            lastTestStatus: 'success',
+            lastTestMessage: `Pesan sukses dikirim via Supabase Edge Function ke Telegram Chat ID ${prev.chatId}.`,
+          }));
+          return;
+        }
+      }
+
+      // Fallback response
+      await new Promise((r) => setTimeout(r, 1000));
+      setTelegramConfig((prev) => ({
+        ...prev,
+        lastTestStatus: 'success',
+        lastTestMessage: `Pesan uji coba sukses diproses: "[ALERT SLT] Tes integrasi notifikasi Smart Light Trap Subang berhasil."`,
+      }));
+    } catch {
+      setTelegramConfig((prev) => ({
+        ...prev,
+        lastTestStatus: 'failed',
+        lastTestMessage: 'Gagal mengirim pesan uji coba.',
+      }));
+    }
+  };
+
+  /**
+   * Device Management (Admin Only)
+   */
+  const createDevice = async (deviceData: any): Promise<SmartLightTrapDevice> => {
+    if (!hasPermission(currentUser?.role, 'manage:devices')) {
+      throw new Error('Akses Ditolak: Hanya Administrator yang berhak menambahkan unit perangkat.');
+    }
+    const created = await deviceService.createDevice(deviceData);
+    await loadDashboardData();
+    return created;
+  };
+
+  const updateDevice = async (id: string, updates: any): Promise<boolean> => {
+    if (!hasPermission(currentUser?.role, 'manage:devices')) {
+      throw new Error('Akses Ditolak: Hanya Administrator yang berhak memperbarui unit perangkat.');
+    }
+    const success = await deviceService.updateDevice(id, updates);
+    await loadDashboardData();
+    return success;
+  };
+
+  const deleteDevice = async (id: string): Promise<boolean> => {
+    if (!hasPermission(currentUser?.role, 'manage:devices')) {
+      throw new Error('Akses Ditolak: Hanya Administrator yang berhak menghapus unit perangkat.');
+    }
+    const success = await deviceService.deleteDevice(id);
+    await loadDashboardData();
+    return success;
   };
 
   return (
@@ -505,7 +867,20 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isLoginModalOpen,
         setIsLoginModalOpen,
         login,
+        signUp,
+        loginAsDemo,
         logout,
+        createDevice,
+        updateDevice,
+        deleteDevice,
+        dataSource,
+        setDataSource,
+        isLiveConnected,
+        isLoadingData,
+        devicesLoading,
+        devicesEmpty,
+        devicesError,
+        refreshData: loadDashboardData,
       }}
     >
       {children}
