@@ -194,3 +194,9 @@ export interface DailyPestTrend {
   thresholdAlert: boolean;
 }
 
+export interface DeviceProvisioningCredentials {
+  deviceCode: string;
+  rawToken: string;
+  configHSnippet: string;
+  warning: string;
+}

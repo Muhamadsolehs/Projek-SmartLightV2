@@ -22,24 +22,38 @@
 
 #include <Arduino.h>
 
+#if __has_include("credentials.h")
+  #include "credentials.h"
+#endif
+
 // ============================================================================
 // 1. IDENTITAS PERANGKAT & OTENTIKASI KEAMANAN SUPABASE
 // ============================================================================
 // Kode perangkat unik yang terdaftar pada tabel 'devices' di Supabase
+#ifndef DEVICE_CODE
 #define DEVICE_CODE "SLT-SBG-01"
+#endif
 
 // Token otentikasi rahasia per-perangkat (Diverifikasi via SHA-256 hash di Edge Functions)
 // JANGAN PERNAH menyimpan Supabase service_role key di firmware!
+#ifndef DEVICE_TOKEN
 #define DEVICE_TOKEN "slt_token_sbg01_secret_2026"
+#endif
 
 // Versi firmware rilis
+#ifndef FIRMWARE_VERSION
 #define FIRMWARE_VERSION "v2.4.0-relay-mesh"
+#endif
 
 // ============================================================================
 // 2. KREDENSIAL JARINGAN (WI-FI)
 // ============================================================================
+#ifndef WIFI_SSID
 #define WIFI_SSID     "Amj"
+#endif
+#ifndef WIFI_PASSWORD
 #define WIFI_PASSWORD "Alya123*"
+#endif
 
 // Wi-Fi Connection Timeout & Retry parameters
 #define WIFI_CONNECT_TIMEOUT_MS 15000
@@ -48,13 +62,12 @@
 // ============================================================================
 // 3. ENDPOINT SUPABASE EDGE FUNCTIONS (HTTPS)
 // ============================================================================
-#define SUPABASE_BASE_URL "https://nrskcmbnctpdxywhigtu.supabase.co"
+#define SUPABASE_BASE_URL "https://nrskcmbnctpdxywhigtu.supabase.co/functions/v1"
 
 #define URL_COMMAND_POLL  SUPABASE_BASE_URL "/device-command-poll"
 #define URL_COMMAND_ACK   SUPABASE_BASE_URL "/device-command-ack"
 #define URL_TELEMETRY     SUPABASE_BASE_URL "/device-telemetry"
 #define URL_DEVICE_STATUS SUPABASE_BASE_URL "/device-status"
-
 // ============================================================================
 // 4. PEMETAAN PIN 4-CHANNEL RELAY (ACTIVE LOW)
 // ============================================================================

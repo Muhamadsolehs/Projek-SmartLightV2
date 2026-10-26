@@ -20,6 +20,7 @@ import {
   Plus,
   Edit2,
   Trash2,
+  Key,
 } from 'lucide-react';
 import { useDevice } from '../../context/DeviceContext';
 import { SmartLightTrapDevice } from '../../types';
@@ -110,14 +111,14 @@ export const DeviceListView: React.FC = () => {
       <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-[#52796F]">
         <span className="text-[#718096]">Smart Light Trap</span>
         <ChevronRight className="h-3.5 w-3.5 text-[#A0AEC0]" />
-        <span className="font-semibold text-[#192A20]">Monitoring Perangkat</span>
+        <span className="font-semibold text-[#192A20]">Perangkat</span>
       </nav>
 
       {/* 2. Judul Halaman dan Deskripsi Singkat */}
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#192A20]">
-            Monitoring Perangkat
+            Perangkat Smart Light Trap
           </h1>
           <p className="text-xs sm:text-sm text-[#52796F] mt-1 max-w-2xl">
             Pemantauan status operasional armada perangkap serangga pintar, sensor energi INA226, baki air, dan transmisi 4G di lahan sawah Subang.
@@ -531,6 +532,16 @@ export const DeviceListView: React.FC = () => {
                       {canManageDevices && (
                         <>
                           <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenDetail(device);
+                            }}
+                            className="p-1.5 rounded-lg border border-[#2D6A4F]/40 text-[#1B4332] hover:bg-[#EAF4EE] transition-colors cursor-pointer"
+                            title="Lihat Detail & Rotasi Token Hardware"
+                          >
+                            <Key className="h-3.5 w-3.5" />
+                          </button>
+                          <button
                             onClick={(e) => handleOpenEdit(device, e)}
                             className="p-1.5 rounded-lg border border-[#90A955]/40 text-[#31572C] hover:bg-[#ECF39E]/30 transition-colors cursor-pointer"
                             title="Edit Data Perangkat"
@@ -688,6 +699,17 @@ export const DeviceListView: React.FC = () => {
                 </button>
                 {canManageDevices && (
                   <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenDetail(device);
+                      }}
+                      className="min-h-[40px] px-2.5 rounded-lg border border-[#2D6A4F]/40 text-[#1B4332] hover:bg-[#EAF4EE] text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                      title="Lihat Detail & Rotasi Token"
+                    >
+                      <Key className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Token</span>
+                    </button>
                     <button
                       onClick={(e) => handleOpenEdit(device, e)}
                       className="min-h-[40px] px-3 rounded-lg border border-[#90A955]/40 text-[#31572C] hover:bg-[#ECF39E]/30 text-xs font-semibold flex items-center gap-1 cursor-pointer"

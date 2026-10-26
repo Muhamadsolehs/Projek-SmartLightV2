@@ -5,6 +5,7 @@ import {
   DeviceAlert,
   DeviceCommand,
   WaterChangeLog,
+  UserProfile,
 } from '../types';
 
 export const INSECT_SPECIES_LIST: InsectSpecies[] = [
@@ -603,4 +604,39 @@ export const MOCK_BATTERY_24H: BatteryHourlyLog[] = [
   { hour: '21:00', busVoltageV: 13.02, currentMa: -860, solarPowerW: 0, lampActive: true },
   { hour: '22:00', busVoltageV: 12.96, currentMa: -860, solarPowerW: 0, lampActive: true },
   { hour: '23:00', busVoltageV: 12.89, currentMa: -860, solarPowerW: 0, lampActive: true },
+];
+
+export const DEMO_USERS: UserProfile[] = [
+  {
+    id: 'usr_01',
+    name: 'Dr. Hendra',
+    email: 'hendra@smarttrap.id',
+    role: 'admin',
+    avatarInitials: 'DH',
+    assignedRegion: 'Jawa Barat (Pusat)',
+  },
+  {
+    id: 'usr_02',
+    name: 'Siti Aminah',
+    email: 'siti@smarttrap.id',
+    role: 'operator',
+    avatarInitials: 'SA',
+    assignedRegion: 'Pagaden & Binong',
+  },
+  {
+    id: 'usr_03',
+    name: 'Dewi Lestari',
+    email: 'dewi@smarttrap.id',
+    role: 'analyst',
+    avatarInitials: 'DL',
+    assignedRegion: 'Laboratorium PHT Subang',
+  },
+  {
+    id: 'usr_04',
+    name: 'Pak Rahmat',
+    email: 'rahmat@smarttrap.id',
+    role: 'viewer',
+    avatarInitials: 'PR',
+    assignedRegion: 'Subang, Jawa Barat',
+  },
 ];

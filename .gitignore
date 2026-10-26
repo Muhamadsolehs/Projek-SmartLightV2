@@ -6,3 +6,5 @@ coverage/
 *.log
 .env*
 !.env.example
+firmware/**/credentials.h
+firmware/**/secrets.h

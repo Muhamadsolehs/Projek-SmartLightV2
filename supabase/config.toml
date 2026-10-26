@@ -1,0 +1,22 @@
+# Supabase CLI Project Configuration
+project_id = "nrskcmbnctpdxywhigtu"
+
+# Gateway JWT Verification Configuration for Edge Functions
+# Hardware endpoints authenticate using custom X-Device-Code & X-Device-Token headers
+# verified in function code via verifyDeviceAuth(), so gateway JWT check must be disabled.
+
+[functions.device-command-poll]
+verify_jwt = false
+
+[functions.device-command-ack]
+verify_jwt = false
+
+[functions.device-status]
+verify_jwt = false
+
+[functions.device-telemetry]
+verify_jwt = false
+
+# device-provisioning verifies admin user session and role internally via verifyAdminAuth(req)
+[functions.device-provisioning]
+verify_jwt = false

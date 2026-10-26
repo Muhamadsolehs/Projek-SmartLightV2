@@ -8,11 +8,18 @@ serve(async (req: Request) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  if (req.method !== 'GET') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const device = await verifyDeviceAuth(req);
     const supabase = getAdminClient();
 
-    // Query pending commands that have not expired
+    // Query pending commands strictly belonging to this authenticated device
     const nowIso = new Date().toISOString();
     const { data: commands, error } = await supabase
       .from('device_commands')
@@ -23,7 +30,10 @@ serve(async (req: Request) => {
       .order('created_at', { ascending: true })
       .limit(5);
 
-    if (error) throw error;
+    if (error) {
+      console.error(`[CommandPoll] Database error for device ${device.device_code}:`, error.message);
+      throw error;
+    }
 
     if (!commands || commands.length === 0) {
       return new Response(

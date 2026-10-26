@@ -13,7 +13,8 @@ import {
   Sparkles,
   Info,
 } from 'lucide-react';
-import { useDevice, DEMO_USERS } from '../../context/DeviceContext';
+import { useDevice } from '../../context/DeviceContext';
+import { DEMO_USERS } from '../../data/mockData';
 import { UserProfile } from '../../types';
 import { SystemLogo } from '../common/SystemLogo';
 import { getRoleMetadata } from '../../lib/permissions';
@@ -138,7 +139,7 @@ export const LoginModal: React.FC = () => {
           </p>
 
           {/* Navigation Tabs */}
-          <div className="grid grid-cols-3 gap-1 mt-4 p-1 rounded-xl bg-black/20 text-xs font-semibold">
+          <div className="grid grid-cols-2 gap-1 mt-4 p-1 rounded-xl bg-black/20 text-xs font-semibold">
             <button
               type="button"
               onClick={() => handleTabChange('login')}
@@ -161,17 +162,7 @@ export const LoginModal: React.FC = () => {
             >
               Daftar Baru
             </button>
-            <button
-              type="button"
-              onClick={() => handleTabChange('demo')}
-              className={`py-1.5 rounded-lg transition-all text-center cursor-pointer ${
-                activeTab === 'demo'
-                  ? 'bg-[#ECF39E] text-[#132A13] shadow-xs'
-                  : 'text-[#ECF39E]/80 hover:text-[#ECF39E] hover:bg-white/10'
-              }`}
-            >
-              Mode Simulasi
-            </button>
+
           </div>
         </div>
 

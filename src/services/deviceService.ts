@@ -1,6 +1,11 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { SmartLightTrapDevice, DeviceCommand, DeviceTelemetry } from '../types';
+import { SmartLightTrapDevice, DeviceCommand, DeviceTelemetry, DeviceProvisioningCredentials } from '../types';
 import { INITIAL_DEVICES, INITIAL_COMMANDS } from '../data/mockData';
+
+export interface ProvisionDeviceResult {
+  device: SmartLightTrapDevice;
+  credentials: DeviceProvisioningCredentials;
+}
 
 export const deviceService = {
   async getDevices(): Promise<SmartLightTrapDevice[]> {
@@ -214,22 +219,23 @@ export const deviceService = {
     firmwareVersion?: string;
     batteryCutoffThresholdV?: number;
     pestThresholdPerNight?: number;
-  }): Promise<SmartLightTrapDevice> {
+  }): Promise<ProvisionDeviceResult> {
     if (!isSupabaseConfigured) {
       throw new Error('Supabase belum terkonfigurasi pada file .env.');
     }
 
     try {
-      // Generate a mock hash for hardware api key token (64 hex characters)
-      const randomHex = Array.from({ length: 32 }, () =>
-        Math.floor(Math.random() * 256).toString(16).padStart(2, '0')
-      ).join('');
+      // Dapatkan sesi admin aktif dari Supabase Client aplikasi
+      const { data: sessionData } = await supabase.auth.getSession();
+      const headers = sessionData?.session?.access_token
+        ? { Authorization: `Bearer ${sessionData.session.access_token}` }
+        : undefined;
 
-      const chipId = `ESP32S3-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-
-      const { data, error } = await supabase
-        .from('devices')
-        .insert({
+      // Invoke server-side Edge Function 'device-provisioning'
+      const { data, error } = await supabase.functions.invoke('device-provisioning', {
+        headers,
+        body: {
+          action: 'provision',
           device_code: deviceData.code.trim().toUpperCase(),
           device_name: deviceData.name.trim(),
           location_name: deviceData.locationName.trim(),
@@ -239,41 +245,30 @@ export const deviceService = {
           crop_type: deviceData.cropType.trim(),
           planting_date: deviceData.plantingDate || null,
           firmware_version: deviceData.firmwareVersion || 'v2.3.1-prod',
-          esp32_chip_id: chipId,
-          api_key_hash: randomHex,
-          connection_status: 'online',
-          lamp_status: false,
-          operational_status: 'active',
           battery_cutoff_threshold_v: deviceData.batteryCutoffThresholdV ?? 11.8,
           pest_threshold_per_night: deviceData.pestThresholdPerNight ?? 50,
-          is_simulated: false,
-          last_seen_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
+        },
+      });
 
       if (error) {
-        if (error.code === '23505') {
-          throw new Error(`Kode perangkat '${deviceData.code}' sudah terdaftar. Gunakan kode unik.`);
-        }
-        throw new Error(error.message || 'Gagal menambahkan perangkat ke Supabase.');
+        throw new Error(error.message || 'Gagal memanggil fungsi provisioning server.');
       }
 
-      // Initialize default settings row for the new device
-      await supabase.from('device_settings').insert({
-        device_id: data.id,
-        lamp_on_time: '18:00:00',
-        lamp_off_time: '05:00:00',
-        timezone: 'Asia/Jakarta',
-        photo_interval_minutes: 60,
-        pest_alert_threshold: deviceData.pestThresholdPerNight ?? 50,
-        battery_cutoff_threshold: deviceData.batteryCutoffThresholdV ?? 11.8,
-        telemetry_interval_minutes: 5,
-      }).select().maybeSingle();
+      if (!data || (data.status !== 'success' && !data.success)) {
+        throw new Error(data?.message || 'Provisioning perangkat gagal di server.');
+      }
+
+      const createdDevice = data.device;
+      const credentials: DeviceProvisioningCredentials = {
+        deviceCode: data.credentials?.device_code || createdDevice.device_code,
+        rawToken: data.credentials?.raw_token || '',
+        configHSnippet: data.credentials?.config_h_snippet || `#define DEVICE_CODE  "${createdDevice.device_code}"\n#define DEVICE_TOKEN "${data.credentials?.raw_token}"`,
+        warning: data.credentials?.warning || 'PERHATIAN: Salin token ini sekarang. Token hanya ditampilkan satu kali.',
+      };
 
       const defaultTelemetry: DeviceTelemetry = {
-        id: `tel_${data.id}`,
-        deviceId: data.id,
+        id: `tel_${createdDevice.id}`,
+        deviceId: createdDevice.id,
         timestamp: new Date().toISOString(),
         sequenceNumber: 1,
         battery: {
@@ -315,30 +310,131 @@ export const deviceService = {
         humidityPercent: 82,
       };
 
-      return {
-        id: data.id,
-        code: data.device_code,
-        name: data.device_name,
-        locationName: data.location_name,
-        farmSector: data.farm_sector,
-        latitude: Number(data.latitude),
-        longitude: Number(data.longitude),
-        cropType: data.crop_type,
-        plantingDate: data.planting_date || '',
-        status: data.connection_status,
-        firmwareVersion: data.firmware_version,
-        esp32ChipId: data.esp32_chip_id || '',
+      const mappedDevice: SmartLightTrapDevice = {
+        id: createdDevice.id,
+        code: createdDevice.device_code,
+        name: createdDevice.device_name,
+        locationName: createdDevice.location_name,
+        farmSector: createdDevice.farm_sector,
+        latitude: Number(createdDevice.latitude),
+        longitude: Number(createdDevice.longitude),
+        cropType: createdDevice.crop_type,
+        plantingDate: createdDevice.planting_date || '',
+        status: createdDevice.operational_status === 'active' ? 'online' : 'offline',
+        firmwareVersion: createdDevice.firmware_version,
+        esp32ChipId: createdDevice.esp32_chip_id || '',
         rtcStatus: 'synced_ds3231',
         currentTelemetry: defaultTelemetry,
-        batteryCutoffThresholdV: Number(data.battery_cutoff_threshold_v),
-        pestThresholdPerNight: data.pest_threshold_per_night,
-        lastSyncAt: data.last_seen_at || new Date().toISOString(),
+        batteryCutoffThresholdV: Number(createdDevice.battery_cutoff_threshold_v),
+        pestThresholdPerNight: createdDevice.pest_threshold_per_night,
+        lastSyncAt: createdDevice.last_seen_at || new Date().toISOString(),
         isSimulated: false,
       };
+
+      return {
+        device: mappedDevice,
+        credentials,
+      };
     } catch (err: any) {
-      console.error('Error creating device:', err);
+      console.error('Error in createDevice provisioning:', err);
       throw err;
     }
+  },
+
+  async rotateDeviceToken(deviceCode: string): Promise<DeviceProvisioningCredentials> {
+    if (!isSupabaseConfigured) {
+      throw new Error('Supabase belum terkonfigurasi pada file .env.');
+    }
+
+    // 1. Dapatkan sesi admin aktif dari Supabase Client aplikasi (bukan window/global storage)
+    let { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
+
+    // Auto-refresh jika token sudah kedaluwarsa atau mendekati kedaluwarsa (< 60 detik)
+    if (sessionData?.session) {
+      const nowSec = Math.floor(Date.now() / 1000);
+      const isExpiring = sessionData.session.expires_at ? sessionData.session.expires_at <= nowSec + 60 : false;
+      if (isExpiring) {
+        try {
+          const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession();
+          if (!refreshErr && refreshed.session) {
+            sessionData = refreshed;
+          }
+        } catch {
+          // Lanjutkan jika refresh gagal, akan ditangani oleh validasi di bawah
+        }
+      }
+    }
+
+    if (sessionErr || !sessionData?.session?.access_token) {
+      throw new Error(
+        'Sesi autentikasi tidak ditemukan atau telah kedaluwarsa. Silakan login kembali dengan akun Administrator (admin@gmail.com).'
+      );
+    }
+
+    const accessToken = sessionData.session.access_token;
+    const cleanDeviceCode = deviceCode.trim().toUpperCase();
+
+    // 2. Kirim POST ke Edge Function 'device-provisioning' dengan Bearer JWT dan payload
+    const { data, error, response } = await supabase.functions.invoke('device-provisioning', {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: {
+        action: 'rotate-token',
+        device_code: cleanDeviceCode,
+      },
+    });
+
+    // 3. Tangani respons error HTTP 401, 403, 404, atau lainnya dengan pesan yang jelas
+    if (error) {
+      const status = response?.status || (error as any)?.context?.status;
+      let detailedMsg = '';
+
+      const respObj = response || (error as any)?.context;
+      if (respObj && typeof respObj.json === 'function') {
+        try {
+          const bodyJson = await respObj.json();
+          detailedMsg = bodyJson?.error || bodyJson?.message || '';
+        } catch {
+          // ignore parsing error
+        }
+      }
+
+      if (status === 401) {
+        throw new Error(
+          `Autentikasi Gagal (HTTP 401): ${detailedMsg || 'Sesi login tidak valid atau telah berakhir. Silakan login ulang.'}`
+        );
+      }
+      if (status === 403) {
+        throw new Error(
+          `Akses Ditolak (HTTP 403): ${detailedMsg || 'Hanya pengguna dengan role Administrator yang memiliki izin merotasi token perangkat.'}`
+        );
+      }
+      if (status === 404) {
+        throw new Error(
+          `Perangkat Tidak Ditemukan (HTTP 404): ${detailedMsg || `Perangkat dengan kode '${cleanDeviceCode}' tidak terdaftar dalam database.`}`
+        );
+      }
+
+      throw new Error(
+        detailedMsg || error.message || `Gagal merotasi token perangkat (Status HTTP ${status || 'Error'}).`
+      );
+    }
+
+    if (!data || (data.status !== 'success' && !data.success)) {
+      throw new Error(data?.message || data?.error || 'Rotasi token gagal di server.');
+    }
+
+    return {
+      deviceCode: data.credentials?.device_code || cleanDeviceCode,
+      rawToken: data.credentials?.raw_token || '',
+      configHSnippet:
+        data.credentials?.config_h_snippet ||
+        `#define DEVICE_CODE  "${cleanDeviceCode}"\n#define DEVICE_TOKEN "${data.credentials?.raw_token}"`,
+      warning:
+        data.credentials?.warning ||
+        'PERHATIAN: Salin token ini sekarang. Token hanya ditampilkan satu kali dan tidak disimpan di database.',
+    };
   },
 
   async updateDevice(

@@ -51,11 +51,11 @@ BEGIN
     END IF;
 
     -- Compute SHA-256 hash of provided token
-    v_computed_hash := encode(digest(p_raw_token, 'sha256'), 'hex');
+    v_computed_hash := encode(extensions.digest(p_raw_token, 'sha256'), 'hex');
 
     RETURN (v_stored_hash = v_computed_hash);
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions;
 
 -- 3. Trigger to prevent non-admins from updating their own role
 CREATE OR REPLACE FUNCTION public.prevent_role_self_escalation()

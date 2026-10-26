@@ -7,6 +7,7 @@ import {
   WaterChangeLog,
   InsectSpeciesId,
   UserProfile,
+  DeviceProvisioningCredentials,
 } from '../types';
 import {
   INITIAL_DEVICES,
@@ -14,10 +15,11 @@ import {
   INITIAL_COMMANDS,
   MOCK_CAPTURES,
   MOCK_WATER_LOGS,
+  DEMO_USERS,
 } from '../data/mockData';
 import { supabase, isSupabaseConfigured, OPERATIONAL_REGION } from '../lib/supabase';
 import { authService } from '../services/authService';
-import { deviceService } from '../services/deviceService';
+import { deviceService, ProvisionDeviceResult } from '../services/deviceService';
 import { alertService } from '../services/alertService';
 import { pestService } from '../services/pestService';
 import { waterService } from '../services/waterService';
@@ -43,40 +45,7 @@ interface TelegramConfig {
   lastTestMessage?: string;
 }
 
-export const DEMO_USERS: UserProfile[] = [
-  {
-    id: 'usr_01',
-    name: 'Dr. Hendra',
-    email: 'hendra@smarttrap.id',
-    role: 'admin',
-    avatarInitials: 'DH',
-    assignedRegion: 'Jawa Barat (Pusat)',
-  },
-  {
-    id: 'usr_02',
-    name: 'Siti Aminah',
-    email: 'siti@smarttrap.id',
-    role: 'operator',
-    avatarInitials: 'SA',
-    assignedRegion: 'Pagaden & Binong',
-  },
-  {
-    id: 'usr_03',
-    name: 'Dewi Lestari',
-    email: 'dewi@smarttrap.id',
-    role: 'analyst',
-    avatarInitials: 'DL',
-    assignedRegion: 'Laboratorium PHT Subang',
-  },
-  {
-    id: 'usr_04',
-    name: 'Pak Rahmat',
-    email: 'rahmat@smarttrap.id',
-    role: 'viewer',
-    avatarInitials: 'PR',
-    assignedRegion: 'Subang, Jawa Barat',
-  },
-];
+export { DEMO_USERS };
 
 export type DataSourceMode = 'supabase_live' | 'simulation_demo';
 
@@ -126,7 +95,8 @@ interface DeviceContextType {
   loginAsDemo: (demoUser: UserProfile) => void;
   logout: () => Promise<void>;
   // Device CRUD actions (Admin only)
-  createDevice: (data: any) => Promise<SmartLightTrapDevice>;
+  createDevice: (data: any) => Promise<ProvisionDeviceResult>;
+  rotateDeviceToken: (deviceCode: string) => Promise<DeviceProvisioningCredentials>;
   updateDevice: (id: string, updates: any) => Promise<boolean>;
   deleteDevice: (id: string) => Promise<boolean>;
   // Live connectivity & state
@@ -812,13 +782,22 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   /**
    * Device Management (Admin Only)
    */
-  const createDevice = async (deviceData: any): Promise<SmartLightTrapDevice> => {
+  const createDevice = async (deviceData: any): Promise<ProvisionDeviceResult> => {
     if (!hasPermission(currentUser?.role, 'manage:devices')) {
       throw new Error('Akses Ditolak: Hanya Administrator yang berhak menambahkan unit perangkat.');
     }
-    const created = await deviceService.createDevice(deviceData);
+    const result = await deviceService.createDevice(deviceData);
     await loadDashboardData();
-    return created;
+    return result;
+  };
+
+  const rotateDeviceToken = async (deviceCode: string): Promise<DeviceProvisioningCredentials> => {
+    if (!hasPermission(currentUser?.role, 'manage:devices')) {
+      throw new Error('Akses Ditolak: Hanya Administrator yang berhak merotasi token API perangkat.');
+    }
+    const creds = await deviceService.rotateDeviceToken(deviceCode);
+    await loadDashboardData();
+    return creds;
   };
 
   const updateDevice = async (id: string, updates: any): Promise<boolean> => {
@@ -873,6 +852,7 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         loginAsDemo,
         logout,
         createDevice,
+        rotateDeviceToken,
         updateDevice,
         deleteDevice,
         dataSource,

@@ -44,7 +44,7 @@ export const Sidebar: React.FC<{ isMobileOpen?: boolean; onCloseMobile?: () => v
 
   const allNavItems: NavItem[] = [
     { id: 'overview', label: 'Ringkasan Lahan', icon: LayoutDashboard },
-    { id: 'devices', label: 'Monitoring Perangkat', icon: Cpu, badgeCount: devices.length },
+    { id: 'devices', label: 'Perangkat', icon: Cpu, badgeCount: devices.length },
     { id: 'pests', label: 'Analisis Hama PHT', icon: Bug },
     { id: 'gallery', label: 'Galeri Foto & CV', icon: Camera },
     { id: 'energy', label: 'Daya & Baterai', icon: BatteryCharging },
