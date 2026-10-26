@@ -207,6 +207,105 @@ export const deviceService = {
     }
   },
 
+  /**
+   * Melacak siklus hidup perintah secara asynchronous hingga mendapatkan konfirmasi (ACK)
+   * atau laporan eksekusi dari ESP32 di database Supabase.
+   */
+  async trackCommandStatus(commandId: string, timeoutMs: number = 16000): Promise<DeviceCommand> {
+    if (!isSupabaseConfigured) {
+      // Demo simulation
+      return {
+        id: commandId,
+        deviceId: '',
+        commandType: 'SET_RELAY',
+        status: 'COMPLETED',
+        createdAt: new Date().toISOString(),
+        executedAt: new Date().toISOString(),
+        responseMessage: 'Konfirmasi fisik simulasi selesai (Demo Mode).',
+      };
+    }
+
+    const startTime = Date.now();
+    const pollInterval = 1500; // Poll setiap 1.5 detik
+
+    while (Date.now() - startTime < timeoutMs) {
+      const { data, error } = await supabase
+        .from('device_commands')
+        .select('*')
+        .eq('id', commandId)
+        .single();
+
+      if (!error && data) {
+        const statusUpper = data.status.toUpperCase();
+        if (statusUpper === 'COMPLETED' || statusUpper === 'FAILED' || statusUpper === 'EXPIRED') {
+          return {
+            id: data.id,
+            deviceId: data.device_id,
+            commandType: data.command_type,
+            parameters: data.parameters,
+            status: statusUpper as any,
+            createdAt: data.created_at,
+            executedAt: data.completed_at || data.acknowledged_at,
+            responseMessage: data.result?.message || data.error_message || `Status: ${statusUpper}`,
+          };
+        }
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+    }
+
+    // Timeout: status unconfirmed
+    return {
+      id: commandId,
+      deviceId: '',
+      commandType: 'SET_RELAY',
+      status: 'SENT',
+      createdAt: new Date(startTime).toISOString(),
+      responseMessage: 'Menunggu polling konfirmasi dari ESP32 (Timeout). Perintah tetap berada di antrean antitesis.',
+    };
+  },
+
+  /**
+   * Mengirim perintah darurat 'OFF' ke seluruh 4 aktuator relay perangkat secara bertahap
+   * dan mencatat laporan individu per aktuator.
+   */
+  async emergencyStopActuators(deviceId: string): Promise<{
+    relay: number;
+    name: string;
+    success: boolean;
+    message: string;
+  }[]> {
+    const ACTUATOR_NAMES: Record<number, string> = {
+      1: 'Pompa Air Pengisi (Relay 1 - GPIO 12)',
+      2: 'Katup Solenoid Drain (Relay 2 - GPIO 14)',
+      3: 'Lampu LED UV 365nm (Relay 3 - GPIO 27)',
+      4: 'Kipas Blower / Aux (Relay 4 - GPIO 26)',
+    };
+
+    const results: { relay: number; name: string; success: boolean; message: string }[] = [];
+
+    for (let r = 1; r <= 4; r++) {
+      try {
+        const cmd = await this.sendCommand(deviceId, 'SET_RELAY', { relay: r, state: 'OFF' });
+        results.push({
+          relay: r,
+          name: ACTUATOR_NAMES[r],
+          success: true,
+          message: `Perintah OFF terkirim (ID: ${cmd.id.slice(0, 8)}...)`,
+        });
+      } catch (err: any) {
+        results.push({
+          relay: r,
+          name: ACTUATOR_NAMES[r],
+          success: false,
+          message: err?.message || 'Gagal mengirim perintah OFF',
+        });
+      }
+    }
+
+    return results;
+  },
+
   async createDevice(deviceData: {
     code: string;
     name: string;

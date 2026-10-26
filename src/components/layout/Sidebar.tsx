@@ -14,6 +14,7 @@ import {
   Zap,
   LogOut,
   Shield,
+  Sliders,
 } from 'lucide-react';
 import { useDevice, NavigationTab } from '../../context/DeviceContext';
 import { SystemLogo } from '../common/SystemLogo';
@@ -45,6 +46,7 @@ export const Sidebar: React.FC<{ isMobileOpen?: boolean; onCloseMobile?: () => v
   const allNavItems: NavItem[] = [
     { id: 'overview', label: 'Ringkasan Lahan', icon: LayoutDashboard },
     { id: 'devices', label: 'Perangkat', icon: Cpu, badgeCount: devices.length },
+    { id: 'controls', label: 'Kontrol Aktuator', icon: Sliders },
     { id: 'pests', label: 'Analisis Hama PHT', icon: Bug },
     { id: 'gallery', label: 'Galeri Foto & CV', icon: Camera },
     { id: 'energy', label: 'Daya & Baterai', icon: BatteryCharging },

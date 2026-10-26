@@ -128,6 +128,7 @@ const char* const RELAY_NAMES[NUM_RELAYS] = {
 #define COMMAND_POLL_INTERVAL_MS 4000   // Polling antrean perintah setiap 4 detik
 #define TELEMETRY_INTERVAL_MS    60000  // Kirim telemetri & status relay setiap 60 detik
 #define HEARTBEAT_INTERVAL_MS    30000  // Heartbeat ke backend setiap 30 detik
+#define MAX_PUMP_RUN_DURATION_MS 45000  // Proteksi auto-cutoff pompa pengisi (maks 45 detik)
 
 // ============================================================================
 // 9. VALIDASI SERTIFIKAT SSL/TLS (ROOT CA)

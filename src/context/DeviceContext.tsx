@@ -28,6 +28,7 @@ import { hasPermission, sanitizeRole } from '../lib/permissions';
 export type NavigationTab =
   | 'overview'
   | 'devices'
+  | 'controls'
   | 'pests'
   | 'gallery'
   | 'energy'

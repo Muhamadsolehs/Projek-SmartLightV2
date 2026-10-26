@@ -10,6 +10,7 @@ import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { OverviewView } from './components/overview/OverviewView';
 import { DeviceListView } from './components/devices/DeviceListView';
+import { ManualControlView } from './components/controls/ManualControlView';
 import { PestAnalyticsView } from './components/pests/PestAnalyticsView';
 import { PhotoGalleryView } from './components/gallery/PhotoGalleryView';
 import { EnergyMonitoringView } from './components/energy/EnergyMonitoringView';
@@ -89,6 +90,7 @@ const AppContent: React.FC = () => {
             <>
               {activeTab === 'overview' && <OverviewView />}
               {activeTab === 'devices' && <DeviceListView />}
+              {activeTab === 'controls' && <ManualControlView />}
               {activeTab === 'pests' && <PestAnalyticsView />}
               {activeTab === 'gallery' && <PhotoGalleryView />}
               {activeTab === 'energy' && <EnergyMonitoringView />}

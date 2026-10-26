@@ -6,6 +6,7 @@ import { getRoleMetadata } from '../../lib/permissions';
 const TAB_TITLES: Record<NavigationTab, string> = {
   overview: 'Ringkasan Lahan',
   devices: 'Perangkat',
+  controls: 'Kontrol Manual & Aktuator',
   pests: 'Analisis Hama PHT',
   gallery: 'Galeri Foto & CV',
   energy: 'Daya & Baterai',

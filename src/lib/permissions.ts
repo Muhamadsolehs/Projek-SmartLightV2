@@ -161,6 +161,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
 export const TAB_PERMISSIONS: Record<string, Permission> = {
   overview: 'view:dashboard',
   devices: 'view:devices',
+  controls: 'view:devices',
   pests: 'view:pests',
   gallery: 'view:gallery',
   energy: 'view:energy',

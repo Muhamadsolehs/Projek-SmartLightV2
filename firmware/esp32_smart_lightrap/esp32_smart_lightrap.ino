@@ -70,6 +70,7 @@ unsigned long gLastCommandPoll = 0;
 unsigned long gLastTelemetry = 0;
 unsigned long gLastHeartbeat = 0;
 unsigned long gLastWifiCheck = 0;
+unsigned long gPumpStartTime = 0; // Waktu mulai pompa menyala untuk proteksi auto-cutoff
 uint32_t gSequenceNumber = 1;
 
 // ============================================================================
@@ -176,6 +177,15 @@ void loop() {
     }
   }
 
+  // 6. Proteksi Keamanan Hardware: Auto-Cutoff Pompa (Relay 1 - GPIO 12)
+  // Mencegah pompa menyala tanpa batas waktu jika browser ditutup atau koneksi cloud terputus
+  if (gRelayStates[0] && gPumpStartTime > 0 && (now - gPumpStartTime >= MAX_PUMP_RUN_DURATION_MS)) {
+    Serial.printf("\n[SAFETY] AUTO-CUTOFF AKTIF: Pompa telah menyala selama %d ms (Maks: %d ms). Mematikan pompa sekarang!\n",
+                  (int)(now - gPumpStartTime), (int)MAX_PUMP_RUN_DURATION_MS);
+    setRelayPhysical(0, false, true);
+    gPumpStartTime = 0;
+  }
+
   delay(20);
 }
 
@@ -229,6 +239,8 @@ void initNvsStorage() {
     char key[16];
     snprintf(key, sizeof(key), "r_%d", i + 1);
     bool savedState = gPrefs.getBool(key, false);
+    // ATURAN KESELAMATAN: Pompa (Relay 1, index 0) TIDAK PERNAH dipulihkan ON secara otomatis saat boot!
+    if (i == 0) savedState = false;
     setRelayPhysical(i, savedState, false);
   }
 #else
@@ -245,6 +257,11 @@ void setRelayPhysical(int channelIndex, bool turnOn, bool saveNvs) {
   uint8_t pin = RELAY_PINS[channelIndex];
   gRelayStates[channelIndex] = turnOn;
 
+  // Catat waktu mulai pompa untuk auto-cutoff
+  if (channelIndex == 0) {
+    gPumpStartTime = turnOn ? millis() : 0;
+  }
+
   // Logika Active LOW:
   // turnOn = true  --> digitalWrite LOW (0V)  --> Relay Aktif (NO terhubung)
   // turnOn = false --> digitalWrite HIGH (3V3) --> Relay Mati (NO terbuka)
@@ -256,11 +273,11 @@ void setRelayPhysical(int channelIndex, bool turnOn, bool saveNvs) {
                 turnOn ? "ON (AKTIF)" : "OFF (MATI)",
                 turnOn ? "LOW / 0V" : "HIGH / 3.3V");
 
-  // Simpan secara persisten ke NVS jika diminta
+  // Simpan secara persisten ke NVS jika diminta (Kecuali Pompa tidak pernah disimpan ON permanen)
   if (saveNvs) {
     char key[16];
     snprintf(key, sizeof(key), "r_%d", channelIndex + 1);
-    gPrefs.putBool(key, turnOn);
+    gPrefs.putBool(key, (channelIndex == 0) ? false : turnOn);
   }
 }
 
