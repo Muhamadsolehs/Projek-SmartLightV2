@@ -10,7 +10,7 @@ Dokumen ini mendefinisikan spesifikasi teknis dan kontrak komunikasi HTTP REST /
 ```
 https://<PROJECT-REF>.supabase.co/functions/v1
 ```
-*(Contoh produksi proyek: `https://nrskcmbnctpdxywhigtu.supabase.co/functions/v1`)*
+*(Contoh produksi proyek: `https://xzzjfwstrpayhnpymqpq.supabase.co/functions/v1`)*
 
 ### 1.2 Header Otentikasi Perangkat (Hardware Device Authentication)
 Setiap permintaan HTTPS dari perangkat mikrokontroler ke seluruh endpoint privat wajib menyertakan dua header kustom:

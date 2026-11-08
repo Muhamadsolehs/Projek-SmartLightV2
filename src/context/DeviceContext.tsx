@@ -159,14 +159,21 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
     try {
       const saved = localStorage.getItem('slt_user');
-      if (!saved) return null;
-      const parsed = JSON.parse(saved);
-      return {
-        ...parsed,
-        role: sanitizeRole(parsed.role),
-      };
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        let role = sanitizeRole(parsed.role);
+        // Auto-heal: jika email adalah admin@gmail.com tapi role cache lama masih viewer
+        if (parsed.email?.toLowerCase() === 'admin@gmail.com' && role === 'viewer') {
+          role = 'admin';
+        }
+        return {
+          ...parsed,
+          role,
+        };
+      }
+      return DEMO_USERS[0];
     } catch {
-      return null;
+      return DEMO_USERS[0];
     }
   });
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);

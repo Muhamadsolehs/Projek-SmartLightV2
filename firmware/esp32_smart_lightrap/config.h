@@ -62,7 +62,9 @@
 // ============================================================================
 // 3. ENDPOINT SUPABASE EDGE FUNCTIONS (HTTPS)
 // ============================================================================
-#define SUPABASE_BASE_URL "https://nrskcmbnctpdxywhigtu.supabase.co/functions/v1"
+#define SUPABASE_BASE_URL "https://xzzjfwstrpayhnpymqpq.supabase.co/functions/v1"
+#define SUPABASE_REST_URL "https://xzzjfwstrpayhnpymqpq.supabase.co/rest/v1/relay_status?id=eq.1"
+#define SUPABASE_API_KEY  "sb_publishable_pJOVYiINorwqPGSzRX1M_w__IMG1xWq"
 
 #define URL_COMMAND_POLL  SUPABASE_BASE_URL "/device-command-poll"
 #define URL_COMMAND_ACK   SUPABASE_BASE_URL "/device-command-ack"

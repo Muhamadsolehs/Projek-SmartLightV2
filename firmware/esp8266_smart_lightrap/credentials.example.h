@@ -22,7 +22,9 @@
 #define DEVICE_CODE       "SLT-SBG-01"
 #define DEVICE_TOKEN      "GANTI_DENGAN_TOKEN_DEVICE_DARI_SUPABASE"
 
-// Base URL Supabase Edge Functions
-#define SUPABASE_BASE_URL "https://nrskcmbnctpdxywhigtu.supabase.co/functions/v1"
+// Base URL Supabase Edge Functions & REST API
+#define SUPABASE_BASE_URL "https://xzzjfwstrpayhnpymqpq.supabase.co/functions/v1"
+#define SUPABASE_REST_URL "https://xzzjfwstrpayhnpymqpq.supabase.co/rest/v1/relay_status?id=eq.1"
+#define SUPABASE_API_KEY  "sb_publishable_pJOVYiINorwqPGSzRX1M_w__IMG1xWq"
 
 #endif // CREDENTIALS_H

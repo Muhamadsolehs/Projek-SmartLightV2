@@ -146,7 +146,7 @@ Layanan gratis [cron-job.org](https://cron-job.org) digunakan untuk memanggil en
 3. Isi parameter konfigurasi berikut:
    - **Title**: `Smart Light Trap - Supabase Keep Alive Heartbeat`
    - **URL**: `https://<YOUR-PROJECT-REF>.supabase.co/functions/v1/system-heartbeat`  
-     *(Ganti `<YOUR-PROJECT-REF>` dengan ref proyek Supabase Anda, misal: `nrskcmbnctpdxywhigtu`)*
+     *(Ganti `<YOUR-PROJECT-REF>` dengan ref proyek Supabase Anda, misal: `xzzjfwstrpayhnpymqpq`)*
    - **Execution Schedule**:
      - Pilih **Every 12 hours** (Dua kali sehari, misalnya pukul 00:00 dan 12:00 UTC).
      - Atau gunakan Cron Expression: `0 0,12 * * *`.

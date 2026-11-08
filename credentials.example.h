@@ -15,14 +15,16 @@
 #define CREDENTIALS_H
 
 // Konfigurasi Wi-Fi Lapangan (2.4 GHz)
-#define WIFI_SSID         "Amj"
-#define WIFI_PASSWORD     "Alya1504"
+#define WIFI_SSID         "NAMA_WIFI_ANDA"
+#define WIFI_PASSWORD     "PASSWORD_WIFI_ANDA"
 
 // Identitas & Kredensial Perangkat Smart Light Trap
 #define DEVICE_CODE       "SLT-SBG-01"
-#define DEVICE_TOKEN      "slt_live_8b4676f8f398b81036d1225e38b5e1d55c0d9a564428feca"
+#define DEVICE_TOKEN      "GANTI_DENGAN_TOKEN_DEVICE_DARI_SUPABASE"
 
-// Base URL Supabase Edge Functions
-#define SUPABASE_BASE_URL "https://nrskcmbnctpdxywhigtu.supabase.co/functions/v1"
+// Base URL Supabase Edge Functions & REST API
+#define SUPABASE_BASE_URL "https://xzzjfwstrpayhnpymqpq.supabase.co/functions/v1"
+#define SUPABASE_REST_URL "https://xzzjfwstrpayhnpymqpq.supabase.co/rest/v1/relay_status?id=eq.1"
+#define SUPABASE_API_KEY  "sb_publishable_pJOVYiINorwqPGSzRX1M_w__IMG1xWq"
 
 #endif // CREDENTIALS_H

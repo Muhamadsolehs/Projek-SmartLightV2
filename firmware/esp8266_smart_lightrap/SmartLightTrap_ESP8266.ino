@@ -59,7 +59,7 @@
   #define DEVICE_TOKEN "GANTI_DENGAN_TOKEN_DEVICE_DARI_SUPABASE"
 #endif
 #ifndef SUPABASE_BASE_URL
-  #define SUPABASE_BASE_URL "https://nrskcmbnctpdxywhigtu.supabase.co/functions/v1"
+  #define SUPABASE_BASE_URL "https://xzzjfwstrpayhnpymqpq.supabase.co/functions/v1"
 #endif
 
 // ============================================================================

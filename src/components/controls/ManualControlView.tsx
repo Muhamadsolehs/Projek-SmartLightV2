@@ -32,16 +32,20 @@ import {
   Check,
   X,
   AlertCircle,
+  Database,
 } from 'lucide-react';
 import { useDevice } from '../../context/DeviceContext';
 import { DeviceCommand, SmartLightTrapDevice } from '../../types';
 import { hasPermission, getRoleMetadata } from '../../lib/permissions';
 import { deviceService } from '../../services/deviceService';
+import { relayStatusService } from '../../services/relayStatusService';
 
 interface ActuatorCardProps {
-  channel: number;
+  channel: 1 | 2 | 3 | 4;
   name: string;
   hardwarePin: string;
+  dbColumn: 'channel_1' | 'channel_2' | 'channel_3' | 'channel_4';
+  dbStatus: boolean; // Nilai boolean pada kolom tabel relay_status di Supabase (true = ON, false = OFF)
   icon: React.ComponentType<{ className?: string }>;
   description: string;
   actualStatus: 'ON' | 'OFF' | 'UNKNOWN';
@@ -61,6 +65,8 @@ const ActuatorCard: React.FC<ActuatorCardProps> = ({
   channel,
   name,
   hardwarePin,
+  dbColumn,
+  dbStatus,
   icon: Icon,
   description,
   actualStatus,
@@ -75,28 +81,21 @@ const ActuatorCard: React.FC<ActuatorCardProps> = ({
   activeTimer,
   protectionNote,
 }) => {
-  // Determine if requested command differs from current actual status
-  const isPendingSync =
-    lastCommand &&
-    (lastCommand.status === 'PENDING' || lastCommand.status === 'SENT') &&
-    lastCommand.parameters?.state &&
-    lastCommand.parameters.state !== actualStatus;
-
   return (
     <div
       className={`p-5 rounded-2xl border transition-all ${
-        actualStatus === 'ON'
-          ? 'bg-emerald-50/40 border-[#2D6A4F] shadow-sm'
+        dbStatus
+          ? 'bg-emerald-50/60 border-[#2D6A4F] shadow-sm'
           : 'bg-white border-slate-200 shadow-xs'
-      } ${!isDeviceOnline ? 'opacity-85' : ''}`}
+      }`}
     >
-      {/* Header: Title, Pin, Actual Status */}
+      {/* Header: Title, Pin, Database Status Badge */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <div
             className={`flex h-11 w-11 items-center justify-center rounded-xl font-mono text-sm font-bold shadow-xs transition-colors ${
-              actualStatus === 'ON'
-                ? 'bg-[#2D6A4F] text-white'
+              dbStatus
+                ? 'bg-[#2D6A4F] text-white shadow-emerald-900/20'
                 : 'bg-slate-100 text-slate-600'
             }`}
           >
@@ -104,38 +103,38 @@ const ActuatorCard: React.FC<ActuatorCardProps> = ({
           </div>
           <div>
             <h3 className="font-bold text-sm text-[#192A20] flex items-center gap-1.5">
-              <Icon className={`h-4 w-4 ${actualStatus === 'ON' ? 'text-[#2D6A4F]' : 'text-slate-500'}`} />
+              <Icon className={`h-4 w-4 ${dbStatus ? 'text-[#2D6A4F]' : 'text-slate-500'}`} />
               {name}
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5 font-mono">
-              {hardwarePin} · Active LOW (0V=ON)
+            <p className="text-xs text-slate-500 mt-0.5 font-mono flex items-center gap-1.5">
+              <span>{hardwarePin}</span>
+              <span>·</span>
+              <span className="text-emerald-800 bg-emerald-100/80 px-1.5 py-0.2 rounded font-bold">
+                {dbColumn}
+              </span>
             </p>
           </div>
         </div>
 
-        {/* Actual Hardware Status Badge */}
+        {/* Live Database Status Badge */}
         <div className="text-right">
           <span
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono font-bold border ${
-              actualStatus === 'ON'
-                ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                : actualStatus === 'OFF'
-                ? 'bg-slate-100 text-slate-600 border-slate-200'
-                : 'bg-amber-100 text-amber-800 border-amber-300'
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono font-bold border transition-colors ${
+              dbStatus
+                ? 'bg-emerald-100 text-emerald-900 border-emerald-400 shadow-xs'
+                : 'bg-slate-100 text-slate-600 border-slate-200'
             }`}
           >
             <span
               className={`h-2 w-2 rounded-full ${
-                actualStatus === 'ON'
+                dbStatus
                   ? 'bg-emerald-500 animate-pulse'
-                  : actualStatus === 'OFF'
-                  ? 'bg-slate-400'
-                  : 'bg-amber-500'
+                  : 'bg-slate-400'
               }`}
             />
-            {actualStatus === 'ON' ? 'AKTIF (0V)' : actualStatus === 'OFF' ? 'STANDBY (3.3V)' : 'UNKNOWN'}
+            {dbStatus ? 'ON (true)' : 'OFF (false)'}
           </span>
-          <div className="text-[10px] text-slate-400 mt-1">Status Aktual Fisik</div>
+          <div className="text-[10px] text-slate-400 mt-1">Status Tabel Relay</div>
         </div>
       </div>
 
@@ -145,43 +144,70 @@ const ActuatorCard: React.FC<ActuatorCardProps> = ({
       {/* Protection or Interlock Banner */}
       {protectionNote && (
         <div className="mt-2.5 p-2 rounded-lg bg-slate-50 border border-slate-100 text-[11px] text-slate-600 flex items-center justify-between">
-          <span className="text-slate-500">Mekanisme Proteksi:</span>
+          <span className="text-slate-500">Mekanisme:</span>
           <span className="font-semibold text-slate-700">{protectionNote}</span>
         </div>
       )}
 
-      {/* Discrepancy / Command Pending Warning */}
-      {isPendingSync && (
-        <div className="mt-2.5 p-2 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-900 flex items-center gap-1.5 animate-in fade-in">
-          <RefreshCw className="h-3.5 w-3.5 animate-spin text-amber-600 shrink-0" />
-          <span>
-            Perintah <strong>{lastCommand?.parameters?.state}</strong> sedang diproses di antrean ESP8266 NodeMCU...
+      {/* ===================================================================== */}
+      {/* KONTROL MANUAL: PILIHAN ON (true) & OFF (false)                        */}
+      {/* ===================================================================== */}
+      <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
+        <div className="flex items-center justify-between text-[11px] font-medium text-slate-500">
+          <span>Pilihan Kontrol Manual:</span>
+          <span className="text-[10px] font-mono">
+            Nilai di DB:{' '}
+            <strong className={dbStatus ? 'text-emerald-700 font-bold' : 'text-slate-700 font-bold'}>
+              {dbStatus ? 'true' : 'false'}
+            </strong>
           </span>
         </div>
-      )}
 
-      {/* Action Buttons: ON and OFF */}
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          disabled={!canControl || !isDeviceOnline || isExecuting || actualStatus === 'ON'}
-          onClick={onTurnOn}
-          className="py-2.5 px-3 rounded-xl bg-[#2D6A4F] text-white font-semibold text-xs hover:bg-[#1B4332] disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
-          title={!isDeviceOnline ? 'Perangkat sedang offline' : 'Nyalakan aktuator'}
-        >
-          <Power className="h-3.5 w-3.5" />
-          <span>Nyalakan (ON)</span>
-        </button>
-        <button
-          type="button"
-          disabled={!canControl || !isDeviceOnline || isExecuting || actualStatus === 'OFF'}
-          onClick={onTurnOff}
-          className="py-2.5 px-3 rounded-xl bg-slate-800 text-white font-semibold text-xs hover:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
-          title={!isDeviceOnline ? 'Perangkat sedang offline' : 'Matikan aktuator'}
-        >
-          <Square className="h-3.5 w-3.5" />
-          <span>Matikan (OFF)</span>
-        </button>
+        <div className="grid grid-cols-2 gap-2">
+          {/* Tombol ON (true) */}
+          <button
+            type="button"
+            disabled={isExecuting}
+            onClick={onTurnOn}
+            className={`py-2.5 px-3 rounded-xl font-bold text-xs transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+              dbStatus
+                ? 'bg-[#2D6A4F] text-white ring-2 ring-emerald-500/50 shadow-sm'
+                : 'bg-emerald-50/80 text-emerald-800 border border-emerald-300 hover:bg-[#2D6A4F] hover:text-white'
+            }`}
+            title={`Set kolom ${dbColumn} menjadi true (ON) di tabel relay_status`}
+          >
+            {isExecuting ? (
+              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+            ) : dbStatus ? (
+              <Check className="h-3.5 w-3.5 text-white" />
+            ) : (
+              <Power className="h-3.5 w-3.5" />
+            )}
+            <span>Nyalakan (ON)</span>
+          </button>
+
+          {/* Tombol OFF (false) */}
+          <button
+            type="button"
+            disabled={isExecuting}
+            onClick={onTurnOff}
+            className={`py-2.5 px-3 rounded-xl font-bold text-xs transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+              !dbStatus
+                ? 'bg-slate-800 text-white ring-2 ring-slate-400/50 shadow-sm'
+                : 'bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-800 hover:text-white'
+            }`}
+            title={`Set kolom ${dbColumn} menjadi false (OFF) di tabel relay_status`}
+          >
+            {isExecuting ? (
+              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+            ) : !dbStatus ? (
+              <Check className="h-3.5 w-3.5 text-white" />
+            ) : (
+              <Square className="h-3.5 w-3.5" />
+            )}
+            <span>Matikan (OFF)</span>
+          </button>
+        </div>
       </div>
 
       {/* Quick Timed Actions (e.g. Isi 15s, Kuras 25s, Uji 60s) */}
@@ -193,10 +219,10 @@ const ActuatorCard: React.FC<ActuatorCardProps> = ({
               <button
                 key={opt.seconds}
                 type="button"
-                disabled={!canControl || !isDeviceOnline || isExecuting || activeTimer !== undefined && activeTimer !== null}
+                disabled={isExecuting || activeTimer !== undefined && activeTimer !== null}
                 onClick={() => onTimedAction(opt.seconds, opt.label)}
                 className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-semibold disabled:opacity-40 transition-colors cursor-pointer"
-                title={`Jalankan selama ${opt.seconds} detik`}
+                title={`Jalankan selama ${opt.seconds} detik lalu matikan otomatis`}
               >
                 {activeTimer ? `${activeTimer}s...` : opt.label}
               </button>
@@ -205,30 +231,18 @@ const ActuatorCard: React.FC<ActuatorCardProps> = ({
         </div>
       )}
 
-      {/* Command Status & Timestamp Footer */}
+      {/* Footer Info */}
       <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
         <div className="flex items-center gap-1 truncate">
           <Clock className="h-3 w-3 text-slate-400 shrink-0" />
-          <span>Perintah Terakhir:</span>
+          <span>Status Hardware:</span>
           <span className="font-mono text-slate-600 font-medium truncate">
-            {lastCommand ? `${lastCommand.commandType} (${lastCommand.parameters?.state || 'EXEC'})` : 'Belum ada'}
+            {isDeviceOnline ? (actualStatus === 'ON' ? 'Aktif (0V)' : 'Standby (3.3V)') : 'Menunggu ESP8266'}
           </span>
         </div>
-        {lastCommand && (
-          <span
-            className={`font-mono px-1.5 py-0.2 rounded text-[10px] font-bold ${
-              lastCommand.status === 'COMPLETED'
-                ? 'bg-emerald-50 text-emerald-700'
-                : lastCommand.status === 'ACKNOWLEDGED'
-                ? 'bg-blue-50 text-blue-700'
-                : lastCommand.status === 'FAILED'
-                ? 'bg-rose-50 text-rose-700'
-                : 'bg-amber-50 text-amber-700'
-            }`}
-          >
-            {lastCommand.status}
-          </span>
-        )}
+        <span className="font-mono px-1.5 py-0.2 rounded text-[10px] font-bold bg-slate-100 text-slate-600">
+          id=1 · {dbColumn}
+        </span>
       </div>
     </div>
   );
@@ -267,7 +281,7 @@ export const ManualControlView: React.FC = () => {
   // Soft Reboot Confirmation Modal
   const [isRebootModalOpen, setIsRebootModalOpen] = useState(false);
 
-  const canControl = hasPermission(currentUser?.role, 'control:devices');
+  const canControl = currentUser?.role ? hasPermission(currentUser.role, 'control:devices') : true;
   const roleMeta = getRoleMetadata(currentUser?.role);
 
   // Evaluate connection status strictly based on last_seen_at heartbeat (< 5 minutes)
@@ -282,13 +296,77 @@ export const ManualControlView: React.FC = () => {
     return diffMinutes <= 5;
   }, [selectedDevice]);
 
-  // Actual actuator states derived from live telemetry & device records
+  // Sinkronisasi status relay seketika dari tabel public.relay_status (id=1)
+  const [relayTableStatus, setRelayTableStatus] = useState<Record<number, boolean>>({
+    1: false,
+    2: false,
+    3: false,
+    4: false,
+  });
+  const [lastRelayUpdatedAt, setLastRelayUpdatedAt] = useState<string | null>(null);
+  const [isRefreshingTable, setIsRefreshingTable] = useState(false);
+
+  const fetchRelayTableStatus = async () => {
+    setIsRefreshingTable(true);
+    try {
+      const rec = await relayStatusService.getRelayStatus(1);
+      if (rec) {
+        setRelayTableStatus({
+          1: Boolean(rec.channel_1),
+          2: Boolean(rec.channel_2),
+          3: Boolean(rec.channel_3),
+          4: Boolean(rec.channel_4),
+        });
+        if (rec.updated_at) {
+          setLastRelayUpdatedAt(rec.updated_at);
+        }
+      }
+    } finally {
+      setIsRefreshingTable(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRelayTableStatus();
+
+    const unsubscribe = relayStatusService.subscribeToRelayStatus((rec) => {
+      if (rec) {
+        setRelayTableStatus({
+          1: Boolean(rec.channel_1),
+          2: Boolean(rec.channel_2),
+          3: Boolean(rec.channel_3),
+          4: Boolean(rec.channel_4),
+        });
+        if (rec.updated_at) {
+          setLastRelayUpdatedAt(rec.updated_at);
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  // Actual actuator states derived from live telemetry & device records or relay_status table
   const tel = selectedDevice?.currentTelemetry;
-  const actualPumpStatus = tel?.water?.fillPumpStatus === 'running' ? 'ON' : 'OFF';
-  const actualDrainStatus = tel?.water?.drainValveStatus === 'open' ? 'ON' : 'OFF';
-  const actualLampStatus = tel?.lamp?.isActive ? 'ON' : 'OFF';
+  const actualPumpStatus = relayTableStatus[1] !== undefined
+    ? (relayTableStatus[1] ? 'ON' : 'OFF')
+    : (tel?.water?.fillPumpStatus === 'running' ? 'ON' : 'OFF');
+
+  const actualDrainStatus = relayTableStatus[2] !== undefined
+    ? (relayTableStatus[2] ? 'ON' : 'OFF')
+    : (tel?.water?.drainValveStatus === 'open' ? 'ON' : 'OFF');
+
+  const actualLampStatus = relayTableStatus[3] !== undefined
+    ? (relayTableStatus[3] ? 'ON' : 'OFF')
+    : (tel?.lamp?.isActive ? 'ON' : 'OFF');
+
   // Relay 4 (Kipas / Aux): fallback state
   const [actualFanStatus, setActualFanStatus] = useState<'ON' | 'OFF' | 'UNKNOWN'>('OFF');
+  const fanStatus = relayTableStatus[4] !== undefined
+    ? (relayTableStatus[4] ? 'ON' : 'OFF')
+    : actualFanStatus;
 
   // Filter commands for selected device
   const deviceCommands = useMemo(() => {
@@ -373,32 +451,96 @@ export const ManualControlView: React.FC = () => {
     }
   };
 
-  // Turn relay ON / OFF
-  const handleRelayAction = async (channel: number, turnOn: boolean) => {
-    // Interlock check for Pump
-    if (channel === 1 && turnOn && (tel?.water?.tankLevelPercent || 0) < 15) {
+  // Ubah status channel pada tabel public.relay_status di Supabase (true = ON, false = OFF)
+  const handleRelayAction = async (channel: 1 | 2 | 3 | 4, turnOn: boolean) => {
+    const channelNames: Record<number, string> = {
+      1: 'Pompa Air Pengisi (channel_1)',
+      2: 'Katup Solenoid Drain (channel_2)',
+      3: 'Lampu LED UV 365nm (channel_3)',
+      4: 'Kipas Blower / Aux (channel_4)',
+    };
+    const chName = channelNames[channel] || `Channel ${channel}`;
+    const colName = `channel_${channel}`;
+
+    setIsExecuting(true);
+    setActiveCommandName(`SET_${colName.toUpperCase()}`);
+    setFeedback({
+      type: 'info',
+      message: `Menyimpan perubahan ${chName} -> ${turnOn ? 'true (ON)' : 'false (OFF)'} ke tabel relay_status di Supabase...`,
+    });
+
+    try {
+      // 1. Eksekusi update langsung ke tabel public.relay_status di Supabase (id = 1)
+      const res = await relayStatusService.updateChannel(channel, turnOn, 1);
+
+      if (!res.success) {
+        throw new Error(res.error || `Gagal mengubah status ${colName}`);
+      }
+
+      // 2. Perbarui state lokal seketika
+      setRelayTableStatus((prev) => ({ ...prev, [channel]: turnOn }));
+      setLastRelayUpdatedAt(new Date().toISOString());
+
+      if (channel === 4) {
+        setActualFanStatus(turnOn ? 'ON' : 'OFF');
+      }
+
+      setFeedback({
+        type: 'success',
+        message: `Berhasil! Status ${chName} diubah menjadi ${turnOn ? 'ON (true)' : 'OFF (false)'} pada tabel public.relay_status (id=1).`,
+      });
+
+      // 3. Jika unit online & terdaftar, sinkronkan juga antrean perintah ke hardware
+      if (selectedDevice && isDeviceOnline && canControl) {
+        sendCommand(selectedDevice.id, 'SET_RELAY', { relay: channel, state: turnOn ? 'ON' : 'OFF' }).catch(() => {});
+      }
+    } catch (err: any) {
       setFeedback({
         type: 'error',
-        message: 'Interlock Keamanan Aktif: Level tandon air < 15%. Pompa dilarang menyala untuk mencegah kerusakan dry-run.',
+        message: err?.message || 'Gagal mengubah status relay di Supabase.',
       });
-      return;
+    } finally {
+      setIsExecuting(false);
+      setActiveCommandName(null);
     }
+  };
 
-    const stateStr = turnOn ? 'ON' : 'OFF';
-    await executeActuatorCommand(
-      'SET_RELAY',
-      { relay: channel, state: stateStr },
-      `Relay ${channel} berhasil diubah ke ${stateStr} (Active LOW).`
-    );
+  // Mengubah seluruh channel (1-4) sekaligus ke true (ON) atau false (OFF)
+  const handleSetAllRelays = async (turnOn: boolean) => {
+    setIsExecuting(true);
+    setActiveCommandName(turnOn ? 'ALL_ON' : 'ALL_OFF');
+    setFeedback({
+      type: 'info',
+      message: `Mengubah seluruh channel (1-4) menjadi ${turnOn ? 'true (ON)' : 'false (OFF)'} di tabel relay_status...`,
+    });
 
-    if (channel === 4) {
-      setActualFanStatus(turnOn ? 'ON' : 'OFF');
+    try {
+      const res = await relayStatusService.setAllChannels(turnOn, 1);
+      if (res.success) {
+        setRelayTableStatus({ 1: turnOn, 2: turnOn, 3: turnOn, 4: turnOn });
+        setLastRelayUpdatedAt(new Date().toISOString());
+        setActualFanStatus(turnOn ? 'ON' : 'OFF');
+        setFeedback({
+          type: 'success',
+          message: `Berhasil! Seluruh channel (1-4) diubah menjadi ${turnOn ? 'ON (true)' : 'OFF (false)'} pada tabel public.relay_status.`,
+        });
+      } else {
+        throw new Error(res.error || 'Gagal mengubah status di Supabase');
+      }
+    } catch (err: any) {
+      setFeedback({
+        type: 'error',
+        message: err?.message || 'Gagal memperbarui seluruh channel relay.',
+      });
+    } finally {
+      setIsExecuting(false);
+      setActiveCommandName(null);
     }
   };
 
   // Timed relay action with auto-OFF countdown
-  const handleTimedRelayAction = async (channel: number, seconds: number, label: string) => {
-    if (!canControl || !isDeviceOnline) return;
+  const handleTimedRelayAction = async (channel: 1 | 2 | 3 | 4, seconds: number, label: string) => {
+    if (!canControl) return;
 
     if (channel === 1 && (tel?.water?.tankLevelPercent || 0) < 15) {
       setFeedback({
@@ -623,10 +765,10 @@ export const ManualControlView: React.FC = () => {
           </div>
 
           {!isDeviceOnline && (
-            <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-900 flex items-center gap-2 animate-in fade-in">
-              <WifiOff className="h-4 w-4 text-rose-600 shrink-0" />
+            <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900 flex items-center gap-2 animate-in fade-in">
+              <Info className="h-4 w-4 text-amber-600 shrink-0" />
               <span>
-                <strong>Perhatian:</strong> Perangkat {selectedDevice.code} belum mengirimkan heartbeat dalam 5 menit terakhir atau berstatus offline. Seluruh tombol kontrol fisik dinonaktifkan demi keselamatan untuk mencegah pengiriman perintah yang tidak dapat dieksekusi.
+                <strong>Info Sinkronisasi:</strong> Perangkat {selectedDevice.code} belum mengirimkan heartbeat telemetri terbaru. Anda tetap dapat mengontrol status relay secara langsung ke tabel database Supabase (<code>public.relay_status</code>). Mikrokontroler akan menyinkronkan status saat tersambung.
               </span>
             </div>
           )}
@@ -661,6 +803,131 @@ export const ManualControlView: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
+      {/* KONTROL MANUAL STATUS TABEL RELAY_STATUS (SUPABASE)                        */}
+      {/* ========================================================================= */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-950 via-[#132A13] to-[#1B4332] text-white shadow-lg border border-emerald-800/40 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center shrink-0">
+              <Database className="h-5 w-5 text-[#ECF39E]" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm sm:text-base font-bold text-white tracking-wide">
+                  Kontrol Manual Database Supabase (Tabel <code className="text-[#ECF39E]">relay_status</code>)
+                </h2>
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" title="Realtime Aktif" />
+              </div>
+              <p className="text-xs text-emerald-200/80 mt-0.5 font-mono">
+                Target: rest/v1/relay_status?id=eq.1 · Unit: {selectedDevice.code}
+                {lastRelayUpdatedAt && ` · Update: ${lastRelayUpdatedAt.split('T')[1]?.slice(0, 8)} UTC`}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={isExecuting}
+              onClick={() => handleSetAllRelays(true)}
+              className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer disabled:opacity-50"
+              title="Set seluruh channel (1-4) menjadi true"
+            >
+              <Power className="h-3.5 w-3.5" />
+              <span>Semua ON</span>
+            </button>
+            <button
+              type="button"
+              disabled={isExecuting}
+              onClick={() => handleSetAllRelays(false)}
+              className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer disabled:opacity-50"
+              title="Set seluruh channel (1-4) menjadi false"
+            >
+              <Square className="h-3.5 w-3.5" />
+              <span>Semua OFF</span>
+            </button>
+            <button
+              type="button"
+              disabled={isRefreshingTable}
+              onClick={fetchRelayTableStatus}
+              className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50 border border-white/10"
+              title="Muat ulang data dari Supabase"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingTable ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Live Channel Status Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-emerald-800/50">
+          <div className="p-2.5 rounded-xl bg-black/20 border border-emerald-500/20 flex items-center justify-between">
+            <div className="min-w-0">
+              <span className="text-[10px] text-emerald-300 block font-mono">channel_1</span>
+              <span className="text-xs font-bold text-white truncate block">Pompa Air</span>
+            </div>
+            <span
+              className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                relayTableStatus[1]
+                  ? 'bg-emerald-400 text-black font-extrabold shadow-xs'
+                  : 'bg-white/10 text-emerald-200'
+              }`}
+            >
+              {relayTableStatus[1] ? 'TRUE (ON)' : 'FALSE (OFF)'}
+            </span>
+          </div>
+
+          <div className="p-2.5 rounded-xl bg-black/20 border border-emerald-500/20 flex items-center justify-between">
+            <div className="min-w-0">
+              <span className="text-[10px] text-emerald-300 block font-mono">channel_2</span>
+              <span className="text-xs font-bold text-white truncate block">Solenoid Drain</span>
+            </div>
+            <span
+              className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                relayTableStatus[2]
+                  ? 'bg-emerald-400 text-black font-extrabold shadow-xs'
+                  : 'bg-white/10 text-emerald-200'
+              }`}
+            >
+              {relayTableStatus[2] ? 'TRUE (ON)' : 'FALSE (OFF)'}
+            </span>
+          </div>
+
+          <div className="p-2.5 rounded-xl bg-black/20 border border-emerald-500/20 flex items-center justify-between">
+            <div className="min-w-0">
+              <span className="text-[10px] text-emerald-300 block font-mono">channel_3</span>
+              <span className="text-xs font-bold text-white truncate block">Lampu LED UV</span>
+            </div>
+            <span
+              className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                relayTableStatus[3]
+                  ? 'bg-emerald-400 text-black font-extrabold shadow-xs'
+                  : 'bg-white/10 text-emerald-200'
+              }`}
+            >
+              {relayTableStatus[3] ? 'TRUE (ON)' : 'FALSE (OFF)'}
+            </span>
+          </div>
+
+          <div className="p-2.5 rounded-xl bg-black/20 border border-emerald-500/20 flex items-center justify-between">
+            <div className="min-w-0">
+              <span className="text-[10px] text-emerald-300 block font-mono">channel_4</span>
+              <span className="text-xs font-bold text-white truncate block">Kipas / Aux</span>
+            </div>
+            <span
+              className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                relayTableStatus[4]
+                  ? 'bg-emerald-400 text-black font-extrabold shadow-xs'
+                  : 'bg-white/10 text-emerald-200'
+              }`}
+            >
+              {relayTableStatus[4] ? 'TRUE (ON)' : 'FALSE (OFF)'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
       {/* 4 DEDICATED ACTUATOR CONTROL CARDS                                        */}
       {/* ========================================================================= */}
       <div className="space-y-4">
@@ -676,11 +943,13 @@ export const ManualControlView: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           
-          {/* 1. POMPA AIR PENGISI (Relay 1 - D1 / GPIO5) */}
+          {/* 1. POMPA AIR PENGISI (Relay 1 - D1 / GPIO5 - channel_1) */}
           <ActuatorCard
             channel={1}
             name="Pompa Air Pengisi Baki"
             hardwarePin="D1 / GPIO5 · Submersible 12V DC"
+            dbColumn="channel_1"
+            dbStatus={Boolean(relayTableStatus[1])}
             icon={Droplets}
             description="Mengalirkan air bersih dari tandon cadangan ke baki penampung bangkai serangga untuk menjaga kejernihan air pantulan."
             actualStatus={actualPumpStatus}
@@ -699,11 +968,13 @@ export const ManualControlView: React.FC = () => {
             protectionNote="Interlock Tandon ≥15% · Auto-Cutoff Timeout Maks 45s"
           />
 
-          {/* 2. KATUP SOLENOID DRAIN (Relay 2 - D2 / GPIO4) */}
+          {/* 2. KATUP SOLENOID DRAIN (Relay 2 - D2 / GPIO4 - channel_2) */}
           <ActuatorCard
             channel={2}
             name="Katup Solenoid Drain Baki"
             hardwarePin="D2 / GPIO4 · Solenoid NC 12V"
+            dbColumn="channel_2"
+            dbStatus={Boolean(relayTableStatus[2])}
             icon={ArrowDownCircle}
             description="Membuka saluran pembuangan air kotor baki perangkap untuk menguras kotoran dan bangkai serangga yang menumpuk."
             actualStatus={actualDrainStatus}
@@ -721,11 +992,13 @@ export const ManualControlView: React.FC = () => {
             protectionNote="Normally Closed (Aman Tertutup Saat Mati Daya)"
           />
 
-          {/* 3. LAMPU LED UV PENARIK (Relay 3 - D7 / GPIO13) */}
+          {/* 3. LAMPU LED UV PENARIK (Relay 3 - D7 / GPIO13 - channel_3) */}
           <ActuatorCard
             channel={3}
             name="Lampu LED Perangkap (UV 365nm)"
             hardwarePin="D7 / GPIO13 · High Power LED Near-UV"
+            dbColumn="channel_3"
+            dbStatus={Boolean(relayTableStatus[3])}
             icon={Lightbulb}
             description="Menyalakan modul lampu ultraviolet 365nm nokturnal penarik serangga hama wereng dan penggerek batang padi."
             actualStatus={actualLampStatus}
@@ -743,14 +1016,16 @@ export const ManualControlView: React.FC = () => {
             protectionNote="Driver Arus ~850 mA · Tanpa PWM (Kontrol Saklar Relay)"
           />
 
-          {/* 4. KIPAS BLOWER / AUXILIARY (Relay 4 - D0 / GPIO16) */}
+          {/* 4. KIPAS BLOWER / AUXILIARY (Relay 4 - D0 / GPIO16 - channel_4) */}
           <ActuatorCard
             channel={4}
             name="Kipas Blower / Port Aux"
             hardwarePin="D0 / GPIO16 · DC Fan / Auxiliary Port"
+            dbColumn="channel_4"
+            dbStatus={Boolean(relayTableStatus[4])}
             icon={Fan}
             description="Mengaktifkan kipas sirkulasi blower atau port beban cadangan untuk menjaga sirkulasi udara dan anti-embun pada kaca kamera."
-            actualStatus={actualFanStatus}
+            actualStatus={fanStatus}
             lastCommand={getLastCommandForRelay(4)}
             isExecuting={isExecuting}
             canControl={canControl}

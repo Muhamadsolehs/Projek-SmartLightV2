@@ -1,5 +1,5 @@
 # Supabase CLI Project Configuration
-project_id = "nrskcmbnctpdxywhigtu"
+project_id = "xzzjfwstrpayhnpymqpq"
 
 # Gateway JWT Verification Configuration for Edge Functions
 # Hardware endpoints authenticate using custom X-Device-Code & X-Device-Token headers

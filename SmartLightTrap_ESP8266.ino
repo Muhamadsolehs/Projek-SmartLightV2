@@ -44,28 +44,34 @@
   #define HAS_CREDENTIALS_FILE 0
 #endif
 
-// Placeholder fallback aman untuk kompilasi (JANGAN simpan kredensial nyata di sini!)
-// Firmware akan menolak booting jika HAS_CREDENTIALS_FILE == 0 atau nilai masih placeholder.
+// Placeholder fallback aman untuk kompilasi (ZERO HARDCODED SECRETS DI FILE INO)
+// Firmware menolak booting jika HAS_CREDENTIALS_FILE == 0 atau nilai masih kosong/placeholder.
 #ifndef WIFI_SSID
-  #define WIFI_SSID "Amj"
+  #define WIFI_SSID ""
 #endif
 #ifndef WIFI_PASSWORD
-  #define WIFI_PASSWORD "Alya1504"
+  #define WIFI_PASSWORD ""
 #endif
 #ifndef DEVICE_CODE
-  #define DEVICE_CODE "SLT-SBG-01"
+  #define DEVICE_CODE ""
 #endif
 #ifndef DEVICE_TOKEN
-  #define DEVICE_TOKEN "slt_live_8b4676f8f398b81036d1225e38b5e1d55c0d9a564428feca"
+  #define DEVICE_TOKEN ""
 #endif
 #ifndef SUPABASE_BASE_URL
-  #define SUPABASE_BASE_URL "https://nrskcmbnctpdxywhigtu.supabase.co/functions/v1"
+  #define SUPABASE_BASE_URL ""
+#endif
+#ifndef SUPABASE_REST_URL
+  #define SUPABASE_REST_URL ""
+#endif
+#ifndef SUPABASE_API_KEY
+  #define SUPABASE_API_KEY ""
 #endif
 
 // ============================================================================
 // 2. METADATA PERANGKAT & URL ENDPOINTS
 // ============================================================================
-#define FIRMWARE_VERSION          "v2.7.0-esp8266-nodemcu"
+#define FIRMWARE_VERSION          "v2.8.0-esp8266-nodemcu"
 #define HARDWARE_CHIP             "ESP8266_NodeMCU"
 #define BAUDRATE                  115200
 
@@ -114,12 +120,13 @@ const char* const RELAY_LABELS[NUM_RELAYS] = {
 #define HTTP_CLIENT_TIMEOUT_MS    8000    // Timeout HTTPS 8 detik
 
 // [CONFIG_REQUIRE_APPROVAL] Batas auto-cutoff 45 detik adalah batas proteksi waktu
-// (time-based safeguard) default untuk mencegah motor pompa terbakar saat baki kosong.
+// (time-based safeguard) default untuk mencegah motor pompa terbakar.
+// PENTING: Ini BUKAN sensor level air fisik.
 #define SAFETY_PUMP_CUTOFF_ENABLED true
 #define PUMP_AUTO_CUTOFF_LIMIT_MS 45000UL
 
 // Durasi siklus kuras dan isi air baki (FORCE_WATER_CHANGE non-blocking)
-// [CONFIG_REQUIRE_APPROVAL] Durasi kuras 5s dan isi 6s disesuaikan volume baki fisik.
+// [CONFIG_REQUIRE_APPROVAL] Durasi kuras 5s, interlock 1s, isi 6s disesuaikan kapasitas mekanik baki fisik.
 #define WATER_DRAIN_DURATION_MS   5000UL
 #define WATER_FILL_DURATION_MS    6000UL
 #define WATER_INTERLOCK_DELAY_MS  1000UL // Jeda interlock sebelum pompa nyala
@@ -127,17 +134,31 @@ const char* const RELAY_LABELS[NUM_RELAYS] = {
 // Alokasi EEPROM untuk persistensi status, riwayat perintah & status ACK
 #define EEPROM_ALLOC_SIZE         512
 #define EEPROM_MAGIC_HEADER       0x534C5433 // "SLT3"
+#define EEPROM_FORMAT_VERSION     0x04
+
+// Header & In-Progress Offsets pada Flash EEPROM:
+#define EEPROM_OFFSET_MAGIC       0   // 4 bytes (0..3)
+#define EEPROM_OFFSET_HIST_CRC    4   // 2 bytes (4..5)
+#define EEPROM_OFFSET_HIST_COUNT  6   // 1 byte  (6)
+#define EEPROM_OFFSET_VERSION     7   // 1 byte  (7)
+
+#define EEPROM_INPROGRESS_CRC     8   // 2 bytes (8..9) - CRC16 dari bytes 10..55
+#define EEPROM_INPROGRESS_ACTIVE  10  // 1 byte  (10) - 1 jika ada perintah aktif, 0 jika idle
+#define EEPROM_INPROGRESS_STAGE   11  // 1 byte  (11) - WaterChangeState (1: DRAIN, 2: INTERLOCK, 3: FILL)
+#define EEPROM_INPROGRESS_UPTIME  12  // 4 bytes (12..15) - Waktu mulai uptime dalam detik
+#define EEPROM_INPROGRESS_CMD_ID  16  // 37 bytes (16..52) - UUID 36 char + null
+// Bytes 53..55: Padding/Reserved (3 bytes)
+#define EEPROM_DATA_OFFSET        56  // Start of Command History records (bytes 56..511)
+
 #define DEDUP_HISTORY_CAPACITY    8
 #define EEPROM_RECORDS_TO_SAVE    8
 #define EEPROM_RECORD_SIZE        57
-#define EEPROM_DATA_OFFSET        8
+// Total ukuran riwayat: 56 + (8 * 57) = 512 bytes (Tepat 100% kapasitas EEPROM 512)
 
 // Kebijakan Telemetri: JANGAN kirim data dummy fiktif jika sensor fisik tidak ada
 #define ENABLE_ENVIRONMENTAL_SENSORS false
 
-// Mode Validasi TLS Produksi:
-// true  = Menggunakan validasi Trust Anchor Root CA dengan sinkronisasi waktu NTP
-// false = gSecureClient.setInsecure() untuk kemudahan pengujian pengembang lokal
+// Mode Validasi TLS Produksi: Menggunakan Root CA Valid dengan sinkronisasi waktu NTP
 #define USE_STRICT_TLS_VALIDATION true
 
 // ============================================================================
@@ -224,10 +245,10 @@ bmF0774BxL4YSFlhgjICICadVGNA3jdgUM/I2O2dgq43mLyjj0xMqTQrbO/7lZsm
 // ============================================================================
 struct CommandRecord {
   char commandId[37];       // UUID 36 karakter + null terminator
-  char status[12];          // "completed" atau "failed"
+  char status[12];          // "completed", "failed", atau "in_progress"
   int relay;                // 1..4 (atau 0 untuk instruksi global)
   char state[4];            // "ON", "OFF", atau ""
-  bool gpioVerified;        // true jika digitalRead cocok
+  bool gpioVerified;        // true jika digitalRead cocok dengan expected level
   uint8_t pinLevel;         // 0 (LOW) atau 1 (HIGH)
   uint32_t executedUptimeSec;
   bool ackConfirmed;        // true jika ACK berhasil dikonfirmasi server (HTTP 200/201/204/409)
@@ -251,6 +272,23 @@ public:
 
   void add(const char* id, const char* status, int relay = 0, const char* state = "", bool gpioVerified = false, uint8_t pinLevel = 1, bool ackConfirmed = false) {
     if (!id || strlen(id) == 0) return;
+
+    // Jika ID sudah ada, perbarui record yang ada tanpa duplikasi slot
+    int existingIdx = find(id);
+    if (existingIdx >= 0) {
+      CommandRecord& r = records[existingIdx];
+      strncpy(r.status, status, sizeof(r.status) - 1);
+      r.status[sizeof(r.status) - 1] = '\0';
+      r.relay = relay;
+      strncpy(r.state, state, sizeof(r.state) - 1);
+      r.state[sizeof(r.state) - 1] = '\0';
+      r.gpioVerified = gpioVerified;
+      r.pinLevel = pinLevel;
+      r.executedUptimeSec = millis() / 1000;
+      r.ackConfirmed = ackConfirmed;
+      r.valid = true;
+      return;
+    }
     
     CommandRecord& r = records[writeIndex];
     strncpy(r.commandId, id, sizeof(r.commandId) - 1);
@@ -332,7 +370,7 @@ struct DeadLetterRecord {
 struct AckItem {
   bool inUse;
   char commandId[37];
-  char status[12];          // "completed" atau "failed"
+  char status[12];          // "completed", "failed", atau "in_progress"
   char message[128];
   int relay;
   char state[4];
@@ -407,7 +445,7 @@ public:
       }
     }
 
-    // Jika antrean penuh, JANGAN diam-diam menghapus tanpa jejak!
+    // Jika antrean penuh, pindahkan item tertua/retry terbanyak ke dead-letter
     Serial.printf("[ACK_QUEUE] PERINGATAN KRITIS: Antrean ACK penuh (%d/%d)! Memindahkan item tertua/retry terbanyak ke dead-letter...\n",
                   ACK_QUEUE_CAPACITY, ACK_QUEUE_CAPACITY);
     
@@ -527,10 +565,10 @@ public:
 // 8. VARIABEL GLOBAL SISTEM RUNTIME & NON-BLOCKING HYDRAULIC TASK
 // ============================================================================
 enum WaterChangeState {
-  WC_IDLE,
-  WC_DRAIN,
-  WC_INTERLOCK,
-  WC_FILL
+  WC_IDLE = 0,
+  WC_DRAIN = 1,
+  WC_INTERLOCK = 2,
+  WC_FILL = 3
 };
 
 struct WaterChangeTask {
@@ -547,6 +585,7 @@ unsigned long gLastPollTime = 0;
 unsigned long gLastHeartbeatTime = 0;
 unsigned long gLastWifiCheckTime = 0;
 bool gNtpSynchronized = false;
+bool gWifiWasConnected = false;
 
 CommandHistoryManager gCommandHistory;
 AckQueueManager       gAckQueue;
@@ -564,6 +603,8 @@ void initHardwarePinsSafeBoot();
 void initEEPROMStorage();
 void saveCommandHistoryToEEPROM();
 void loadCommandHistoryFromEEPROM();
+void saveInProgressTaskToEEPROM(const char* cmdId, WaterChangeState stage);
+void clearInProgressTaskFromEEPROM();
 void eepromWriteByteIfChanged(int addr, uint8_t val);
 uint16_t calculateCRC16(int startAddr, int length);
 
@@ -575,6 +616,7 @@ void updateWaterChangeStateMachine();
 void abortWaterChange(const char* reason);
 
 void pollSupabaseCommands();
+void pollSupabaseRestRelayStatus();
 void processCommand(JsonObject& cmd);
 void executeSetRelay(const char* cmdId, int relayNum, const String& stateStr);
 void executeToggleLamp(const char* cmdId);
@@ -629,35 +671,28 @@ void setup() {
     }
   }
 
-  // 3. Inisialisasi Memori Non-Volatile EEPROM & Pulihkan Riwayat Idempotensi
+  // 3. Inisialisasi Memori Non-Volatile EEPROM & Pulihkan Riwayat Idempotensi serta Task Terinterupsi
   initEEPROMStorage();
 
-  // 4. Konfigurasi Klien TLS BearSSL dengan Root CA Otentik
+  // 4. Konfigurasi Klien TLS BearSSL dengan Root CA Otentik (Strict Production TLS)
   gTrustAnchors.append(GLOBALSIGN_ROOT_CA);
   gTrustAnchors.append(GTS_ROOT_R1_CA);
   gTrustAnchors.append(GLOBALSIGN_ECC_ROOT_R4_CA);
 
-  #if USE_STRICT_TLS_VALIDATION
-    gSecureClient.setTrustAnchors(&gTrustAnchors);
-    Serial.println(F("[TLS] Mode Strict TLS: Menggunakan Root CA Valid (GlobalSign & GTS Root R1)."));
-  #else
-    gSecureClient.setInsecure();
-    Serial.println(F("[TLS] PERINGATAN: setInsecure aktif untuk keperluan pengujian staging non-produksi."));
-  #endif
+  gSecureClient.setTrustAnchors(&gTrustAnchors);
+  Serial.println(F("[TLS] Mode Strict TLS: Menggunakan Root CA Valid (GlobalSign & GTS Root R1)."));
   gSecureClient.setTimeout(HTTP_CLIENT_TIMEOUT_MS);
 
   // 5. Hubungkan ke Jaringan Wi-Fi
   connectWifiNonBlocking();
 
   // 6. Sinkronisasi Waktu NTP untuk Keabsahan Sertifikat TLS
-  #if USE_STRICT_TLS_VALIDATION
-    if (WiFi.status() == WL_CONNECTED) {
-      syncNtpTime();
-    }
-  #endif
+  if (WiFi.status() == WL_CONNECTED) {
+    syncNtpTime();
+  }
 
   // 7. Kirim Event BOOT ke Supabase /device-status
-  if (WiFi.status() == WL_CONNECTED) {
+  if (WiFi.status() == WL_CONNECTED && gNtpSynchronized) {
     sendDeviceStatus(
       "BOOT",
       "info",
@@ -681,25 +716,43 @@ void loop() {
   // 1. Eksekusi Non-blocking State Machine untuk Siklus FORCE_WATER_CHANGE
   updateWaterChangeStateMachine();
 
-  // 2. Pantau Status Koneksi Wi-Fi secara periodik
+  // 2. Pantau Status Koneksi Wi-Fi secara periodik & Pulihkan Status jika Terhubung Kembali
   if (currentMillis - gLastWifiCheckTime >= INTERVAL_WIFI_RETRY_MS) {
     gLastWifiCheckTime = currentMillis;
     if (WiFi.status() != WL_CONNECTED) {
+      gWifiWasConnected = false;
       connectWifiNonBlocking();
-    } else if (!gNtpSynchronized) {
-      syncNtpTime();
+    } else {
+      if (!gWifiWasConnected) {
+        gWifiWasConnected = true;
+        Serial.println(F("[WIFI] Koneksi Wi-Fi pulih kembali!"));
+        if (!gNtpSynchronized) {
+          syncNtpTime();
+        }
+        // Kirim status pemulihan koneksi segera
+        if (gNtpSynchronized) {
+          sendDeviceStatus(
+            "DEVICE_RECOVERY",
+            "info",
+            "ESP8266 Wi-Fi Reconnected",
+            "Koneksi Wi-Fi berhasil pulih kembali. Sinkronisasi antrean ACK aktif."
+          );
+        }
+      } else if (!gNtpSynchronized) {
+        syncNtpTime();
+      }
     }
   }
 
   // 3. Proses dan Kirimkan Antrean ACK Tertunda (Multi-slot FIFO dengan Backoff)
-  if (WiFi.status() == WL_CONNECTED && gAckQueue.getPendingCount() > 0) {
+  if (WiFi.status() == WL_CONNECTED && gNtpSynchronized && gAckQueue.getPendingCount() > 0) {
     processPendingAckQueue();
   }
 
   // 4. Polling Antrean Komando Supabase (/device-command-poll)
   if (currentMillis - gLastPollTime >= INTERVAL_POLL_COMMAND_MS) {
     gLastPollTime = currentMillis;
-    if (WiFi.status() == WL_CONNECTED) {
+    if (WiFi.status() == WL_CONNECTED && gNtpSynchronized) {
       pollSupabaseCommands();
     }
   }
@@ -707,7 +760,7 @@ void loop() {
   // 5. Kirim Heartbeat & Diagnostik Sistem (/device-status)
   if (currentMillis - gLastHeartbeatTime >= INTERVAL_HEARTBEAT_MS) {
     gLastHeartbeatTime = currentMillis;
-    if (WiFi.status() == WL_CONNECTED) {
+    if (WiFi.status() == WL_CONNECTED && gNtpSynchronized) {
       sendDeviceStatus(
         "DEVICE_RECOVERY",
         "info",
@@ -718,6 +771,7 @@ void loop() {
   }
 
   // 6. Proteksi Keselamatan Auto-Cutoff Pompa (Relay 1): Maksimal 45 detik
+  // PENTING: Proteksi waktu (timer safeguard), BUKAN sensor level air fisik.
   #if SAFETY_PUMP_CUTOFF_ENABLED
   if (gRelayStates[0] && gPumpStartTime > 0 && !gWaterChangeTask.active) {
     if (currentMillis - gPumpStartTime >= PUMP_AUTO_CUTOFF_LIMIT_MS) {
@@ -725,12 +779,14 @@ void loop() {
       setRelayPhysical(0, false);
       gPumpStartTime = 0;
 
-      sendDeviceStatus(
-        "DRY_RUN_LOCKOUT",
-        "warning",
-        "Proteksi Auto-Cutoff Pompa Aktif",
-        "Pompa baki (Relay 1) dimatikan otomatis oleh firmware setelah batas timeout proteksi dry-run 45 detik."
-      );
+      if (WiFi.status() == WL_CONNECTED && gNtpSynchronized) {
+        sendDeviceStatus(
+          "DRY_RUN_LOCKOUT",
+          "warning",
+          "Proteksi Auto-Cutoff Pompa Aktif",
+          "Pompa baki (Relay 1) dimatikan otomatis oleh firmware setelah batas timeout proteksi dry-run 45 detik (timer-based)."
+        );
+      }
     }
   }
   #endif
@@ -747,9 +803,16 @@ bool validateCredentialsAtStartup() {
 
   const char* ssid = WIFI_SSID;
   const char* tok = DEVICE_TOKEN;
+  const char* dcode = DEVICE_CODE;
+  const char* url = SUPABASE_BASE_URL;
 
   if (!ssid || strlen(ssid) == 0 || strcmp(ssid, "NAMA_WIFI_ANDA") == 0 || strstr(ssid, "YOUR_") != nullptr) {
     Serial.println(F("[SECURITY] WIFI_SSID masih menggunakan nilai placeholder atau kosong!"));
+    return false;
+  }
+
+  if (!dcode || strlen(dcode) == 0 || strcmp(dcode, "SLT-SBG-01") != 0) {
+    Serial.println(F("[SECURITY] DEVICE_CODE tidak terkonfigurasi dengan benar!"));
     return false;
   }
 
@@ -759,11 +822,16 @@ bool validateCredentialsAtStartup() {
   }
 
   if (strcmp(tok, "GANTI_DENGAN_TOKEN_DEVICE_DARI_SUPABASE") == 0 ||
-      strstr(tok, "sbg01_secret") != nullptr || // Blokir keras seed token lama yang sudah terekspos
+      strstr(tok, "sbg01_secret") != nullptr || // Blokir keras seed token lama
       strstr(tok, "CHANGE_ME") != nullptr ||
       strstr(tok, "YOUR_") != nullptr ||
       strstr(tok, "PLACEHOLDER") != nullptr) {
     Serial.println(F("[SECURITY] DEVICE_TOKEN masih placeholder atau menggunakan seed token lama yang dilarang!"));
+    return false;
+  }
+
+  if (!url || strlen(url) == 0 || strstr(url, "your-project-id") != nullptr) {
+    Serial.println(F("[SECURITY] SUPABASE_BASE_URL masih placeholder atau kosong!"));
     return false;
   }
 
@@ -795,7 +863,7 @@ void initHardwarePinsSafeBoot() {
 }
 
 // ============================================================================
-// 14. MEMORI NON-VOLATILE EEPROM (CRC-16, CHRONOLOGICAL DEDUP, WRITE-AVOIDANCE)
+// 14. MEMORI NON-VOLATILE EEPROM (CRC-16, IN-PROGRESS RECOVERY, WRITE-AVOIDANCE)
 // ============================================================================
 void eepromWriteByteIfChanged(int addr, uint8_t val) {
   if (addr >= 0 && addr < EEPROM_ALLOC_SIZE) {
@@ -821,8 +889,110 @@ uint16_t calculateCRC16(int startAddr, int length) {
   return crc;
 }
 
+void saveInProgressTaskToEEPROM(const char* cmdId, WaterChangeState stage) {
+  if (!cmdId) return;
+
+  eepromWriteByteIfChanged(EEPROM_INPROGRESS_ACTIVE, 1);
+  eepromWriteByteIfChanged(EEPROM_INPROGRESS_STAGE, (uint8_t)stage);
+  
+  uint32_t nowSec = millis() / 1000;
+  for (int i = 0; i < 4; i++) {
+    eepromWriteByteIfChanged(EEPROM_INPROGRESS_UPTIME + i, (nowSec >> (i * 8)) & 0xFF);
+  }
+
+  for (int c = 0; c < 36; c++) {
+    uint8_t ch = (c < (int)strlen(cmdId)) ? (uint8_t)cmdId[c] : 0;
+    eepromWriteByteIfChanged(EEPROM_INPROGRESS_CMD_ID + c, ch);
+  }
+  eepromWriteByteIfChanged(EEPROM_INPROGRESS_CMD_ID + 36, 0);
+
+  // Clear padding bytes 53..55
+  for (int p = 53; p < 56; p++) {
+    eepromWriteByteIfChanged(p, 0);
+  }
+
+  // Hitung CRC-16 dari byte 10 s.d. 55 (46 bytes)
+  uint16_t inProgCrc = calculateCRC16(10, 46);
+  eepromWriteByteIfChanged(EEPROM_INPROGRESS_CRC, (inProgCrc >> 8) & 0xFF);
+  eepromWriteByteIfChanged(EEPROM_INPROGRESS_CRC + 1, inProgCrc & 0xFF);
+
+  EEPROM.commit();
+}
+
+void clearInProgressTaskFromEEPROM() {
+  eepromWriteByteIfChanged(EEPROM_INPROGRESS_ACTIVE, 0);
+  eepromWriteByteIfChanged(EEPROM_INPROGRESS_STAGE, 0);
+
+  for (int p = 12; p < 56; p++) {
+    eepromWriteByteIfChanged(p, 0);
+  }
+
+  uint16_t inProgCrc = calculateCRC16(10, 46);
+  eepromWriteByteIfChanged(EEPROM_INPROGRESS_CRC, (inProgCrc >> 8) & 0xFF);
+  eepromWriteByteIfChanged(EEPROM_INPROGRESS_CRC + 1, inProgCrc & 0xFF);
+
+  EEPROM.commit();
+}
+
 void initEEPROMStorage() {
   EEPROM.begin(EEPROM_ALLOC_SIZE);
+
+  uint32_t magic = 0;
+  for (int i = 0; i < 4; i++) {
+    magic |= ((uint32_t)EEPROM.read(i)) << (i * 8);
+  }
+
+  if (magic != EEPROM_MAGIC_HEADER) {
+    Serial.println(F("[EEPROM] Magic header baru diinisialisasi (SLT3). Menyiapkan memori flash..."));
+    // Format EEPROM bersih
+    for (int i = 0; i < EEPROM_ALLOC_SIZE; i++) {
+      EEPROM.write(i, 0);
+    }
+    for (int i = 0; i < 4; i++) {
+      EEPROM.write(i, (EEPROM_MAGIC_HEADER >> (i * 8)) & 0xFF);
+    }
+    EEPROM.write(EEPROM_OFFSET_VERSION, EEPROM_FORMAT_VERSION);
+    EEPROM.commit();
+    return;
+  }
+
+  // 1. RECOVERY PERINTAH IN-PROGRESS:
+  // Cek apakah mikrokontroler reboot atau kehilangan daya saat siklus FORCE_WATER_CHANGE berjalan
+  uint16_t storedInProgCrc = (((uint16_t)EEPROM.read(EEPROM_INPROGRESS_CRC)) << 8) | EEPROM.read(EEPROM_INPROGRESS_CRC + 1);
+  uint16_t computedInProgCrc = calculateCRC16(10, 46);
+
+  if (storedInProgCrc == computedInProgCrc && EEPROM.read(EEPROM_INPROGRESS_ACTIVE) == 1) {
+    uint8_t stage = EEPROM.read(EEPROM_INPROGRESS_STAGE);
+    char inProgCmdId[37];
+    for (int c = 0; c < 36; c++) inProgCmdId[c] = (char)EEPROM.read(EEPROM_INPROGRESS_CMD_ID + c);
+    inProgCmdId[36] = '\0';
+
+    const char* stageName = (stage == WC_DRAIN) ? "DRAIN (Kuras)" :
+                            (stage == WC_INTERLOCK) ? "INTERLOCK (Jeda)" :
+                            (stage == WC_FILL) ? "FILL (Pengisian)" : "UNKNOWN";
+
+    Serial.println(F("\n********************************************************"));
+    Serial.printf("[RECOVERY] KESELAMATAN AKTUTOR: Terdeteksi reboot saat siklus FORCE_WATER_CHANGE aktif!\n");
+    Serial.printf("  ID Perintah     : %s\n", inProgCmdId);
+    Serial.printf("  Tahap Terakhir  : %s\n", stageName);
+    Serial.println(F("  Tindakan Aman   : Seluruh relay dipastikan OFF. Proses kuras/isi TIDAK dilanjutkan."));
+    Serial.println(F("  Status Server   : Menandai komando sebagai 'failed' dan menyiapkan ACK pemulihan."));
+    Serial.println(F("********************************************************\n"));
+
+    emergencyShutdownAllRelays("INTERRUPTED_CYCLE_RECOVERY");
+
+    String failMsg = String("Siklus kuras/isi air terinterupsi akibat restart/pemadaman listrik saat tahap ") + stageName +
+                     ". Dibatalkan demi keselamatan aktuator. Seluruh relay OFF.";
+
+    // Tandai proses sebelumnya sebagai failed di riwayat dan siapkan pemulihan ACK
+    gCommandHistory.add(inProgCmdId, "failed", 0, "", false, 1, false);
+    gAckQueue.enqueue(inProgCmdId, "failed", failMsg.c_str(), 0, "", false, 1);
+
+    // Bersihkan status in-progress di EEPROM
+    clearInProgressTaskFromEEPROM();
+  }
+
+  // 2. Muat riwayat perintah dari EEPROM
   loadCommandHistoryFromEEPROM();
 }
 
@@ -876,13 +1046,13 @@ void saveCommandHistoryToEEPROM() {
     eepromWriteByteIfChanged(i, (magic >> (i * 8)) & 0xFF);
   }
 
-  // Simpan CRC-16 Checksum (Bytes 4..5)
-  eepromWriteByteIfChanged(4, (checksum >> 8) & 0xFF);
-  eepromWriteByteIfChanged(5, checksum & 0xFF);
+  // Simpan CRC-16 Checksum Riwayat (Bytes 4..5)
+  eepromWriteByteIfChanged(EEPROM_OFFSET_HIST_CRC, (checksum >> 8) & 0xFF);
+  eepromWriteByteIfChanged(EEPROM_OFFSET_HIST_CRC + 1, checksum & 0xFF);
 
-  // Simpan Metadata Jumlah Record & Flags (Bytes 6..7)
-  eepromWriteByteIfChanged(6, (uint8_t)numToSave);
-  eepromWriteByteIfChanged(7, 0x01);
+  // Simpan Metadata Jumlah Record & Versi (Bytes 6..7)
+  eepromWriteByteIfChanged(EEPROM_OFFSET_HIST_COUNT, (uint8_t)numToSave);
+  eepromWriteByteIfChanged(EEPROM_OFFSET_VERSION, EEPROM_FORMAT_VERSION);
 
   EEPROM.commit();
 }
@@ -901,7 +1071,7 @@ void loadCommandHistoryFromEEPROM() {
   int baseAddr = EEPROM_DATA_OFFSET;
   int dataStart = baseAddr;
   int expectedLength = EEPROM_RECORDS_TO_SAVE * EEPROM_RECORD_SIZE;
-  uint16_t storedChecksum = (((uint16_t)EEPROM.read(4)) << 8) | EEPROM.read(5);
+  uint16_t storedChecksum = (((uint16_t)EEPROM.read(EEPROM_OFFSET_HIST_CRC)) << 8) | EEPROM.read(EEPROM_OFFSET_HIST_CRC + 1);
   uint16_t computedChecksum = calculateCRC16(dataStart, expectedLength);
 
   if (storedChecksum != computedChecksum) {
@@ -917,25 +1087,34 @@ void loadCommandHistoryFromEEPROM() {
     uint8_t valid = EEPROM.read(baseAddr++);
     uint8_t ackConf = EEPROM.read(baseAddr++);
 
+    char cmdId[37];
+    for (int c = 0; c < 36; c++) cmdId[c] = (char)EEPROM.read(baseAddr++);
+    cmdId[36] = '\0';
+
+    char status[12];
+    for (int c = 0; c < 12; c++) status[c] = (char)EEPROM.read(baseAddr++);
+    status[11] = '\0';
+
+    int relay = EEPROM.read(baseAddr++);
+
+    char state[4];
+    for (int c = 0; c < 4; c++) state[c] = (char)EEPROM.read(baseAddr++);
+    state[3] = '\0';
+
+    bool gpioVer = (EEPROM.read(baseAddr++) == 1);
+    uint8_t pinLvl = EEPROM.read(baseAddr++);
+
     if (valid == 1) {
-      char cmdId[37];
-      for (int c = 0; c < 36; c++) cmdId[c] = (char)EEPROM.read(baseAddr++);
-      cmdId[36] = '\0';
+      // Validasi ketat integritas record untuk mencegah pemulihan data korup
+      bool recordCorrupt = false;
+      if (ackConf != 0 && ackConf != 1) recordCorrupt = true;
+      if (strlen(cmdId) < 10) recordCorrupt = true;
+      if (strcmp(status, "completed") != 0 && strcmp(status, "failed") != 0 && strcmp(status, "in_progress") != 0) {
+        recordCorrupt = true;
+      }
+      if (relay < 0 || relay > NUM_RELAYS) recordCorrupt = true;
 
-      char status[12];
-      for (int c = 0; c < 12; c++) status[c] = (char)EEPROM.read(baseAddr++);
-      status[11] = '\0';
-
-      int relay = EEPROM.read(baseAddr++);
-
-      char state[4];
-      for (int c = 0; c < 4; c++) state[c] = (char)EEPROM.read(baseAddr++);
-      state[3] = '\0';
-
-      bool gpioVer = (EEPROM.read(baseAddr++) == 1);
-      uint8_t pinLvl = EEPROM.read(baseAddr++);
-
-      if (strlen(cmdId) >= 8) {
+      if (!recordCorrupt) {
         bool isConfirmed = (ackConf == 1);
         gCommandHistory.add(cmdId, status, relay, state, gpioVer, pinLvl, isConfirmed);
         loadedCount++;
@@ -950,9 +1129,9 @@ void loadCommandHistoryFromEEPROM() {
           gAckQueue.enqueue(cmdId, status, "ACK dipulihkan dari non-volatile EEPROM setelah reboot.",
                             relay, state, gpioVer, pinLvl);
         }
+      } else {
+        Serial.printf("[EEPROM] Menolak record indeks %d karena format data tidak valid / corrupt.\n", i);
       }
-    } else {
-      baseAddr += (36 + 12 + 1 + 4 + 1 + 1);
     }
   }
 
@@ -1077,6 +1256,9 @@ void updateWaterChangeStateMachine() {
         Serial.println(F("[HYDRAULIC] Tahap 1/3 (Drain) selesai. Memulai jeda interlock keselamatan..."));
         gWaterChangeTask.state = WC_INTERLOCK;
         gWaterChangeTask.stageStartTime = millis();
+
+        // Perbarui stage di non-volatile EEPROM
+        saveInProgressTaskToEEPROM(gWaterChangeTask.commandId, WC_INTERLOCK);
       }
       break;
 
@@ -1088,6 +1270,9 @@ void updateWaterChangeStateMachine() {
         Serial.println(F("[HYDRAULIC] Tahap 2/3 (Interlock) selesai. Menyalakan Pompa Pengisi Baki (Relay 1 ON)..."));
         gWaterChangeTask.state = WC_FILL;
         gWaterChangeTask.stageStartTime = millis();
+
+        // Perbarui stage di non-volatile EEPROM
+        saveInProgressTaskToEEPROM(gWaterChangeTask.commandId, WC_FILL);
       }
       break;
 
@@ -1098,6 +1283,10 @@ void updateWaterChangeStateMachine() {
         Serial.println(F("[HYDRAULIC] Tahap 3/3 (Fill) selesai. Siklus kuras dan isi tuntas secara aman."));
         
         String msg = "Siklus kuras (5s), interlock (1s), dan isi air baki (6s) selesai berurutan (Non-blocking).";
+        
+        // Hapus flag in-progress di EEPROM karena siklus berhasil selesai
+        clearInProgressTaskFromEEPROM();
+
         gCommandHistory.add(gWaterChangeTask.commandId, "completed", 0, "", true, 1, false);
         gAckQueue.enqueue(gWaterChangeTask.commandId, "completed", msg.c_str());
         saveCommandHistoryToEEPROM();
@@ -1108,6 +1297,7 @@ void updateWaterChangeStateMachine() {
       break;
 
     default:
+      clearInProgressTaskFromEEPROM();
       gWaterChangeTask.active = false;
       gWaterChangeTask.state = WC_IDLE;
       break;
@@ -1119,6 +1309,10 @@ void abortWaterChange(const char* reason) {
     Serial.printf("[HYDRAULIC] ABORT: Siklus FORCE_WATER_CHANGE dibatalkan demi keselamatan (%s)!\n", reason);
     setRelayPhysical(0, false); // Matikan pompa
     setRelayPhysical(1, false); // Tutup katup drain
+
+    // Hapus status in-progress di EEPROM
+    clearInProgressTaskFromEEPROM();
+
     String failMsg = String("Siklus FORCE_WATER_CHANGE dibatalkan: ") + reason;
     gCommandHistory.add(gWaterChangeTask.commandId, "failed", 0, "", false, 1, false);
     gAckQueue.enqueue(gWaterChangeTask.commandId, "failed", failMsg.c_str());
@@ -1169,14 +1363,72 @@ void pollSupabaseCommands() {
         processCommand(cmd);
       }
     }
+  } else if (httpCode == 404) {
+    // Edge Function /device-command-poll tidak ditemukan (404),
+    // beralih otomatis ke REST API tabel relay_status
+    gHttpClient.end();
+    pollSupabaseRestRelayStatus();
+    return;
   } else if (httpCode == 401) {
     Serial.println(F("[AUTH] 401 Unauthorized: Kredensial perangkat ditolak oleh Supabase!"));
   } else if (httpCode == 403) {
-    Serial.println(F("[AUTH] 403 Forbidden: Perangkat dinonaktifkan di database (operational_status != active)."));
+    Serial.println(F("[AUTH] 403 Forbidden: Perangkat telah dinonaktifkan di database (operational_status != active)."));
   } else if (httpCode > 0) {
     Serial.printf("[HTTPS] Polling perintah gagal. HTTP Status: %d\n", httpCode);
   } else {
     Serial.printf("[HTTPS] Kegagalan koneksi: %s\n", gHttpClient.errorToString(httpCode).c_str());
+  }
+
+  gHttpClient.end();
+}
+
+// ============================================================================
+// 19B. POLLING REST API TABEL RELAY_STATUS (https://.../rest/v1/relay_status?id=eq.1)
+// ============================================================================
+void pollSupabaseRestRelayStatus() {
+  const char* restUrl = SUPABASE_REST_URL;
+  const char* apiKey = SUPABASE_API_KEY;
+  if (!restUrl || strlen(restUrl) == 0 || !apiKey || strlen(apiKey) == 0) return;
+
+  if (!gHttpClient.begin(gSecureClient, restUrl)) return;
+
+  gHttpClient.addHeader("apikey", apiKey);
+  gHttpClient.addHeader("Authorization", String("Bearer ") + apiKey);
+  gHttpClient.addHeader("Accept", "application/json");
+
+  int httpCode = gHttpClient.GET();
+  if (httpCode == HTTP_CODE_OK) {
+    String payload = gHttpClient.getString();
+    DynamicJsonDocument doc(1024);
+    DeserializationError err = deserializeJson(doc, payload);
+
+    if (!err && doc.is<JsonArray>() && doc.size() > 0) {
+      JsonObject row = doc[0];
+      // channel_1 = Pompa, channel_2 = Solenoid, channel_3 = LED UV, channel_4 = Aux
+      bool r1 = row["channel_1"] | false;
+      bool r2 = row["channel_2"] | false;
+      bool r3 = row["channel_3"] | false;
+      bool r4 = row["channel_4"] | false;
+
+      if (gRelayStates[0] != r1) {
+        setRelayPhysical(0, r1);
+        Serial.printf("[REST] Relay 1 (Pompa): %s\n", r1 ? "ON (true)" : "OFF (false)");
+      }
+      if (gRelayStates[1] != r2) {
+        setRelayPhysical(1, r2);
+        Serial.printf("[REST] Relay 2 (Solenoid): %s\n", r2 ? "ON (true)" : "OFF (false)");
+      }
+      if (gRelayStates[2] != r3) {
+        setRelayPhysical(2, r3);
+        Serial.printf("[REST] Relay 3 (LED UV): %s\n", r3 ? "ON (true)" : "OFF (false)");
+      }
+      if (gRelayStates[3] != r4) {
+        setRelayPhysical(3, r4);
+        Serial.printf("[REST] Relay 4 (Kipas / Aux): %s\n", r4 ? "ON (true)" : "OFF (false)");
+      }
+    }
+  } else if (httpCode > 0) {
+    Serial.printf("[REST] Gagal mengambil relay_status. HTTP Status: %d\n", httpCode);
   }
 
   gHttpClient.end();
@@ -1200,6 +1452,12 @@ void processCommand(JsonObject& cmd) {
   Serial.printf(" Tipe Perintah : %s\n", cmdType);
 
   // 1. Lapisan Idempotensi Firmware (Defense-in-depth):
+  // Cek apakah perintah sedang aktif (in_progress)
+  if (gWaterChangeTask.active && strcmp(gWaterChangeTask.commandId, cmdId) == 0) {
+    Serial.printf("[IDEMPOTENSI] ID '%s' sedang berjalan dalam status in_progress. Mengabaikan eksekusi ganda.\n", cmdId);
+    return;
+  }
+
   // Jika ID pernah dieksekusi sebelumnya, JANGAN sentuh aktuator kembali.
   // Kembalikan status asli yang tercatat di riwayat (completed atau failed).
   int historyIdx = gCommandHistory.find(cmdId);
@@ -1302,19 +1560,23 @@ void executeSetRelay(const char* cmdId, int relayNum, const String& stateStr) {
 
 // B. TOGGLE_LAMP: Mengendalikan Relay 3 (Lampu LED UV 365nm)
 void executeToggleLamp(const char* cmdId) {
-  int channelIndex = 2; // Relay 3
+  int channelIndex = 2; // Relay 3 (D7 / GPIO 13)
   bool nextState = !gRelayStates[channelIndex];
   setRelayPhysical(channelIndex, nextState);
 
   uint8_t pin = RELAY_PINS[channelIndex];
   int pinRead = digitalRead(pin);
+  uint8_t expectedLevel = nextState ? RELAY_ACTIVE_LEVEL : RELAY_INACTIVE_LEVEL;
+  bool verified = (pinRead == expectedLevel);
   String finalState = nextState ? "ON" : "OFF";
   
   String msg = String("Lampu UV (Relay 3, GPIO13) diset ke ") + finalState +
-               ". Register: " + (nextState ? "0V" : "3.3V") + ". Beban fisik: UNMONITORED.";
+               ". Register: " + (pinRead == 0 ? "0V (LOW)" : "3.3V (HIGH)") +
+               ". Status logis: " + finalState +
+               ". Beban fisik: UNMONITORED (tanpa sensor arus).";
 
-  gCommandHistory.add(cmdId, "completed", 3, finalState.c_str(), true, pinRead, false);
-  gAckQueue.enqueue(cmdId, "completed", msg.c_str(), 3, finalState.c_str(), true, pinRead);
+  gCommandHistory.add(cmdId, "completed", 3, finalState.c_str(), verified, pinRead, false);
+  gAckQueue.enqueue(cmdId, "completed", msg.c_str(), 3, finalState.c_str(), verified, pinRead);
   saveCommandHistoryToEEPROM();
 }
 
@@ -1331,7 +1593,10 @@ void executeForceWaterChange(const char* cmdId) {
     return;
   }
 
-  // Mulai Tahap 1: Pastikan pompa OFF, buka katup solenoid drain (Relay 2 ON)
+  // 1. Simpan status in_progress dan stage ke EEPROM SEBELUM menyentuh relay fisik
+  saveInProgressTaskToEEPROM(cmdId, WC_DRAIN);
+
+  // 2. Mulai Tahap 1: Pastikan pompa OFF, buka katup solenoid drain (Relay 2 ON)
   setRelayPhysical(0, false);
   setRelayPhysical(1, true);
 
@@ -1437,15 +1702,33 @@ int sendRawCommandAck(const AckItem& item) {
     saveCommandHistoryToEEPROM();
     outcome = 1;
   } else if (code == 409) {
-    Serial.printf("[ACK] Komando %s telah dikonfirmasi server sebelumnya (HTTP 409 Conflict/Idempotent resolved).\n",
-                  item.commandId);
-    gCommandHistory.markAckConfirmed(item.commandId);
-    saveCommandHistoryToEEPROM();
-    outcome = 1;
+    // Audit HTTP 409: BACA Response body untuk memeriksa apakah konflik merupakan duplikat idempoten yang sudah tercatat
+    String respBody = gHttpClient.getString();
+    Serial.printf("[ACK] HTTP 409 Conflict untuk komando %s. Response body: %s\n",
+                  item.commandId, respBody.c_str());
+
+    if (respBody.indexOf("already") >= 0 || respBody.indexOf("idempotent") >= 0 ||
+        respBody.indexOf("completed") >= 0 || respBody.indexOf("acknowledged") >= 0 ||
+        respBody.indexOf("success") >= 0) {
+      Serial.printf("[ACK] Komando %s telah dikonfirmasi server sebelumnya (HTTP 409 Conflict/Idempotent resolved).\n",
+                    item.commandId);
+      gCommandHistory.markAckConfirmed(item.commandId);
+      saveCommandHistoryToEEPROM();
+      outcome = 1;
+    } else {
+      // Konflik status lain: jangan anggap sukses, coba lagi via retry backoff
+      Serial.printf("[ACK] HTTP 409 bukan konfirmasi idempoten valid. Menjadwalkan retry.\n");
+      outcome = 0;
+    }
   } else if (code == 404) {
     Serial.printf("[ACK] Komando %s tidak ditemukan di server (HTTP 404). Dipindahkan ke dead-letter.\n",
                   item.commandId);
     outcome = -1;
+  } else if (code == 400) {
+    String respBody = gHttpClient.getString();
+    Serial.printf("[ACK] 400 Bad Request untuk komando %s (Payload ditolak): %s\n",
+                  item.commandId, respBody.c_str());
+    outcome = -2; // Format ditolak server
   } else if (code == 401) {
     Serial.println(F("[AUTH] 401 Unauthorized: Kredensial perangkat ditolak oleh server saat kirim ACK!"));
     outcome = 0;
@@ -1479,6 +1762,8 @@ void processPendingAckQueue() {
     gAckQueue.markSuccess(readyIdx);
   } else if (outcome == -1) {
     gAckQueue.retireAsDeadLetter(readyIdx, "Server returned HTTP 404 (Command not found)");
+  } else if (outcome == -2) {
+    gAckQueue.retireAsDeadLetter(readyIdx, "Server returned HTTP 400 (Bad request / Payload rejected)");
   } else {
     gAckQueue.markFailedAttempt(readyIdx);
   }
@@ -1546,7 +1831,7 @@ void sendDeviceStatus(const char* eventType, const char* severity, const char* t
   serializeJson(doc, payload);
 
   int code = gHttpClient.POST(payload);
-  if (code == HTTP_CODE_OK) {
+  if (code == HTTP_CODE_OK || code == 201 || code == 204) {
     Serial.printf("[STATUS] Status event '%s' (%s) tersimpan di Supabase.\n", eventType, severity);
   } else if (code == 401) {
     Serial.println(F("[AUTH] 401 Unauthorized: Kredensial perangkat ditolak oleh Supabase!"));
