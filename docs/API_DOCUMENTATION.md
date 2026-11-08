@@ -22,6 +22,7 @@ Seluruh komunikasi dari perangkat ESP32-S3 lapangan wajib menggunakan protokol a
 | `/device-command-ack` | `POST` | Konfirmasi eksekusi perintah (ACK/COMPLETED/FAILED) | Token Perangkat |
 | `/device-status` | `POST` | Pencatatan kejadian siklus hidup (boot, offline, lockout) | Token Perangkat |
 | `/send-telegram-alert` | `POST` | Pengiriman notifikasi Telegram dengan deduplikasi | Internal Service Role |
+| `/system-heartbeat` | `POST` | Keep-alive heartbeat database otomatis untuk Supabase Free tier | Heartbeat Secret |
 
 ---
 
@@ -251,3 +252,44 @@ Melaporkan kejadian hardware lapangan.
   }
 }
 ```
+
+---
+
+## 8. `POST /system-heartbeat`
+
+Memutasi record singleton pada tabel `system_heartbeat` (`service_name: 'smart-light-trap'`) untuk menjaga aktivitas I/O database Supabase Free tier agar tidak terkena auto-pause. Dipanggil setiap 12 jam oleh external scheduler (cron-job.org).
+
+### Request Headers
+```http
+Content-Type: application/json
+Authorization: Bearer <HEARTBEAT_SECRET>
+```
+*(Atau header kustom: `x-heartbeat-secret: <HEARTBEAT_SECRET>`)*
+
+### Request Body (Opsional)
+```json
+{
+  "trigger": "cron-job.org",
+  "client": "smart-light-trap-scheduler"
+}
+```
+
+### Response Success (200 OK)
+```json
+{
+  "success": true,
+  "message": "System heartbeat recorded successfully",
+  "data": {
+    "service_name": "smart-light-trap",
+    "status": "healthy",
+    "last_heartbeat_at": "2026-11-08T07:30:00.000Z",
+    "updated_at": "2026-11-08T07:30:00.000Z"
+  }
+}
+```
+
+### Error Responses
+- `401 Unauthorized`: Secret salah atau tidak disertakan pada header.
+- `405 Method Not Allowed`: Request menggunakan method selain `POST`.
+- `500 Internal Server Error`: `HEARTBEAT_SECRET` belum dikonfigurasi di server atau kegagalan koneksi database.
+

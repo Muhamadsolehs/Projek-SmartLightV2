@@ -1,5 +1,14 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
+export interface SystemHeartbeatInfo {
+  serviceName: string;
+  status: string;
+  lastHeartbeatAt: string;
+  updatedAt: string;
+  metadata?: Record<string, any>;
+  isFresh: boolean;
+}
+
 export interface HealthCheckResult {
   isConnected: boolean;
   status: 'Connected' | 'Not connected';
@@ -14,6 +23,7 @@ export interface HealthCheckResult {
     deviceName: string;
     connectionStatus: string;
   };
+  systemHeartbeat?: SystemHeartbeatInfo | null;
   rlsAnalysis: {
     isRestrictedByRls: boolean;
     policyName: string;
@@ -125,6 +135,31 @@ export const healthCheckService = {
         rlsExplanation = `Berhasil membaca ${rows.length} baris perangkat secara live dari Supabase.`;
       }
 
+      // 3. Fetch system keep-alive heartbeat if authenticated or permitted
+      let systemHeartbeat: SystemHeartbeatInfo | null = null;
+      try {
+        const { data: hbData } = await supabase
+          .from('system_heartbeat')
+          .select('service_name, status, last_heartbeat_at, metadata, updated_at')
+          .eq('service_name', 'smart-light-trap')
+          .maybeSingle();
+
+        if (hbData) {
+          const lastBeatTime = new Date(hbData.last_heartbeat_at).getTime();
+          const ageHours = (Date.now() - lastBeatTime) / (1000 * 60 * 60);
+          systemHeartbeat = {
+            serviceName: hbData.service_name,
+            status: hbData.status,
+            lastHeartbeatAt: hbData.last_heartbeat_at,
+            updatedAt: hbData.updated_at,
+            metadata: hbData.metadata || {},
+            isFresh: ageHours <= 24,
+          };
+        }
+      } catch {
+        // Silently skip if table or permissions not yet provisioned
+      }
+
       return {
         isConnected: true,
         status: 'Connected',
@@ -141,6 +176,7 @@ export const healthCheckService = {
               connectionStatus: rows[0].connection_status,
             }
           : undefined,
+        systemHeartbeat,
         rlsAnalysis: {
           isRestrictedByRls,
           policyName: 'devices_select_authenticated',
@@ -166,6 +202,39 @@ export const healthCheckService = {
         sanitizedError: sanitizeErrorMessage(err?.message || 'Gagal menghubungi server Supabase'),
         timestamp,
       };
+    }
+  },
+
+  /**
+   * Fetches the system keep-alive heartbeat record.
+   * NOTE: This heartbeat exclusively reflects automated database keep-alive activity
+   * and does NOT signify the operational or online status of physical ESP32 devices.
+   */
+  async getSystemHeartbeat(serviceName = 'smart-light-trap'): Promise<SystemHeartbeatInfo | null> {
+    if (!isSupabaseConfigured) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from('system_heartbeat')
+        .select('service_name, status, last_heartbeat_at, metadata, updated_at')
+        .eq('service_name', serviceName)
+        .maybeSingle();
+
+      if (error || !data) return null;
+
+      const lastBeatTime = new Date(data.last_heartbeat_at).getTime();
+      const ageHours = (Date.now() - lastBeatTime) / (1000 * 60 * 60);
+
+      return {
+        serviceName: data.service_name,
+        status: data.status,
+        lastHeartbeatAt: data.last_heartbeat_at,
+        updatedAt: data.updated_at,
+        metadata: data.metadata || {},
+        isFresh: ageHours <= 24,
+      };
+    } catch {
+      return null;
     }
   },
 };

@@ -155,7 +155,7 @@ const ActuatorCard: React.FC<ActuatorCardProps> = ({
         <div className="mt-2.5 p-2 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-900 flex items-center gap-1.5 animate-in fade-in">
           <RefreshCw className="h-3.5 w-3.5 animate-spin text-amber-600 shrink-0" />
           <span>
-            Perintah <strong>{lastCommand?.parameters?.state}</strong> sedang diproses di antrean ESP32...
+            Perintah <strong>{lastCommand?.parameters?.state}</strong> sedang diproses di antrean ESP8266 NodeMCU...
           </span>
         </div>
       )}
@@ -341,7 +341,7 @@ export const ManualControlView: React.FC = () => {
     try {
       const initialCmd = await sendCommand(selectedDevice.id, cmdType, params);
 
-      // Track the command status asynchronously until completed or ACKed by ESP32
+      // Track the command status asynchronously until completed or ACKed by ESP8266 NodeMCU
       const finalCmd = await deviceService.trackCommandStatus(initialCmd.id, 12000);
 
       if (finalCmd.status === 'COMPLETED' || finalCmd.status === 'ACKNOWLEDGED') {
@@ -357,7 +357,7 @@ export const ManualControlView: React.FC = () => {
       } else {
         setFeedback({
           type: 'info',
-          message: `Perintah terkirim ke antrean cloud. Menunggu konfirmasi polling berikutnya dari ESP32 ${selectedDevice.code}.`,
+          message: `Perintah terkirim ke antrean cloud. Menunggu konfirmasi polling berikutnya dari ESP8266 NodeMCU ${selectedDevice.code}.`,
         });
       }
 
@@ -482,7 +482,7 @@ export const ManualControlView: React.FC = () => {
             Kontrol Manual &amp; Aktuator
           </h1>
           <p className="text-xs sm:text-sm text-[#52796F] mt-1 max-w-3xl leading-relaxed">
-            Pengendalian langsung saklar 4-channel relay fisik ESP32 (Active LOW), pompa pengisi tandon, katup solenoid drain baki, lampu UV 365nm, kipas blower, dan makro siklus operasional lapangan.
+            Pengendalian langsung saklar 4-channel relay fisik ESP8266 NodeMCU (Active LOW), pompa pengisi tandon, katup solenoid drain baki, lampu UV 365nm, kipas blower, dan makro siklus operasional lapangan.
           </p>
         </div>
 
@@ -667,7 +667,7 @@ export const ManualControlView: React.FC = () => {
         <div className="flex items-center justify-between">
           <h2 className="text-base sm:text-lg font-bold text-[#192A20] flex items-center gap-2">
             <Cpu className="h-5 w-5 text-[#2D6A4F]" />
-            Panel Aktuator Fisik (4-Channel Relay ESP32)
+            Panel Aktuator Fisik (4-Channel Relay ESP8266 NodeMCU)
           </h2>
           <span className="text-xs text-slate-500 font-mono">
             Protokol: Active LOW (0V=ON, 3.3V=OFF)
@@ -676,11 +676,11 @@ export const ManualControlView: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           
-          {/* 1. POMPA AIR PENGISI (Relay 1 - GPIO 12) */}
+          {/* 1. POMPA AIR PENGISI (Relay 1 - D1 / GPIO5) */}
           <ActuatorCard
             channel={1}
             name="Pompa Air Pengisi Baki"
-            hardwarePin="GPIO 12 · Submersible 12V DC"
+            hardwarePin="D1 / GPIO5 · Submersible 12V DC"
             icon={Droplets}
             description="Mengalirkan air bersih dari tandon cadangan ke baki penampung bangkai serangga untuk menjaga kejernihan air pantulan."
             actualStatus={actualPumpStatus}
@@ -699,11 +699,11 @@ export const ManualControlView: React.FC = () => {
             protectionNote="Interlock Tandon ≥15% · Auto-Cutoff Timeout Maks 45s"
           />
 
-          {/* 2. KATUP SOLENOID DRAIN (Relay 2 - GPIO 14) */}
+          {/* 2. KATUP SOLENOID DRAIN (Relay 2 - D2 / GPIO4) */}
           <ActuatorCard
             channel={2}
             name="Katup Solenoid Drain Baki"
-            hardwarePin="GPIO 14 · Solenoid NC 12V"
+            hardwarePin="D2 / GPIO4 · Solenoid NC 12V"
             icon={ArrowDownCircle}
             description="Membuka saluran pembuangan air kotor baki perangkap untuk menguras kotoran dan bangkai serangga yang menumpuk."
             actualStatus={actualDrainStatus}
@@ -721,11 +721,11 @@ export const ManualControlView: React.FC = () => {
             protectionNote="Normally Closed (Aman Tertutup Saat Mati Daya)"
           />
 
-          {/* 3. LAMPU LED UV PENARIK (Relay 3 - GPIO 27) */}
+          {/* 3. LAMPU LED UV PENARIK (Relay 3 - D7 / GPIO13) */}
           <ActuatorCard
             channel={3}
             name="Lampu LED Perangkap (UV 365nm)"
-            hardwarePin="GPIO 27 · High Power LED Near-UV"
+            hardwarePin="D7 / GPIO13 · High Power LED Near-UV"
             icon={Lightbulb}
             description="Menyalakan modul lampu ultraviolet 365nm nokturnal penarik serangga hama wereng dan penggerek batang padi."
             actualStatus={actualLampStatus}
@@ -743,11 +743,11 @@ export const ManualControlView: React.FC = () => {
             protectionNote="Driver Arus ~850 mA · Tanpa PWM (Kontrol Saklar Relay)"
           />
 
-          {/* 4. KIPAS BLOWER / AUXILIARY (Relay 4 - GPIO 26) */}
+          {/* 4. KIPAS BLOWER / AUXILIARY (Relay 4 - D0 / GPIO16) */}
           <ActuatorCard
             channel={4}
             name="Kipas Blower / Port Aux"
-            hardwarePin="GPIO 26 · DC Fan / Auxiliary Port"
+            hardwarePin="D0 / GPIO16 · DC Fan / Auxiliary Port"
             icon={Fan}
             description="Mengaktifkan kipas sirkulasi blower atau port beban cadangan untuk menjaga sirkulasi udara dan anti-embun pada kaca kamera."
             actualStatus={actualFanStatus}
@@ -817,14 +817,14 @@ export const ManualControlView: React.FC = () => {
           </div>
         </div>
 
-        {/* Card 3: Soft Reboot ESP32 */}
+        {/* Card 3: Soft Reboot ESP8266 */}
         <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-3">
           <div className="flex items-center gap-2 text-[#192A20]">
             <RotateCcw className="h-5 w-5 text-slate-700" />
             <h3 className="font-bold text-sm">Soft Restart Mikrokontroler</h3>
           </div>
           <p className="text-xs text-slate-500 leading-relaxed">
-            Lakukan soft restart pada firmware ESP32-S3 tanpa menghapus konfigurasi kalibrasi sensor, kredensial Wi-Fi, dan waktu RTC DS3231.
+            Lakukan soft restart pada firmware ESP8266 NodeMCU tanpa menghapus konfigurasi kalibrasi sensor, kredensial Wi-Fi, dan status EEPROM.
           </p>
           <div className="pt-2">
             <button
@@ -834,7 +834,7 @@ export const ManualControlView: React.FC = () => {
               className="w-full py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <RotateCcw className="h-4 w-4 text-slate-600" />
-              <span>Soft Reboot ESP32-S3</span>
+              <span>Soft Reboot ESP8266</span>
             </button>
           </div>
         </div>
@@ -951,7 +951,7 @@ export const ManualControlView: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL KONFIRMASI: SOFT REBOOT ESP32                                       */}
+      {/* MODAL KONFIRMASI: SOFT REBOOT ESP8266                                     */}
       {/* ========================================================================= */}
       {isRebootModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
@@ -982,7 +982,7 @@ export const ManualControlView: React.FC = () => {
                 type="button"
                 onClick={async () => {
                   setIsRebootModalOpen(false);
-                  await executeActuatorCommand('REBOOT_ESP32', undefined, 'Perintah reboot ESP32 telah diterima perangkat.');
+                  await executeActuatorCommand('REBOOT_ESP32', undefined, 'Perintah reboot ESP8266 telah diterima perangkat.');
                 }}
                 className="px-4 py-2 rounded-lg bg-[#1B4332] text-white text-xs font-bold hover:bg-[#2D6A4F] transition-all cursor-pointer shadow-xs"
               >

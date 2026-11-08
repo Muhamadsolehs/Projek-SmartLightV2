@@ -134,3 +134,14 @@ Catatan siklus hidraulik kuras dan pengisian baki air penangkap serangga.
 
 ### 12. `device_events`
 Log audit kejadian mikrokontroler (boot, kehilangan sinyal modem, dry-run lockout pompa).
+
+### 13. `system_heartbeat`
+Pencatat detak sistem dan aktivitas I/O database berkala (Keep-Alive) untuk mencegah Supabase Free tier terkena auto-pause.
+- **`id`** (`UUID`, PK, DEFAULT `gen_random_uuid()`)
+- **`service_name`** (`VARCHAR(64)`, UNIQUE, NOT NULL): Nama identitas layanan (`smart-light-trap`).
+- **`status`** (`VARCHAR(32)`, DEFAULT `'healthy'`, CHECK `status IN ('healthy', 'degraded', 'unhealthy', 'maintenance')`)
+- **`last_heartbeat_at`** (`TIMESTAMPTZ`, DEFAULT `NOW()`): Waktu UTC eksekusi heartbeat terakhir.
+- **`metadata`** (`JSONB`, DEFAULT `'{}'::jsonb`): Informasi pemanggil scheduler eksternal.
+- **`created_at`**, **`updated_at`** (`TIMESTAMPTZ`).
+- *Catatan Isolasi*: Singleton per `service_name`. Pemanggilan berulang melakukan UPDATE/UPSERT pada record yang sama dan tidak mencemari data telemetri ESP32.
+

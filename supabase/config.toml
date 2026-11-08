@@ -20,3 +20,8 @@ verify_jwt = false
 # device-provisioning verifies admin user session and role internally via verifyAdminAuth(req)
 [functions.device-provisioning]
 verify_jwt = false
+
+# system-heartbeat verifies custom HEARTBEAT_SECRET header internally from scheduler
+[functions.system-heartbeat]
+verify_jwt = false
+

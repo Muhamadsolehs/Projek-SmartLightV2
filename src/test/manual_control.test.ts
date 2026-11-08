@@ -186,18 +186,18 @@ test('TC-M10: Prosedur Matikan Semua mencakup 4 channel relay secara terpisah', 
 });
 
 // 7. Pemetaan Pinout Hardware & Logika Active LOW
-test('TC-M11: Pemetaan pin fisik ESP32 sesuai spesifikasi hardware (GPIO 12, 14, 27, 26)', () => {
+test('TC-M11: Pemetaan pin fisik ESP8266 NodeMCU sesuai spesifikasi hardware (D1/GPIO5, D2/GPIO4, D7/GPIO13, D0/GPIO16)', () => {
   const pinMap: Record<number, number> = {
-    1: 12, // Pompa
-    2: 14, // Solenoid
-    3: 27, // LED UV
-    4: 26, // Kipas / Aux
+    1: 5,  // Pompa (D1 / GPIO5)
+    2: 4,  // Solenoid (D2 / GPIO4)
+    3: 13, // LED UV (D7 / GPIO13)
+    4: 16, // Kipas / Aux (D0 / GPIO16)
   };
 
-  expect(pinMap[1]).toBe(12);
-  expect(pinMap[2]).toBe(14);
-  expect(pinMap[3]).toBe(27);
-  expect(pinMap[4]).toBe(26);
+  expect(pinMap[1]).toBe(5);
+  expect(pinMap[2]).toBe(4);
+  expect(pinMap[3]).toBe(13);
+  expect(pinMap[4]).toBe(16);
 });
 
 test('TC-M12: Logika tegangan Active LOW (LOW=0V=ON, HIGH=3.3V=OFF)', () => {

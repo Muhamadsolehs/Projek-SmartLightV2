@@ -510,7 +510,7 @@ export const DeviceDetailModal: React.FC<{
                       <h4 className="font-bold text-xs sm:text-sm text-[#1B4332]">
                         Proteksi Interlock Hidraulik Baki &amp; Pompa
                       </h4>
-                      <p className="text-[11px] text-slate-500">Mekanisme Pengamanan Mandiri Firmware ESP32</p>
+                      <p className="text-[11px] text-slate-500">Mekanisme Pengamanan Mandiri Firmware ESP8266 NodeMCU</p>
                     </div>
                   </div>
                   <span className={`px-2.5 py-1 rounded-full font-mono text-[10px] font-bold self-start sm:self-center ${
@@ -679,7 +679,7 @@ export const DeviceDetailModal: React.FC<{
                   <div>
                     <div className="font-bold text-amber-950">Protokol Kontrol Jarak Jauh Berautentikasi</div>
                     <p className="mt-0.5 text-[11px] text-amber-800 leading-relaxed">
-                      Setiap perintah dikirim melalui saluran aman TLS dan diverifikasi oleh firmware ESP32-S3 sebelum saklar relay fisik digerakkan.
+                      Setiap perintah dikirim melalui saluran aman TLS dan diverifikasi oleh firmware ESP8266 NodeMCU sebelum saklar relay fisik digerakkan.
                     </p>
                   </div>
                 </div>
@@ -691,10 +691,10 @@ export const DeviceDetailModal: React.FC<{
                   <div>
                     <h3 className="font-bold text-sm text-[#1B4332] flex items-center gap-2">
                       <Cpu className="h-4 w-4 text-[#2D6A4F]" />
-                      Kontrol Fisik 4-Channel Relay ESP32
+                      Kontrol Fisik 4-Channel Relay ESP8266 NodeMCU
                     </h3>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Terkoneksi via Supabase HTTPS Polling &amp; Persistensi NVS Flash
+                      Terkoneksi via Supabase HTTPS Polling &amp; Persistensi EEPROM
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
@@ -725,7 +725,7 @@ export const DeviceDetailModal: React.FC<{
                         </span>
                         <div>
                           <div className="font-bold text-xs sm:text-sm text-[#192A20]">Relay 1: Pompa Pengisi</div>
-                          <div className="text-[10px] font-mono text-slate-500">GPIO 12 · Submersible Tandon</div>
+                          <div className="text-[10px] font-mono text-slate-500">D1 / GPIO5 · Submersible Tandon</div>
                         </div>
                       </div>
                       <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
@@ -763,7 +763,7 @@ export const DeviceDetailModal: React.FC<{
                         </span>
                         <div>
                           <div className="font-bold text-xs sm:text-sm text-[#192A20]">Relay 2: Katup Solenoid</div>
-                          <div className="text-[10px] font-mono text-slate-500">GPIO 14 · Drain Kuras Baki</div>
+                          <div className="text-[10px] font-mono text-slate-500">D2 / GPIO4 · Drain Kuras Baki</div>
                         </div>
                       </div>
                       <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
@@ -801,7 +801,7 @@ export const DeviceDetailModal: React.FC<{
                         </span>
                         <div>
                           <div className="font-bold text-xs sm:text-sm text-[#192A20]">Relay 3: Lampu UV 365nm</div>
-                          <div className="text-[10px] font-mono text-slate-500">GPIO 27 · LED Nokturnal</div>
+                          <div className="text-[10px] font-mono text-slate-500">D7 / GPIO13 · LED Nokturnal</div>
                         </div>
                       </div>
                       <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
@@ -839,7 +839,7 @@ export const DeviceDetailModal: React.FC<{
                         </span>
                         <div>
                           <div className="font-bold text-xs sm:text-sm text-[#192A20]">Relay 4: Auxiliary / Port Beban</div>
-                          <div className="text-[10px] font-mono text-slate-500">GPIO 26 · Output Cadangan</div>
+                          <div className="text-[10px] font-mono text-slate-500">D0 / GPIO16 · Output Cadangan (Kipas/Aux)</div>
                         </div>
                       </div>
                       <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
@@ -928,7 +928,7 @@ export const DeviceDetailModal: React.FC<{
                 <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2 shadow-xs">
                   <div className="font-bold text-xs text-[#192A20] flex items-center gap-1.5">
                     <RotateCcw className="h-4 w-4 text-slate-600" />
-                    Reboot ESP32-S3 Firmware
+                    Reboot ESP8266 NodeMCU Firmware
                   </div>
                   <p className="text-[11px] text-slate-500 leading-relaxed">
                     Lakukan soft restart pada mikrokontroler tanpa mereset data konfigurasi RTC dan penyimpanan NVS Flash.
@@ -973,7 +973,7 @@ export const DeviceDetailModal: React.FC<{
                       <Key className="h-4 w-4" />
                     </div>
                     <div>
-                      <div className="font-bold text-sm text-[#132A13]">Keamanan &amp; Autentikasi Hardware ESP32</div>
+                      <div className="font-bold text-sm text-[#132A13]">Keamanan &amp; Autentikasi Hardware ESP8266 NodeMCU</div>
                       <div className="text-[11px] text-[#52796F]">Verifikasi kriptografi SHA-256 via Supabase Edge Functions</div>
                     </div>
                   </div>
@@ -1127,7 +1127,7 @@ export const DeviceDetailModal: React.FC<{
                 <span>Dampak Terhadap Firmware Hardware:</span>
               </div>
               <p className="text-[11px] text-amber-800 leading-relaxed pl-5">
-                Perangkat fisik ESP32 <strong>{device.code}</strong> akan langsung merespons dengan <strong>HTTP 401 Unauthorized</strong> sampai Anda mengunggah token baru ke file <code>credentials.h</code> firmware ESP32 dan melakukan flash/reboot.
+                Perangkat fisik ESP8266 NodeMCU <strong>{device.code}</strong> akan langsung merespons dengan <strong>HTTP 401 Unauthorized</strong> sampai Anda mengunggah token baru ke file <code>credentials.h</code> firmware ESP8266 dan melakukan flash/reboot.
               </p>
             </div>
 
@@ -1265,7 +1265,7 @@ export const DeviceDetailModal: React.FC<{
 
             <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
               <span className="text-[11px] text-gray-500">
-                Simpan ke <code>firmware/esp32_smart_lightrap/credentials.h</code>
+                Simpan ke <code>firmware/SmartLightTrap_ESP8266/credentials.h</code>
               </span>
               <button
                 id="btn-close-rotated-modal"

@@ -167,6 +167,17 @@ CREATE TABLE device_commands (
     acknowledged_at TIMESTAMP WITH TIME ZONE,
     completed_at TIMESTAMP WITH TIME ZONE,
     response_message TEXT
+);
+
+-- 8. Tabel Keep-Alive Heartbeat Otomatis (Mencegah Pause Supabase Free Tier)
+CREATE TABLE system_heartbeat (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    service_name VARCHAR(64) NOT NULL UNIQUE,     -- 'smart-light-trap'
+    status VARCHAR(32) NOT NULL DEFAULT 'healthy',
+    last_heartbeat_at TIMESTAMPTZ NOT NULL,
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );`;
 
   const apiSnippet = `// ============================================================================
@@ -258,6 +269,29 @@ CREATE TABLE device_commands (
       "target_tray_level_percent": 85,
       "max_fill_timeout_seconds": 45
     }
+  }
+}
+
+// 4. ENDPOINT DATABASE KEEP-ALIVE HEARTBEAT (EXTERNAL SCHEDULER / CRON-JOB.ORG)
+// POST /functions/v1/system-heartbeat
+// Headers:
+//   Authorization: Bearer <HEARTBEAT_SECRET>
+//   (atau x-heartbeat-secret: <HEARTBEAT_SECRET>)
+//   Content-Type: application/json
+// Body (opsional):
+{
+  "trigger": "cron-job.org",
+  "client": "smart-light-trap-scheduler"
+}
+// Response 200 OK:
+{
+  "success": true,
+  "message": "System heartbeat recorded successfully",
+  "data": {
+    "service_name": "smart-light-trap",
+    "status": "healthy",
+    "last_heartbeat_at": "2026-11-08T07:30:00.000Z",
+    "updated_at": "2026-11-08T07:30:00.000Z"
   }
 }`;
 

@@ -8,3 +8,5 @@ coverage/
 !.env.example
 firmware/**/credentials.h
 firmware/**/secrets.h
+credentials.h
+.tools/

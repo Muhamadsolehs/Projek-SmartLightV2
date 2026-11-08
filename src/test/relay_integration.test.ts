@@ -57,22 +57,22 @@ function expect(actual: any) {
 }
 
 console.log('\n========================================================');
-console.log(' RUNNING ESP32 4-CHANNEL RELAY TEST SUITE               ');
+console.log(' RUNNING ESP8266 NODEMCU 4-CHANNEL RELAY TEST SUITE    ');
 console.log('========================================================\n');
 
 // 1. Verifikasi Pemetaan Pin GPIO Relay Fisik
-test('TC-RELAY-1: Verifikasi pemetaan pin GPIO 4-Channel Relay', () => {
+test('TC-RELAY-1: Verifikasi pemetaan pin GPIO 4-Channel Relay NodeMCU ESP8266', () => {
   const pinMapping: Record<number, number> = {
-    1: 12, // Relay 1 = GPIO 12
-    2: 14, // Relay 2 = GPIO 14
-    3: 27, // Relay 3 = GPIO 27
-    4: 26, // Relay 4 = GPIO 26
+    1: 5,  // Relay 1 = D1 / GPIO 5 (Pompa)
+    2: 4,  // Relay 2 = D2 / GPIO 4 (Solenoid)
+    3: 13, // Relay 3 = D7 / GPIO 13 (Lampu UV)
+    4: 16, // Relay 4 = D0 / GPIO 16 (Kipas/Aux)
   };
 
-  expect(pinMapping[1]).toBe(12);
-  expect(pinMapping[2]).toBe(14);
-  expect(pinMapping[3]).toBe(27);
-  expect(pinMapping[4]).toBe(26);
+  expect(pinMapping[1]).toBe(5);
+  expect(pinMapping[2]).toBe(4);
+  expect(pinMapping[3]).toBe(13);
+  expect(pinMapping[4]).toBe(16);
 });
 
 // 2. Verifikasi Logika Active LOW (LOW = ON, HIGH = OFF)

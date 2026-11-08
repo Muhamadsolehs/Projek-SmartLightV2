@@ -10,6 +10,8 @@ import {
   Server,
   Lock,
   Cpu,
+  Activity,
+  Info,
 } from 'lucide-react';
 import { healthCheckService, HealthCheckResult } from '../../services/healthCheckService';
 
@@ -178,6 +180,58 @@ export const SupabaseHealthModal: React.FC<{
                 </span>
               </div>
             )}
+          </div>
+
+          {/* System Keep-Alive Database Heartbeat Status */}
+          <div className="p-4 rounded-xl border border-[#90A955]/40 bg-[#F8FAF9] space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-bold text-[#132A13]">
+                <Activity className="h-4 w-4 text-[#31572C]" />
+                <span>Heartbeat Otomatis Supabase Keep-Alive (Free Tier)</span>
+              </div>
+              {result?.systemHeartbeat ? (
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                  result.systemHeartbeat.isFresh
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    : 'bg-amber-100 text-amber-800 border border-amber-300'
+                }`}>
+                  {result.systemHeartbeat.status} ({result.systemHeartbeat.isFresh ? 'Aktif Terjadwal' : 'Perlu Perhatian'})
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-gray-100 text-gray-600 border border-gray-300">
+                  Belum Ada Catatan
+                </span>
+              )}
+            </div>
+
+            {result?.systemHeartbeat ? (
+              <div className="grid grid-cols-2 gap-2 text-xs bg-white p-3 rounded-lg border border-[#E2E8F0]">
+                <div>
+                  <span className="text-[10px] text-[#718096] block">Layanan:</span>
+                  <span className="font-mono font-bold text-[#132A13]">{result.systemHeartbeat.serviceName}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-[#718096] block">Detak Terakhir (WIB):</span>
+                  <span className="font-mono text-[11px] text-[#132A13]">
+                    {new Date(result.systemHeartbeat.lastHeartbeatAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}
+                  </span>
+                </div>
+                <div className="col-span-2 text-[10px] text-[#718096] pt-1 border-t border-[#F1F5F9]">
+                  <span>UTC: {result.systemHeartbeat.lastHeartbeatAt}</span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-[#52796F]">
+                Record heartbeat <code>system_heartbeat</code> belum ditemukan atau memerlukan otentikasi.
+              </p>
+            )}
+
+            <div className="p-2.5 rounded-lg bg-blue-50 border border-blue-200 text-[11px] text-blue-900 flex items-start gap-2">
+              <Info className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+              <span>
+                <strong>Pemberitahuan Arsitektur:</strong> Heartbeat database ini semata-mata menandakan keberhasilan operasi I/O Supabase untuk mencegah auto-pause pada tier Free. Indikator ini <strong>tidak</strong> menyatakan atau menjamin bahwa armada perangkat ESP32 di lapangan sedang aktif/online.
+              </span>
+            </div>
           </div>
 
           {/* Live Data Evidence Card (Only if data was truly read) */}
