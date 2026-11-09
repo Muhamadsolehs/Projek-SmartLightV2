@@ -20,6 +20,7 @@ import { useDevice } from '../../context/DeviceContext';
 import { CaptureImage, InsectSpeciesId } from '../../types';
 import { INSECT_SPECIES_LIST } from '../../data/mockData';
 import { hasPermission } from '../../lib/permissions';
+import { DroidCamLivePanel } from './DroidCamLivePanel';
 
 export const PhotoGalleryView: React.FC = () => {
   const { captures, updateBoundingBoxLabel, currentUser } = useDevice();
@@ -97,12 +98,30 @@ export const PhotoGalleryView: React.FC = () => {
         </div>
       </div>
 
+      {/* Live Realtime DroidCam Panel with Manual Shutter & IP Configuration */}
+      <DroidCamLivePanel
+        onCaptureCreated={(newId) => {
+          setSelectedCaptureId(newId);
+          setActiveBoxId(null);
+        }}
+      />
+
+      {/* Section Divider & Gallery Title */}
+      <div className="pt-2 flex items-center justify-between">
+        <h2 className="text-sm sm:text-base font-bold text-[#192A20] flex items-center gap-2">
+          <span>Arsip Citra Baki & Validasi AI</span>
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#EAF4EE] text-[#2D6A4F]">
+            {filteredCaptures.length} Sesi
+          </span>
+        </h2>
+      </div>
+
       {!selectedCapture ? (
-        <div className="rounded-xl border border-dashed border-[#CBD5E1] bg-white p-8 text-center">
-          <Camera className="mx-auto h-8 w-8 text-[#94A3B8]" />
-          <h3 className="mt-2 text-sm font-bold text-[#192A20]">Belum Ada Citra Baki Perangkap</h3>
-          <p className="mt-0.5 text-xs text-[#52796F] max-w-md mx-auto">
-            Citra foto baki air akan otomatis tersimpan saat pemotretan terjadwal selesai.
+        <div className="rounded-2xl border-2 border-dashed border-[#90A955]/30 bg-white p-8 text-center space-y-2">
+          <Camera className="mx-auto h-10 w-10 text-[#90A955]" />
+          <h3 className="text-sm font-bold text-[#192A20]">Belum Ada Citra Baki di Galeri</h3>
+          <p className="text-xs text-[#52796F] max-w-md mx-auto leading-relaxed">
+            Gunakan tombol <strong>"Potret Baki Manual (Admin)"</strong> pada panel kamera DroidCam di atas untuk mengambil foto baki air pertama Anda secara langsung.
           </p>
         </div>
       ) : (

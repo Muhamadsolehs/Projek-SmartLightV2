@@ -69,6 +69,7 @@ interface DeviceContextType {
     params?: Record<string, any>
   ) => Promise<DeviceCommand>;
   captures: CaptureImage[];
+  addCapture: (capture: CaptureImage) => void;
   updateBoundingBoxLabel: (
     captureId: string,
     boxId: string,
@@ -144,7 +145,17 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [commands, setCommands] = useState<DeviceCommand[]>(INITIAL_COMMANDS);
   const [captures, setCaptures] = useState<CaptureImage[]>(() => {
     const savedSource = localStorage.getItem('slt_datasource');
-    return savedSource === 'simulation_demo' ? MOCK_CAPTURES : [];
+    const base = savedSource === 'simulation_demo' ? MOCK_CAPTURES : [];
+    try {
+      const custom = localStorage.getItem('slt_custom_captures');
+      if (custom) {
+        const parsed = JSON.parse(custom);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return [...parsed, ...base];
+        }
+      }
+    } catch {}
+    return base;
   });
   const [waterLogs, setWaterLogs] = useState<WaterChangeLog[]>(() => {
     const savedSource = localStorage.getItem('slt_datasource');
@@ -243,7 +254,12 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       setAlerts(fetchedAlerts || []);
       setCommands(fetchedCommands || []);
-      setCaptures(fetchedCaptures || []);
+      let customCaptures: CaptureImage[] = [];
+      try {
+        const custom = localStorage.getItem('slt_custom_captures');
+        if (custom) customCaptures = JSON.parse(custom);
+      } catch {}
+      setCaptures([...customCaptures, ...(fetchedCaptures || [])]);
       setWaterLogs(fetchedLogs || []);
       setIsLiveConnected(true);
       setDevicesError(null);
@@ -608,6 +624,15 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     );
   };
 
+  const addCapture = (newCapture: CaptureImage) => {
+    setCaptures((prev) => [newCapture, ...prev]);
+    try {
+      const existing = localStorage.getItem('slt_custom_captures');
+      const list = existing ? JSON.parse(existing) : [];
+      localStorage.setItem('slt_custom_captures', JSON.stringify([newCapture, ...list]));
+    } catch {}
+  };
+
   const triggerHardwareSimulation = (scenario: string) => {
     setIsSimulatingAction(true);
     if (scenario === 'water_change_cycle') {
@@ -839,6 +864,7 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         commands,
         sendCommand,
         captures,
+        addCapture,
         updateBoundingBoxLabel,
         waterLogs,
         triggerHardwareSimulation,
