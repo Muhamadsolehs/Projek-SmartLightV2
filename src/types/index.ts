@@ -50,6 +50,9 @@ export interface CaptureImage {
   isManuallyVerified: boolean;
   bboxes: BoundingBox[];
   notes?: string;
+  dbRecordId?: number;
+  filePath?: string;
+  triggerSource?: string;
 }
 
 export interface INA226Telemetry {

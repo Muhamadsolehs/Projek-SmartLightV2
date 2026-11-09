@@ -23,6 +23,7 @@ import { deviceService, ProvisionDeviceResult } from '../services/deviceService'
 import { alertService } from '../services/alertService';
 import { pestService } from '../services/pestService';
 import { waterService } from '../services/waterService';
+import { deviceImagesService } from '../services/deviceImagesService';
 import { hasPermission, sanitizeRole } from '../lib/permissions';
 
 export type NavigationTab =
@@ -70,6 +71,7 @@ interface DeviceContextType {
   ) => Promise<DeviceCommand>;
   captures: CaptureImage[];
   addCapture: (capture: CaptureImage) => void;
+  deleteCapture: (captureId: string, dbRecordId?: number, filePath?: string) => Promise<void>;
   updateBoundingBoxLabel: (
     captureId: string,
     boxId: string,
@@ -234,12 +236,13 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setDevicesError(null);
 
     try {
-      const [fetchedDevices, fetchedAlerts, fetchedCommands, fetchedCaptures, fetchedLogs] = await Promise.all([
+      const [fetchedDevices, fetchedAlerts, fetchedCommands, fetchedCaptures, fetchedLogs, fetchedDbImages] = await Promise.all([
         deviceService.getDevices(),
         alertService.getAlerts().catch(() => []),
         deviceService.getCommands().catch(() => []),
         pestService.getCaptureSessions().catch(() => []),
         waterService.getWaterLogs().catch(() => []),
+        deviceImagesService.getAllDeviceImages().catch(() => []),
       ]);
 
       if (Array.isArray(fetchedDevices)) {
@@ -254,12 +257,46 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       setAlerts(fetchedAlerts || []);
       setCommands(fetchedCommands || []);
+
+      // Petakan gambar dari tabel public.device_images & bucket Supabase ke CaptureImage
+      const mappedDbImages: CaptureImage[] = (fetchedDbImages || []).map((img) => ({
+        id: `IMG-DB-${img.id}`,
+        deviceId: img.device_id || 'SLT-SBG-01',
+        timestamp: img.captured_at,
+        imageUrl: img.image_url,
+        resolution: '1280x720 (DroidCam HD)',
+        totalPests: 0,
+        targetPestsCount: 0,
+        otherInsectsCount: 0,
+        avgConfidence: 0.95,
+        modelVersion: `YOLOv8 (${img.trigger_source || 'Manual'})`,
+        isManuallyVerified: false,
+        bboxes: [],
+        notes: `Tersimpan di Supabase (${img.file_path || 'device_images'})`,
+        dbRecordId: img.id,
+        filePath: img.file_path,
+        triggerSource: img.trigger_source,
+      }));
+
       let customCaptures: CaptureImage[] = [];
       try {
         const custom = localStorage.getItem('slt_custom_captures');
         if (custom) customCaptures = JSON.parse(custom);
       } catch {}
-      setCaptures([...customCaptures, ...(fetchedCaptures || [])]);
+
+      // Gabungkan dan hilangkan duplikasi berdasarkan ID / URL
+      const combinedCaptures = [...mappedDbImages, ...customCaptures, ...(fetchedCaptures || [])];
+      const seenKeys = new Set<string>();
+      const dedupedCaptures: CaptureImage[] = [];
+      for (const item of combinedCaptures) {
+        const key = item.dbRecordId ? `db-${item.dbRecordId}` : item.imageUrl || item.id;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          dedupedCaptures.push(item);
+        }
+      }
+
+      setCaptures(dedupedCaptures);
       setWaterLogs(fetchedLogs || []);
       setIsLiveConnected(true);
       setDevicesError(null);
@@ -341,10 +378,16 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     );
 
+    // Subscribe to device_images (Realtime update foto baki)
+    const { unsubscribe: unsubImages } = deviceImagesService.subscribeToDeviceImages(() => {
+      loadDashboardData();
+    });
+
     return () => {
       unsubDevices();
       unsubAlerts();
       unsubCommands();
+      unsubImages();
     };
   }, [isAuthenticated, dataSource, loadDashboardData, selectedDeviceId]);
 
@@ -633,6 +676,25 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch {}
   };
 
+  const deleteCapture = async (captureId: string, dbRecordId?: number, filePath?: string) => {
+    if (dbRecordId) {
+      try {
+        await deviceImagesService.deleteImage(dbRecordId, filePath);
+      } catch (err) {
+        console.warn('[DeviceContext] Gagal menghapus gambar di database Supabase:', err);
+      }
+    }
+    setCaptures((prev) => prev.filter((c) => c.id !== captureId));
+    try {
+      const custom = localStorage.getItem('slt_custom_captures');
+      if (custom) {
+        const list = JSON.parse(custom);
+        const filtered = list.filter((c: any) => c.id !== captureId);
+        localStorage.setItem('slt_custom_captures', JSON.stringify(filtered));
+      }
+    } catch {}
+  };
+
   const triggerHardwareSimulation = (scenario: string) => {
     setIsSimulatingAction(true);
     if (scenario === 'water_change_cycle') {
@@ -865,6 +927,7 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         sendCommand,
         captures,
         addCapture,
+        deleteCapture,
         updateBoundingBoxLabel,
         waterLogs,
         triggerHardwareSimulation,
