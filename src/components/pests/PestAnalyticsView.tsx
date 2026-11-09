@@ -94,32 +94,22 @@ export const PestAnalyticsView: React.FC = () => {
       : captures.filter((c) => c.deviceId === selectedDeviceFilter);
 
   return (
-    <div className="space-y-6">
-      {/* Breadcrumb */}
-      <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-[#52796F]">
-        <span className="text-[#718096]">Smart Light Trap</span>
-        <ChevronRight className="h-3.5 w-3.5 text-[#A0AEC0]" />
-        <span className="font-semibold text-[#192A20]">Analisis Hama PHT</span>
-      </nav>
-
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-4">
+      {/* Header & Controls Bar */}
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#192A20]">
-            Analisis Populasi Hama & PHT
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#192A20]">
+            Analisis Populasi Hama &amp; PHT
           </h1>
-          <p className="text-xs sm:text-sm text-[#52796F] mt-1 max-w-2xl">
-            Data deteksi nocturnal light trap untuk keputusan Pengendalian Hama Terpadu (PHT) tanaman padi.
-          </p>
         </div>
 
-        {/* Range & Filter Segmented Controls */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Range & Filter Controls */}
+        <div className="flex flex-wrap items-center gap-1.5">
           {/* Perangkat Filter */}
           <select
             value={selectedDeviceFilter}
             onChange={(e) => setSelectedDeviceFilter(e.target.value)}
-            className="rounded-lg border border-[#E2E8F0] bg-white px-2.5 py-1.5 text-xs text-[#192A20] focus:border-[#2D6A4F] focus:outline-hidden font-medium"
+            className="rounded-lg border border-[#E2E8F0] bg-white px-2.5 py-1 text-xs text-[#192A20] focus:border-[#2D6A4F] focus:outline-hidden font-medium"
           >
             <option value="all">Semua Perangkat</option>
             {devices.map((d) => (
@@ -130,36 +120,36 @@ export const PestAnalyticsView: React.FC = () => {
           </select>
 
           {/* Time range */}
-          <div className="flex items-center gap-1 p-1 bg-[#F1F5F2] rounded-lg text-xs font-medium">
+          <div className="flex items-center gap-0.5 p-0.5 bg-[#F1F5F2] rounded-lg text-xs font-medium">
             <button
               onClick={() => setSelectedRange('7d')}
-              className={`px-3 py-1.5 rounded-md transition-colors ${
+              className={`px-2.5 py-1 rounded-md transition-colors text-xs ${
                 selectedRange === '7d'
-                  ? 'bg-white text-[#192A20] shadow-xs font-semibold'
+                  ? 'bg-white text-[#192A20] shadow-2xs font-semibold'
                   : 'text-[#52796F] hover:text-[#192A20]'
               }`}
             >
-              7 Hari Terakhir
+              7 Hari
             </button>
             <button
               onClick={() => setSelectedRange('14d')}
-              className={`px-3 py-1.5 rounded-md transition-colors ${
+              className={`px-2.5 py-1 rounded-md transition-colors text-xs ${
                 selectedRange === '14d'
-                  ? 'bg-white text-[#192A20] shadow-xs font-semibold'
+                  ? 'bg-white text-[#192A20] shadow-2xs font-semibold'
                   : 'text-[#52796F] hover:text-[#192A20]'
               }`}
             >
-              14 Hari Terakhir
+              14 Hari
             </button>
           </div>
 
           <button
             onClick={fetchTrends}
             disabled={isLoadingTrends}
-            className="p-1.5 rounded-lg border border-[#E2E8F0] bg-white text-[#52796F] hover:text-[#192A20] hover:bg-[#F8FAF9] disabled:opacity-50"
+            className="p-1.5 rounded-lg border border-[#E2E8F0] bg-white text-[#52796F] hover:text-[#192A20] hover:bg-[#F8FAF9] disabled:opacity-50 cursor-pointer"
             title="Muat ulang data tren hama"
           >
-            <RefreshCw className={`h-4 w-4 ${isLoadingTrends ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-3.5 w-3.5 ${isLoadingTrends ? 'animate-spin' : ''}`} />
           </button>
 
           {/* Export Report Action (Guarded by RBAC) */}
@@ -167,40 +157,40 @@ export const PestAnalyticsView: React.FC = () => {
             <button
               onClick={handleExportCSV}
               disabled={trendData.length === 0}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#90A955]/40 bg-white text-xs font-semibold text-[#132A13] hover:bg-[#ECF39E]/20 transition-all cursor-pointer shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[#90A955]/40 bg-white text-xs font-semibold text-[#132A13] hover:bg-[#ECF39E]/20 transition-all cursor-pointer shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
               title="Ekspor Data Tren PHT ke CSV"
             >
-              <Download className="h-3.5 w-3.5 text-[#31572C]" />
+              <Download className="h-3 w-3 text-[#31572C]" />
               <span>Ekspor CSV</span>
             </button>
           ) : (
             <span
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 text-xs font-medium text-gray-400 cursor-not-allowed"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-gray-200 bg-gray-50 text-xs font-medium text-gray-400 cursor-not-allowed"
               title="Ekspor laporan dibatasi untuk Analis, Operator, dan Administrator"
             >
-              <Lock className="h-3.5 w-3.5 text-gray-400" />
-              <span>Ekspor Dibatasi</span>
+              <Lock className="h-3 w-3 text-gray-400" />
+              <span>Ekspor</span>
             </span>
           )}
         </div>
       </div>
 
       {exportNotice && (
-        <div className="p-3 bg-[#EAF4EE] text-[#1B4332] border border-[#A7D7C5] rounded-xl text-xs flex items-center gap-2 animate-fadeIn">
+        <div className="p-2.5 bg-[#EAF4EE] text-[#1B4332] border border-[#A7D7C5] rounded-lg text-xs flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 text-[#2D6A4F] shrink-0" />
           <span>{exportNotice}</span>
         </div>
       )}
 
       {trendsError && (
-        <div className="p-4 bg-red-50 text-red-800 border border-red-200 rounded-xl text-xs flex items-center justify-between">
+        <div className="p-3 bg-red-50 text-red-800 border border-red-200 rounded-lg text-xs flex items-center justify-between">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
             <span>{trendsError}</span>
           </div>
           <button
             onClick={fetchTrends}
-            className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-900 rounded font-semibold text-[11px]"
+            className="px-2 py-0.5 bg-red-100 hover:bg-red-200 text-red-900 rounded font-semibold text-[11px]"
           >
             Coba Lagi
           </button>
@@ -209,80 +199,79 @@ export const PestAnalyticsView: React.FC = () => {
 
       {/* Loading state */}
       {isLoadingTrends && (
-        <div className="rounded-xl border border-[#E2E8F0] bg-white p-8 text-center text-xs text-[#52796F]">
-          <RefreshCw className="h-6 w-6 mx-auto animate-spin text-[#2D6A4F] mb-2" />
-          <p>Memuat analitik data hama dari Supabase...</p>
+        <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 text-center text-xs text-[#52796F]">
+          <RefreshCw className="h-5 w-5 mx-auto animate-spin text-[#2D6A4F] mb-1.5" />
+          <p>Memuat data tren hama...</p>
         </div>
       )}
 
       {!isLoadingTrends && trendData.length === 0 && !trendsError && (
-        <div className="rounded-xl border border-dashed border-[#CBD5E1] bg-white p-12 text-center">
-          <Bug className="mx-auto h-12 w-12 text-[#94A3B8]" />
-          <h3 className="mt-4 text-base font-bold text-[#192A20]">Belum Ada Data Tren Hama</h3>
-          <p className="mt-1 text-xs text-[#52796F] max-w-md mx-auto">
-            Tidak ditemukan sesi tangkapan serangga pada rentang waktu yang dipilih.
-            {selectedDeviceFilter !== 'all' && ' Coba ganti filter perangkat atau pilih rentang waktu yang lebih luas.'}
+        <div className="rounded-xl border border-dashed border-[#CBD5E1] bg-white p-8 text-center">
+          <Bug className="mx-auto h-8 w-8 text-[#94A3B8]" />
+          <h3 className="mt-2 text-sm font-bold text-[#192A20]">Belum Ada Data Tren Hama</h3>
+          <p className="mt-0.5 text-xs text-[#52796F] max-w-md mx-auto">
+            Tidak ditemukan sesi tangkapan pada rentang waktu yang dipilih.
           </p>
         </div>
       )}
 
       {/* KPI Metric Strip */}
       {!isLoadingTrends && latestDay && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-xs">
-            <div className="flex items-center justify-between text-xs text-[#718096] mb-1">
-              <span>Tangkapan Hama Sasaran</span>
-              <Bug className="h-4 w-4 text-[#D97706]" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+          <div className="rounded-xl border border-[#E2E8F0] bg-white p-3 shadow-2xs">
+            <div className="flex items-center justify-between text-xs text-[#718096] mb-0.5">
+              <span>Hama Sasaran</span>
+              <Bug className="h-3.5 w-3.5 text-[#D97706]" />
             </div>
-            <div className="text-2xl font-bold font-mono tabular-nums text-[#192A20]">
-              {latestDay.totalTarget} <span className="text-xs font-normal text-[#718096]">ekor/malam</span>
+            <div className="text-xl font-bold font-mono tabular-nums text-[#192A20]">
+              {latestDay.totalTarget} <span className="text-[11px] font-normal text-[#718096]">ekor/mlm</span>
             </div>
-            <div className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-[#DC2626]">
-              <ArrowUpRight className="h-3 w-3" />
+            <div className="mt-0.5 flex items-center gap-0.5 text-[10px] font-semibold text-[#DC2626]">
+              <ArrowUpRight className="h-2.5 w-2.5" />
               <span>
-                {targetDiff >= 0 ? `+${targetDiffPercent}%` : `${targetDiffPercent}%`} vs hari sebelumnya
+                {targetDiff >= 0 ? `+${targetDiffPercent}%` : `${targetDiffPercent}%`} vs kemarin
               </span>
             </div>
           </div>
 
-          <div className="rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-xs">
-            <div className="flex items-center justify-between text-xs text-[#718096] mb-1">
-              <span>Penggerek Batang Kuning</span>
-              <span className="font-mono text-[10px] text-[#2D6A4F] font-bold">365nm UV</span>
+          <div className="rounded-xl border border-[#E2E8F0] bg-white p-3 shadow-2xs">
+            <div className="flex items-center justify-between text-xs text-[#718096] mb-0.5">
+              <span>Penggerek Batang</span>
+              <span className="font-mono text-[9px] text-[#2D6A4F] font-bold">365nm</span>
             </div>
-            <div className="text-2xl font-bold font-mono tabular-nums text-[#192A20]">
-              {latestDay.stemBorer} <span className="text-xs font-normal text-[#718096]">ekor</span>
+            <div className="text-xl font-bold font-mono tabular-nums text-[#192A20]">
+              {latestDay.stemBorer} <span className="text-[11px] font-normal text-[#718096]">ekor</span>
             </div>
-            <div className={`mt-1 text-[11px] font-medium ${latestDay.stemBorer >= 50 ? 'text-[#DC2626]' : 'text-[#2D6A4F]'}`}>
-              {latestDay.stemBorer >= 50 ? 'Melebihi ambang kendali (50 ekor)' : 'Di bawah ambang kritis (<50 ekor)'}
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-xs">
-            <div className="flex items-center justify-between text-xs text-[#718096] mb-1">
-              <span>Wereng Batang Coklat (WBC)</span>
-              <span className="font-mono text-[10px] text-[#2D6A4F] font-bold">395nm</span>
-            </div>
-            <div className="text-2xl font-bold font-mono tabular-nums text-[#192A20]">
-              {latestDay.planthopper} <span className="text-xs font-normal text-[#718096]">ekor</span>
-            </div>
-            <div className="mt-1 text-[11px] text-[#52796F] font-medium">
-              {latestDay.planthopper > 20 ? 'Waspada hopperburn & kerdil hampa' : 'Populasi terpantau terkendali'}
+            <div className={`mt-0.5 text-[10px] font-medium ${latestDay.stemBorer >= 50 ? 'text-[#DC2626]' : 'text-[#2D6A4F]'}`}>
+              {latestDay.stemBorer >= 50 ? '≥ Ambang kendali (50)' : 'Di bawah ambang (<50)'}
             </div>
           </div>
 
-          <div className="rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-xs">
-            <div className="flex items-center justify-between text-xs text-[#718096] mb-1">
-              <span>Rasio Hama vs Netral</span>
-              <Layers className="h-4 w-4 text-[#52796F]" />
+          <div className="rounded-xl border border-[#E2E8F0] bg-white p-3 shadow-2xs">
+            <div className="flex items-center justify-between text-xs text-[#718096] mb-0.5">
+              <span>Wereng Batang Coklat</span>
+              <span className="font-mono text-[9px] text-[#2D6A4F] font-bold">395nm</span>
             </div>
-            <div className="text-2xl font-bold font-mono tabular-nums text-[#192A20]">
+            <div className="text-xl font-bold font-mono tabular-nums text-[#192A20]">
+              {latestDay.planthopper} <span className="text-[11px] font-normal text-[#718096]">ekor</span>
+            </div>
+            <div className="mt-0.5 text-[10px] text-[#52796F] font-medium">
+              {latestDay.planthopper > 20 ? 'Waspada hopperburn' : 'Populasi terkendali'}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-[#E2E8F0] bg-white p-3 shadow-2xs">
+            <div className="flex items-center justify-between text-xs text-[#718096] mb-0.5">
+              <span>Rasio Sasaran:Netral</span>
+              <Layers className="h-3.5 w-3.5 text-[#52796F]" />
+            </div>
+            <div className="text-xl font-bold font-mono tabular-nums text-[#192A20]">
               {latestDay.totalAll > 0
                 ? `${((latestDay.totalTarget / latestDay.totalAll) * 100).toFixed(0)}% : ${((latestDay.otherInsects / latestDay.totalAll) * 100).toFixed(0)}%`
                 : '0% : 0%'}
             </div>
-            <div className="mt-1 text-[11px] text-[#718096]">
-              Total {latestDay.totalAll} serangga tertangkap
+            <div className="mt-0.5 text-[10px] text-[#718096]">
+              Total {latestDay.totalAll} tertangkap
             </div>
           </div>
         </div>
@@ -290,34 +279,32 @@ export const PestAnalyticsView: React.FC = () => {
 
       {/* Main Interactive Trend Chart */}
       {!isLoadingTrends && trendData.length > 0 && (
-        <div className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#E2E8F0] pb-3 mb-4">
+        <div className="rounded-xl border border-[#E2E8F0] bg-white p-3.5 shadow-2xs space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-[#E2E8F0] pb-2">
             <div>
-              <h2 className="text-sm font-bold text-[#192A20]">
-                Dinamika Fluktuasi Populasi Hama per Hari
+              <h2 className="text-xs font-bold text-[#192A20]">
+                Fluktuasi Populasi Hama per Hari
               </h2>
-              <p className="text-xs text-[#718096]">
-                Garis horizontal merah menunjukkan Ambang Kendali Ekonomi (Economic Injury Threshold = 50)
-              </p>
+              <span className="text-[11px] text-[#718096]">
+                Garis merah putus-putus: Ambang Kendali Ekonomi (50 ekor)
+              </span>
             </div>
 
-            <div className="flex items-center gap-2">
-              <select
-                value={selectedSpeciesFilter}
-                onChange={(e) => setSelectedSpeciesFilter(e.target.value)}
-                className="rounded-lg border border-[#E2E8F0] bg-[#F8FAF9] px-2.5 py-1 text-xs text-[#192A20] focus:border-[#2D6A4F] focus:outline-hidden"
-              >
-                <option value="all">Semua Spesies Sasaran</option>
-                <option value="scirpophaga_incertulas">Penggerek Batang Saja</option>
-                <option value="nilaparvata_lugens">Wereng Batang Coklat Saja</option>
-                <option value="spodoptera_frugiperda">Ulat Grayak Saja</option>
-              </select>
-            </div>
+            <select
+              value={selectedSpeciesFilter}
+              onChange={(e) => setSelectedSpeciesFilter(e.target.value)}
+              className="rounded-lg border border-[#E2E8F0] bg-[#F8FAF9] px-2 py-1 text-xs text-[#192A20] focus:border-[#2D6A4F] focus:outline-hidden"
+            >
+              <option value="all">Semua Spesies Sasaran</option>
+              <option value="scirpophaga_incertulas">Penggerek Batang Saja</option>
+              <option value="nilaparvata_lugens">Wereng Batang Coklat Saja</option>
+              <option value="spodoptera_frugiperda">Ulat Grayak Saja</option>
+            </select>
           </div>
 
           {/* SVG Area Chart / Multi-Bar */}
-          <div className="h-72 w-full overflow-x-auto">
-            <svg className="w-full min-w-[720px] h-full" viewBox="0 0 850 250">
+          <div className="h-60 w-full overflow-x-auto">
+            <svg className="w-full min-w-[680px] h-full" viewBox="0 0 850 250">
               {/* Horizontal Axis lines */}
               {[0, 50, 100, 150, 200, 250, 300].map((val) => {
                 const y = 210 - (val / 300) * 190;
@@ -459,22 +446,22 @@ export const PestAnalyticsView: React.FC = () => {
           </div>
 
           {/* Legend */}
-          <div className="flex flex-wrap items-center justify-between pt-4 border-t border-[#E2E8F0] text-xs">
-            <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-wrap items-center justify-between pt-2 border-t border-[#E2E8F0] text-xs">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-1.5">
-                <span className="h-3 w-3 rounded-xs bg-[#D97706]" />
-                <span>Penggerek Batang Padi Kuning</span>
+                <span className="h-2.5 w-2.5 rounded-xs bg-[#D97706]" />
+                <span className="text-[11px]">Penggerek Batang Kuning</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="h-3 w-3 rounded-xs bg-[#2D6A4F]" />
-                <span>Wereng Batang Coklat (WBC)</span>
+                <span className="h-2.5 w-2.5 rounded-xs bg-[#2D6A4F]" />
+                <span className="text-[11px]">Wereng Batang Coklat (WBC)</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="h-3 w-3 rounded-xs bg-[#CBD5E1]" />
-                <span>Serangga Netral</span>
+                <span className="h-2.5 w-2.5 rounded-xs bg-[#CBD5E1]" />
+                <span className="text-[11px]">Serangga Netral</span>
               </div>
             </div>
-            <span className="text-[11px] text-[#718096]">
+            <span className="text-[11px] text-[#718096] font-mono">
               Total Periode: {trendData.reduce((acc, c) => acc + c.totalAll, 0)} Tangkapan
             </span>
           </div>
@@ -482,24 +469,24 @@ export const PestAnalyticsView: React.FC = () => {
       )}
 
       {/* PHT Agronomic Decision Matrix */}
-      <div className="rounded-xl border border-[#D1DCD6] bg-[#F8FAF9] p-5 shadow-xs">
-        <div className="flex items-start gap-3">
-          <div className="p-2.5 rounded-lg bg-[#EAF4EE] text-[#1B4332] shrink-0 mt-0.5">
-            <ShieldAlert className="h-5 w-5" />
+      <div className="rounded-xl border border-[#D1DCD6] bg-[#F8FAF9] p-3.5 shadow-2xs space-y-2.5">
+        <div className="flex items-start gap-2.5">
+          <div className="p-2 rounded-lg bg-[#EAF4EE] text-[#1B4332] shrink-0 mt-0.5">
+            <ShieldAlert className="h-4 w-4" />
           </div>
           <div className="flex-1 space-y-2">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-              <h2 className="text-sm font-bold text-[#192A20]">
-                Rekomendasi Tindakan Agronomis Berdasarkan Ambang Kendali PHT
+              <h2 className="text-xs font-bold text-[#192A20]">
+                Rekomendasi Tindakan Agronomis (PHT)
               </h2>
               <span
-                className={`px-2 py-0.5 rounded text-[11px] font-bold font-mono ${
+                className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
                   latestDay && latestDay.stemBorer >= 50
                     ? 'bg-[#FEE2E2] text-[#DC2626]'
                     : 'bg-[#EAF4EE] text-[#2D6A4F]'
                 }`}
               >
-                STATUS: {latestDay && latestDay.stemBorer >= 50 ? 'INTERVENSI DIANJURKAN' : 'STATUS NORMAL / AMAN'}
+                STATUS: {latestDay && latestDay.stemBorer >= 50 ? 'INTERVENSI DIANJURKAN' : 'STATUS AMAN'}
               </span>
             </div>
             <p className="text-xs text-[#4A5568] leading-relaxed">
@@ -507,23 +494,23 @@ export const PestAnalyticsView: React.FC = () => {
                 ? `Tangkapan Penggerek Batang Padi Kuning mencapai ${latestDay.stemBorer} ekor/malam (di atas batas kritis 50 ekor). Tanaman sedang berada di fase vegetatif (rawan serangan sundep/beluk).`
                 : 'Tangkapan serangga hama nocturnal saat ini berada di bawah ambang kendali ekonomi. Pertahankan monitoring rutin dan sanitasi baki air perangkap.'}
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 text-xs">
-              <div className="p-3 bg-white rounded-lg border border-[#E2E8F0]">
-                <div className="font-semibold text-[#192A20] mb-1">1. Pengendalian Hayati</div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-1 text-xs">
+              <div className="p-2.5 bg-white rounded-lg border border-[#E2E8F0]">
+                <div className="font-semibold text-[#192A20] text-xs mb-0.5">1. Pengendalian Hayati</div>
                 <p className="text-[11px] text-[#718096]">
-                  Pelepasan parasitoid telur <em>Trichogramma japonicum</em> sebanyak 20 pias/ha pada area terdampak.
+                  Pelepasan parasitoid telur <em>Trichogramma japonicum</em> 20 pias/ha.
                 </p>
               </div>
-              <div className="p-3 bg-white rounded-lg border border-[#E2E8F0]">
-                <div className="font-semibold text-[#192A20] mb-1">2. Optimalisasi Perangkap</div>
+              <div className="p-2.5 bg-white rounded-lg border border-[#E2E8F0]">
+                <div className="font-semibold text-[#192A20] text-xs mb-0.5">2. Optimalisasi Perangkap</div>
                 <p className="text-[11px] text-[#718096]">
-                  Perpanjang durasi lampu UV hingga pukul 05:00 WIB dan jadwalkan pergantian air baki setiap subuh agar baki tetap bersih.
+                  Perpanjang durasi lampu UV hingga 05:00 WIB dan ganti air baki saat subuh.
                 </p>
               </div>
-              <div className="p-3 bg-white rounded-lg border border-[#E2E8F0]">
-                <div className="font-semibold text-[#192A20] mb-1">3. Pemantauan Lapangan</div>
+              <div className="p-2.5 bg-white rounded-lg border border-[#E2E8F0]">
+                <div className="font-semibold text-[#192A20] text-xs mb-0.5">3. Pemantauan Lapangan</div>
                 <p className="text-[11px] text-[#718096]">
-                  Bagikan ringkasan lonjakan hama ke kelompok tani setempat untuk survei pengamatan malai bersama PPL pertanian.
+                  Survei pengamatan malai bersama PPL pertanian dan kelompok tani.
                 </p>
               </div>
             </div>
@@ -532,16 +519,11 @@ export const PestAnalyticsView: React.FC = () => {
       </div>
 
       {/* Capture Session History with source links */}
-      <div className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-xs space-y-4">
-        <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3">
-          <div>
-            <h2 className="text-sm font-bold text-[#192A20]">
-              Riwayat Sesi Tangkapan Kamera & Computer Vision
-            </h2>
-            <p className="text-xs text-[#718096]">
-              Setiap sesi terhubung ke snapshot resolusi tinggi dan bounding box serangga di Supabase
-            </p>
-          </div>
+      <div className="rounded-xl border border-[#E2E8F0] bg-white p-3.5 shadow-2xs space-y-2.5">
+        <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-2">
+          <h2 className="text-xs font-bold text-[#192A20]">
+            Riwayat Sesi Tangkapan Kamera &amp; Computer Vision
+          </h2>
           <button
             onClick={() => setActiveTab('gallery')}
             className="text-xs font-semibold text-[#2D6A4F] hover:text-[#1B4332] flex items-center gap-1 cursor-pointer"
@@ -552,52 +534,52 @@ export const PestAnalyticsView: React.FC = () => {
         </div>
 
         {filteredCaptures.length === 0 ? (
-          <div className="py-8 text-center text-xs text-[#718096] bg-[#F8FAF9] rounded-lg border border-dashed border-[#E2E8F0]">
-            <Camera className="h-6 w-6 mx-auto mb-2 text-[#A0AEC0]" />
-            <p>Belum ada sesi tangkapan citra kamera baki yang tercatat untuk perangkat yang dipilih.</p>
+          <div className="py-6 text-center text-xs text-[#718096] bg-[#F8FAF9] rounded-lg border border-dashed border-[#E2E8F0]">
+            <Camera className="h-5 w-5 mx-auto mb-1 text-[#A0AEC0]" />
+            <p>Belum ada sesi tangkapan citra kamera baki yang tercatat.</p>
           </div>
         ) : (
-          <div className="divide-y divide-[#E2E8F0]">
+          <div className="divide-y divide-[#E2E8F0] max-h-64 overflow-y-auto">
             {filteredCaptures.map((cap) => (
               <div
                 key={cap.id}
-                className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs"
+                className="py-2.5 px-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs"
               >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#EAF4EE] text-[#1B4332] shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#EAF4EE] text-[#1B4332] shrink-0">
                     <Camera className="h-4 w-4" />
                   </div>
                   <div>
                     <div className="font-bold text-[#192A20] flex items-center gap-2">
                       <span className="font-mono">{cap.id}</span>
                       <span
-                        className={`px-2 py-0.2 rounded text-[10px] font-medium ${
+                        className={`px-1.5 py-0.2 rounded text-[9px] font-medium ${
                           cap.isManuallyVerified
                             ? 'bg-[#EAF4EE] text-[#2D6A4F]'
                             : 'bg-[#FEF3C7] text-[#D97706]'
                         }`}
                       >
-                        {cap.isManuallyVerified ? 'Tervalidasi Manusia' : 'Deteksi Otomatis AI'}
+                        {cap.isManuallyVerified ? 'Tervalidasi' : 'Deteksi AI'}
                       </span>
                     </div>
-                    <div className="text-[11px] text-[#718096]">
+                    <div className="text-[10px] text-[#718096]">
                       Waktu: {cap.timestamp} · Model: {cap.modelVersion}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 pl-12 sm:pl-0">
+                <div className="flex items-center gap-3 pl-10 sm:pl-0">
                   <div className="text-right">
-                    <div className="font-mono font-bold text-[#192A20]">{cap.totalPests} Serangga</div>
+                    <div className="font-mono font-bold text-[#192A20] text-xs">{cap.totalPests} Ekor</div>
                     <div className="text-[10px] text-[#2D6A4F]">
                       {cap.targetPestsCount} Sasaran · {cap.otherInsectsCount} Netral
                     </div>
                   </div>
                   <button
                     onClick={() => setActiveTab('gallery')}
-                    className="rounded-lg border border-[#D1DCD6] px-2.5 py-1 text-xs font-semibold text-[#1B4332] hover:bg-[#EAF4EE] cursor-pointer"
+                    className="rounded-lg border border-[#D1DCD6] px-2 py-0.5 text-xs font-semibold text-[#1B4332] hover:bg-[#EAF4EE] cursor-pointer"
                   >
-                    Lihat Foto
+                    Foto
                   </button>
                 </div>
               </div>

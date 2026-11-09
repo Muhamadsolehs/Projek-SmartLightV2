@@ -347,122 +347,112 @@ CREATE TABLE system_heartbeat (
    - GPIO 9  : Ultrasonic Tandon JSN-SR04T Echo`;
 
   return (
-    <div className="space-y-6">
-      {/* Breadcrumb */}
-      <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-[#52796F]">
-        <span className="text-[#718096]">Smart Light Trap</span>
-        <ChevronRight className="h-3.5 w-3.5 text-[#A0AEC0]" />
-        <span className="font-semibold text-[#192A20]">Arsitektur & API</span>
-      </nav>
-
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#192A20]">
-            Arsitektur Sistem & Kontrak API
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#192A20]">
+            Arsitektur Sistem &amp; Kontrak API
           </h1>
-          <p className="text-xs sm:text-sm text-[#52796F] mt-1 max-w-2xl">
-            Fondasi rekayasa backend, database relasional PostgreSQL, kontrak payload telemetri REST/MQTT, dan pinout ESP32-S3.
-          </p>
         </div>
 
-        {/* Schema Tab Selector (Scrollable horizontally on mobile) */}
-        <div className="flex items-center gap-1 p-1 bg-[#F1F5F2] rounded-lg text-xs font-medium overflow-x-auto whitespace-nowrap scrollbar-none">
+        {/* Schema Tab Selector */}
+        <div className="flex items-center gap-0.5 p-0.5 bg-[#F1F5F2] rounded-lg text-xs font-medium overflow-x-auto whitespace-nowrap scrollbar-none">
           <button
             onClick={() => setActiveSchemaTab('sql')}
-            className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 shrink-0 ${
+            className={`px-2.5 py-1 rounded-md transition-colors flex items-center gap-1.5 shrink-0 ${
               activeSchemaTab === 'sql'
-                ? 'bg-white text-[#192A20] shadow-xs font-semibold'
+                ? 'bg-white text-[#192A20] shadow-2xs font-semibold'
                 : 'text-[#52796F] hover:text-[#192A20]'
             }`}
           >
-            <Database className="h-3.5 w-3.5 text-[#2D6A4F]" />
-            <span>Skema SQL Database</span>
+            <Database className="h-3 w-3 text-[#2D6A4F]" />
+            <span>Skema SQL</span>
           </button>
           <button
             onClick={() => setActiveSchemaTab('api')}
-            className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 shrink-0 ${
+            className={`px-2.5 py-1 rounded-md transition-colors flex items-center gap-1.5 shrink-0 ${
               activeSchemaTab === 'api'
-                ? 'bg-white text-[#192A20] shadow-xs font-semibold'
+                ? 'bg-white text-[#192A20] shadow-2xs font-semibold'
                 : 'text-[#52796F] hover:text-[#192A20]'
             }`}
           >
-            <Server className="h-3.5 w-3.5 text-[#2B6CB0]" />
-            <span>Kontrak API JSON</span>
+            <Server className="h-3 w-3 text-[#2B6CB0]" />
+            <span>Kontrak API</span>
           </button>
           <button
             onClick={() => setActiveSchemaTab('hardware')}
-            className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 shrink-0 ${
+            className={`px-2.5 py-1 rounded-md transition-colors flex items-center gap-1.5 shrink-0 ${
               activeSchemaTab === 'hardware'
-                ? 'bg-white text-[#192A20] shadow-xs font-semibold'
+                ? 'bg-white text-[#192A20] shadow-2xs font-semibold'
                 : 'text-[#52796F] hover:text-[#192A20]'
             }`}
           >
-            <Cpu className="h-3.5 w-3.5 text-[#D97706]" />
-            <span>Pinout ESP32-S3</span>
+            <Cpu className="h-3 w-3 text-[#D97706]" />
+            <span>Pinout Hardware</span>
           </button>
         </div>
       </div>
 
       {/* Architecture System Diagram Strip */}
-      <div className="rounded-xl border border-[#D1DCD6] bg-white p-5 shadow-xs space-y-4">
+      <div className="rounded-xl border border-[#D1DCD6] bg-white p-3.5 shadow-2xs space-y-2.5">
         <h2 className="text-xs font-bold uppercase tracking-wider text-[#52796F]">
-          Diagram Alur Data End-to-End Smart Light Trap IoT
+          Diagram Alur Data End-to-End IoT
         </h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
           {/* Node 1 */}
-          <div className="p-3.5 rounded-lg border border-[#E2E8F0] bg-[#F8FAF9] space-y-1.5">
-            <div className="flex items-center gap-2 font-bold text-[#192A20]">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#1B4332] text-white text-[10px]">1</span>
+          <div className="p-2.5 rounded-lg border border-[#E2E8F0] bg-[#F8FAF9] space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-[#192A20] text-xs">
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#1B4332] text-white text-[9px]">1</span>
               <span>Hardware Lapangan</span>
             </div>
             <p className="text-[11px] text-[#718096]">
-              ESP32-S3 mengontrol lampu UV 365nm, sensor INA226, sensor kekeruhan air, solenoid drain, dan kamera OV5640.
+              NodeMCU / ESP32 mengontrol saklar relay 4-ch, sensor INA226, sensor level &amp; kekeruhan, dan kamera.
             </p>
           </div>
 
           {/* Node 2 */}
-          <div className="p-3.5 rounded-lg border border-[#E2E8F0] bg-[#F8FAF9] space-y-1.5">
-            <div className="flex items-center gap-2 font-bold text-[#192A20]">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#2D6A4F] text-white text-[10px]">2</span>
-              <span>Transmisi 4G & Buffer</span>
+          <div className="p-2.5 rounded-lg border border-[#E2E8F0] bg-[#F8FAF9] space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-[#192A20] text-xs">
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#2D6A4F] text-white text-[9px]">2</span>
+              <span>Konektivitas Cloud</span>
             </div>
             <p className="text-[11px] text-[#718096]">
-              Protokol HTTPS / MQTT TLS via modem SIM7600. Jika sinyal drop, telemetri dibuffer ke MicroSD card SPI.
+              Edge Functions HTTPS dengan verifikasi API key header <code>x-device-key</code>.
             </p>
           </div>
 
           {/* Node 3 */}
-          <div className="p-3.5 rounded-lg border border-[#E2E8F0] bg-[#F8FAF9] space-y-1.5">
-            <div className="flex items-center gap-2 font-bold text-[#192A20]">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#D97706] text-white text-[10px]">3</span>
-              <span>Inference & Ingestion</span>
+          <div className="p-2.5 rounded-lg border border-[#E2E8F0] bg-[#F8FAF9] space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-[#192A20] text-xs">
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#D97706] text-white text-[9px]">3</span>
+              <span>Backend Supabase</span>
             </div>
             <p className="text-[11px] text-[#718096]">
-              Backend PostgreSQL memvalidasi sequence packet. Worker model YOLOv8 mendeteksi hama dan menghitung bounding box.
+              PostgreSQL RLS, sinkronisasi tabel <code>relay_status</code>, dan antrean instruksi command.
             </p>
           </div>
 
           {/* Node 4 */}
-          <div className="p-3.5 rounded-lg border border-[#E2E8F0] bg-[#F8FAF9] space-y-1.5">
-            <div className="flex items-center gap-2 font-bold text-[#192A20]">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#2B6CB0] text-white text-[10px]">4</span>
-              <span>Dashboard & PHT</span>
+          <div className="p-2.5 rounded-lg border border-[#E2E8F0] bg-[#F8FAF9] space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-[#192A20] text-xs">
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#2B6CB0] text-white text-[9px]">4</span>
+              <span>Dashboard &amp; Telegram</span>
             </div>
             <p className="text-[11px] text-[#718096]">
-              Web dashboard memvisualisasikan tren populasi, mengirim peringatan lonjakan hama via Telegram, dan mengeksekusi komando.
+              Panel Admin React + Vite, notifikasi real-time @Lighrice_bot, dan kontrol aktuator.
             </p>
           </div>
         </div>
       </div>
 
       {/* Code / Documentation Display Box */}
-      <div className="rounded-xl border border-[#E2E8F0] bg-[#1E293B] text-slate-100 shadow-md overflow-hidden">
-        <div className="flex items-center justify-between border-b border-slate-700 bg-slate-900 px-5 py-3 text-xs">
+      <div className="rounded-xl border border-[#E2E8F0] bg-[#1E293B] text-slate-100 shadow-2xs overflow-hidden">
+        <div className="flex items-center justify-between border-b border-slate-700 bg-slate-900 px-3.5 py-2 text-xs">
           <div className="flex items-center gap-2">
-            <FileCode className="h-4 w-4 text-[#4ADE80]" />
-            <span className="font-mono font-bold text-white">
+            <FileCode className="h-3.5 w-3.5 text-[#4ADE80]" />
+            <span className="font-mono font-bold text-white text-xs">
               {activeSchemaTab === 'sql'
                 ? 'schema_v1_smart_light_trap.sql'
                 : activeSchemaTab === 'api'
@@ -482,23 +472,23 @@ CREATE TABLE system_heartbeat (
                 activeSchemaTab
               )
             }
-            className="flex items-center gap-1.5 rounded-md bg-slate-800 px-2.5 py-1 text-[11px] font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+            className="flex items-center gap-1 rounded bg-slate-800 px-2 py-0.5 text-[11px] font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition-colors cursor-pointer"
           >
             {copiedSection === activeSchemaTab ? (
               <>
-                <Check className="h-3.5 w-3.5 text-[#4ADE80]" />
+                <Check className="h-3 w-3 text-[#4ADE80]" />
                 <span className="text-[#4ADE80]">Tersalin!</span>
               </>
             ) : (
               <>
-                <Copy className="h-3.5 w-3.5" />
-                <span>Salin Kontrak</span>
+                <Copy className="h-3 w-3" />
+                <span>Salin</span>
               </>
             )}
           </button>
         </div>
 
-        <pre className="p-5 font-mono text-[11px] leading-relaxed overflow-x-auto text-slate-200 selection:bg-[#2D6A4F] selection:text-white">
+        <pre className="p-3.5 max-h-[440px] overflow-y-auto font-mono text-[11px] leading-relaxed overflow-x-auto text-slate-200 selection:bg-[#2D6A4F] selection:text-white">
           {activeSchemaTab === 'sql' && sqlSchemaSnippet}
           {activeSchemaTab === 'api' && apiSnippet}
           {activeSchemaTab === 'hardware' && hardwareSnippet}

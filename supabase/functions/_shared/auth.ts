@@ -11,6 +11,7 @@ export interface AuthenticatedDevice {
   battery_cutoff_threshold_v: number;
   pest_threshold_per_night: number;
   operational_status: string;
+  connection_status?: string;
 }
 
 /**
@@ -50,7 +51,7 @@ export async function verifyDeviceAuth(req: Request): Promise<AuthenticatedDevic
   // Fetch device details
   const { data: device, error: devErr } = await supabase
     .from('devices')
-    .select('id, device_code, device_name, location_name, farm_sector, lamp_status, battery_cutoff_threshold_v, pest_threshold_per_night, operational_status')
+    .select('id, device_code, device_name, location_name, farm_sector, lamp_status, battery_cutoff_threshold_v, pest_threshold_per_night, operational_status, connection_status')
     .eq('device_code', deviceCode)
     .single();
 

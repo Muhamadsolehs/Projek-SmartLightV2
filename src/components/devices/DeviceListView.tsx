@@ -1,26 +1,16 @@
 import React, { useState } from 'react';
 import {
   Search,
-  Wifi,
-  WifiOff,
-  Battery,
-  Droplets,
-  Lightbulb,
-  ExternalLink,
-  ChevronRight,
-  AlertTriangle,
-  CheckCircle2,
-  Cpu,
-  Layers,
   RotateCw,
-  Database,
-  Sparkles,
-  AlertCircle,
-  Loader2,
   Plus,
   Edit2,
   Trash2,
   Key,
+  ChevronRight,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Cpu,
 } from 'lucide-react';
 import { useDevice } from '../../context/DeviceContext';
 import { SmartLightTrapDevice } from '../../types';
@@ -31,10 +21,8 @@ import { hasPermission } from '../../lib/permissions';
 export const DeviceListView: React.FC = () => {
   const {
     devices,
-    selectedDeviceId,
     setSelectedDeviceId,
     devicesLoading,
-    devicesEmpty,
     devicesError,
     dataSource,
     refreshData,
@@ -60,14 +48,14 @@ export const DeviceListView: React.FC = () => {
     if (!canManageDevices) return;
 
     const confirmDelete = window.confirm(
-      `PERINGATAN: Anda akan menghapus unit '${device.code} - ${device.name}' secara permanen dari Supabase. Seluruh data telemetri dan log terkait akan ikut terhapus. Lanjutkan?`
+      `Hapus unit '${device.code} - ${device.name}' secara permanen dari Supabase?`
     );
     if (!confirmDelete) return;
 
     try {
       await deleteDevice(device.id);
-      setActionNotice(`Perangkat ${device.code} berhasil dihapus dari database.`);
-      setTimeout(() => setActionNotice(null), 4000);
+      setActionNotice(`Perangkat ${device.code} berhasil dihapus.`);
+      setTimeout(() => setActionNotice(null), 3500);
     } catch (err: any) {
       alert(`Gagal menghapus perangkat: ${err?.message}`);
     }
@@ -79,7 +67,7 @@ export const DeviceListView: React.FC = () => {
     setIsFormModalOpen(true);
   };
 
-  // Status counts for quick KPI strip
+  // Status counts
   const totalCount = devices.length;
   const onlineCount = devices.filter((d) => d.status === 'online').length;
   const warningCount = devices.filter((d) => d.status === 'warning').length;
@@ -106,205 +94,90 @@ export const DeviceListView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* 1. Breadcrumb Ramping */}
-      <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-[#52796F]">
-        <span className="text-[#718096]">Smart Light Trap</span>
-        <ChevronRight className="h-3.5 w-3.5 text-[#A0AEC0]" />
-        <span className="font-semibold text-[#192A20]">Perangkat</span>
-      </nav>
-
-      {/* 2. Judul Halaman dan Deskripsi Singkat */}
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#192A20]">
-            Perangkat Smart Light Trap
+    <div className="space-y-4">
+      {/* 1. Header Ringkas & Aksi Utama */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-[#E2E8F0] pb-3">
+        <div className="flex items-center gap-2.5">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#192A20]">
+            Armada Perangkat
           </h1>
-          <p className="text-xs sm:text-sm text-[#52796F] mt-1 max-w-2xl">
-            Pemantauan status operasional armada perangkap serangga pintar, sensor energi INA226, baki air, dan transmisi 4G di lahan sawah Subang.
-          </p>
+          <span className="text-xs font-mono text-[#718096] bg-[#F1F5F2] px-2 py-0.5 rounded-full">
+            {filteredDevices.length}/{devices.length} unit
+          </span>
         </div>
-        <div className="flex items-center gap-2 self-start sm:self-auto mt-2 sm:mt-0">
+
+        <div className="flex items-center gap-2">
           {canManageDevices && (
             <button
               onClick={() => {
                 setDeviceToEdit(null);
                 setIsFormModalOpen(true);
               }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#31572C] text-white text-xs font-semibold hover:bg-[#4F772D] transition-all cursor-pointer shadow-xs"
-              title="Daftarkan Unit Smart Light Trap Baru"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#31572C] text-white text-xs font-semibold hover:bg-[#4F772D] transition-all cursor-pointer shadow-xs"
+              title="Daftarkan Unit Baru"
             >
               <Plus className="h-3.5 w-3.5" />
-              <span>Tambah Perangkat</span>
+              <span>Tambah Unit</span>
             </button>
           )}
+
           <button
             onClick={() => refreshData()}
             disabled={devicesLoading}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#90A955]/40 bg-white text-xs font-semibold text-[#132A13] hover:bg-[#ECF39E]/20 transition-all cursor-pointer shadow-2xs"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#E2E8F0] bg-white text-xs font-semibold text-[#192A20] hover:bg-[#F8FAF9] transition-all cursor-pointer shadow-xs"
             title="Segarkan data dari Supabase"
           >
             <RotateCw className={`h-3.5 w-3.5 text-[#31572C] ${devicesLoading ? 'animate-spin' : ''}`} />
-            <span>{devicesLoading ? 'Menyinkronkan...' : 'Segarkan Data'}</span>
+            <span>Segarkan</span>
           </button>
-          <span className="text-xs text-[#718096]">
-            <span className="font-semibold text-[#192A20]">{filteredDevices.length}</span> dari {devices.length} unit
-          </span>
         </div>
       </div>
 
-      {/* Action Notification Banner */}
+      {/* Action Notification */}
       {actionNotice && (
-        <div className="p-3 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-xs flex items-center gap-2 animate-fadeIn">
+        <div className="p-2.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg text-xs flex items-center gap-2 animate-fadeIn">
           <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
           <span>{actionNotice}</span>
         </div>
       )}
 
-      {/* Data Source Notice Banner */}
-      {dataSource === 'simulation_demo' ? (
-        <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-xs text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-amber-600 shrink-0" />
-            <span>
-              <strong>Mode Simulasi Aktif:</strong> Menampilkan data mock tiruan lokal untuk preview desain antarmuka. Data ini bukan bacaan sensor riil dari database Supabase.
-            </span>
-          </div>
-          <button
-            onClick={() => setIsLoginModalOpen(true)}
-            className="px-3 py-1 rounded-lg bg-amber-600 text-white text-[11px] font-bold hover:bg-amber-700 transition-colors shrink-0 cursor-pointer"
-          >
-            Masuk Akun Supabase Live
-          </button>
-        </div>
-      ) : (
-        <div className="p-3 rounded-xl bg-[#EAF4EE] border border-[#4F772D]/30 text-xs text-[#132A13] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-2xs">
-          <div className="flex items-center gap-2">
-            <Database className="h-4 w-4 text-[#31572C] shrink-0" />
-            <span>
-              <strong>Database Supabase Terautentikasi:</strong> Data perangkat dibaca langsung dari tabel <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-[#4F772D]/20">public.devices</code> (RLS Active, Region Subang).
-            </span>
-          </div>
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold shrink-0">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
-            Live PostgreSQL
-          </span>
-        </div>
-      )}
-
-      {/* Error Alert Banner */}
+      {/* Error Alert */}
       {devicesError && (
-        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-xs text-red-900 flex items-start gap-3 shadow-2xs">
-          <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
-          <div className="space-y-1 flex-1">
-            <div className="font-bold">Gagal Mengambil Data Armada dari Supabase</div>
-            <p className="text-red-700">{devicesError}</p>
-            <div className="text-[11px] text-red-600">
-              Periksa kebijakan RLS, status login pengguna, atau jaringan internet Anda.
-            </div>
+        <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-900 flex items-center justify-between gap-2 shadow-xs">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+            <span>{devicesError}</span>
           </div>
           <button
             onClick={() => refreshData()}
-            className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700 transition-colors shrink-0 cursor-pointer"
+            className="px-2.5 py-1 rounded bg-red-600 text-white text-[11px] font-semibold hover:bg-red-700 shrink-0"
           >
             Coba Lagi
           </button>
         </div>
       )}
 
-      {/* 3. Ringkasan Status Perangkat (KPI Status Strip) */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {/* Total */}
-        <button
-          onClick={() => setStatusFilter('all')}
-          className={`p-3.5 rounded-xl border text-left transition-all ${
-            statusFilter === 'all'
-              ? 'border-[#2D6A4F] bg-[#EAF4EE] shadow-xs'
-              : 'border-[#E2E8F0] bg-white hover:border-[#CBD5E1]'
-          }`}
-        >
-          <div className="text-xs font-medium text-[#718096]">Total Armada</div>
-          <div className="text-xl sm:text-2xl font-bold font-mono tabular-nums text-[#192A20] mt-1">
-            {totalCount} <span className="text-xs font-normal text-[#718096]">unit</span>
-          </div>
-        </button>
-
-        {/* Online */}
-        <button
-          onClick={() => setStatusFilter('online')}
-          className={`p-3.5 rounded-xl border text-left transition-all ${
-            statusFilter === 'online'
-              ? 'border-[#2D6A4F] bg-[#EAF4EE] shadow-xs'
-              : 'border-[#E2E8F0] bg-white hover:border-[#CBD5E1]'
-          }`}
-        >
-          <div className="flex items-center gap-1.5 text-xs font-medium text-[#2D6A4F]">
-            <span className="h-2 w-2 rounded-full bg-[#2D6A4F]" />
-            <span>Online</span>
-          </div>
-          <div className="text-xl sm:text-2xl font-bold font-mono tabular-nums text-[#2D6A4F] mt-1">
-            {onlineCount} <span className="text-xs font-normal text-[#718096]">unit</span>
-          </div>
-        </button>
-
-        {/* Peringatan */}
-        <button
-          onClick={() => setStatusFilter('warning')}
-          className={`p-3.5 rounded-xl border text-left transition-all ${
-            statusFilter === 'warning'
-              ? 'border-[#D97706] bg-[#FEF3C7] shadow-xs'
-              : 'border-[#E2E8F0] bg-white hover:border-[#CBD5E1]'
-          }`}
-        >
-          <div className="flex items-center gap-1.5 text-xs font-medium text-[#D97706]">
-            <span className="h-2 w-2 rounded-full bg-[#D97706]" />
-            <span>Peringatan</span>
-          </div>
-          <div className="text-xl sm:text-2xl font-bold font-mono tabular-nums text-[#D97706] mt-1">
-            {warningCount} <span className="text-xs font-normal text-[#718096]">unit</span>
-          </div>
-        </button>
-
-        {/* Offline */}
-        <button
-          onClick={() => setStatusFilter('offline')}
-          className={`p-3.5 rounded-xl border text-left transition-all ${
-            statusFilter === 'offline'
-              ? 'border-[#DC2626] bg-[#FEE2E2] shadow-xs'
-              : 'border-[#E2E8F0] bg-white hover:border-[#CBD5E1]'
-          }`}
-        >
-          <div className="flex items-center gap-1.5 text-xs font-medium text-[#DC2626]">
-            <span className="h-2 w-2 rounded-full bg-[#DC2626]" />
-            <span>Offline</span>
-          </div>
-          <div className="text-xl sm:text-2xl font-bold font-mono tabular-nums text-[#DC2626] mt-1">
-            {offlineCount} <span className="text-xs font-normal text-[#718096]">unit</span>
-          </div>
-        </button>
-      </div>
-
-      {/* 4. Kolom Pencarian dan Filter Status */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 rounded-xl border border-[#E2E8F0] bg-white p-3.5 sm:p-4 shadow-xs">
+      {/* 2. Unified Search & Status Filter Strip */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 rounded-lg border border-[#E2E8F0] bg-white p-2 shadow-xs">
         {/* Search Input */}
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#A0AEC0]" />
+          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-[#A0AEC0]" />
           <input
             type="text"
-            placeholder="Cari ID perangkat (SLT-...), lokasi, atau varietas padi..."
+            placeholder="Cari ID (SLT-...), lokasi, atau komoditas..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAF9] py-2 pl-9 pr-4 text-xs text-[#192A20] placeholder-[#A0AEC0] focus:border-[#2D6A4F] focus:bg-white focus:outline-hidden"
+            className="w-full rounded-md border border-[#E2E8F0] bg-[#F8FAF9] py-1.5 pl-8 pr-3 text-xs text-[#192A20] placeholder-[#A0AEC0] focus:border-[#2D6A4F] focus:bg-white focus:outline-hidden"
           />
         </div>
 
-        {/* Status Filter Segmented Control */}
-        <div className="flex items-center gap-1 p-1 bg-[#F1F5F2] rounded-lg text-xs font-medium overflow-x-auto shrink-0">
+        {/* Filter Badges Strip */}
+        <div className="flex items-center gap-1 p-0.5 bg-[#F1F5F2] rounded-md text-xs font-medium overflow-x-auto shrink-0">
           <button
             onClick={() => setStatusFilter('all')}
-            className={`px-3 py-1.5 rounded-md whitespace-nowrap transition-colors ${
+            className={`px-2.5 py-1 rounded text-[11px] whitespace-nowrap transition-colors ${
               statusFilter === 'all'
-                ? 'bg-white text-[#192A20] shadow-xs font-semibold'
+                ? 'bg-white text-[#192A20] shadow-xs font-bold'
                 : 'text-[#52796F] hover:text-[#192A20]'
             }`}
           >
@@ -312,443 +185,305 @@ export const DeviceListView: React.FC = () => {
           </button>
           <button
             onClick={() => setStatusFilter('online')}
-            className={`px-3 py-1.5 rounded-md whitespace-nowrap transition-colors ${
+            className={`px-2.5 py-1 rounded text-[11px] whitespace-nowrap transition-colors flex items-center gap-1 ${
               statusFilter === 'online'
-                ? 'bg-white text-[#2D6A4F] shadow-xs font-semibold'
+                ? 'bg-white text-[#2D6A4F] shadow-xs font-bold'
                 : 'text-[#52796F] hover:text-[#192A20]'
             }`}
           >
+            <span className="h-1.5 w-1.5 rounded-full bg-[#2D6A4F]" />
             Online ({onlineCount})
           </button>
           <button
             onClick={() => setStatusFilter('warning')}
-            className={`px-3 py-1.5 rounded-md whitespace-nowrap transition-colors ${
+            className={`px-2.5 py-1 rounded text-[11px] whitespace-nowrap transition-colors flex items-center gap-1 ${
               statusFilter === 'warning'
-                ? 'bg-white text-[#D97706] shadow-xs font-semibold'
+                ? 'bg-white text-[#D97706] shadow-xs font-bold'
                 : 'text-[#52796F] hover:text-[#192A20]'
             }`}
           >
+            <span className="h-1.5 w-1.5 rounded-full bg-[#D97706]" />
             Peringatan ({warningCount})
           </button>
           <button
             onClick={() => setStatusFilter('offline')}
-            className={`px-3 py-1.5 rounded-md whitespace-nowrap transition-colors ${
+            className={`px-2.5 py-1 rounded text-[11px] whitespace-nowrap transition-colors flex items-center gap-1 ${
               statusFilter === 'offline'
-                ? 'bg-white text-[#DC2626] shadow-xs font-semibold'
+                ? 'bg-white text-[#DC2626] shadow-xs font-bold'
                 : 'text-[#52796F] hover:text-[#192A20]'
             }`}
           >
+            <span className="h-1.5 w-1.5 rounded-full bg-[#DC2626]" />
             Offline ({offlineCount})
           </button>
         </div>
       </div>
 
-      {/* 4A. LOADING STATE */}
+      {/* 3. Loading State */}
       {devicesLoading && (
-        <div className="p-12 text-center bg-white rounded-2xl border border-[#90A955]/30 shadow-xs flex flex-col items-center justify-center gap-3">
-          <Loader2 className="h-8 w-8 text-[#31572C] animate-spin" />
-          <div className="text-sm font-bold text-[#132A13]">Menghubungkan & Membaca Data Armada Supabase...</div>
-          <p className="text-xs text-[#52796F] max-w-sm">
-            Mengeksekusi kueri terautentikasi ke tabel devices, telemetri INA226, dan status baki air di region Subang.
-          </p>
+        <div className="p-8 text-center bg-white rounded-lg border border-[#E2E8F0] shadow-xs flex flex-col items-center justify-center gap-2">
+          <Loader2 className="h-6 w-6 text-[#31572C] animate-spin" />
+          <div className="text-xs font-semibold text-[#192A20]">Menyinkronkan Data Armada...</div>
         </div>
       )}
 
-      {/* 4B. EMPTY DATABASE STATE (Ketika tabel devices 0 baris) */}
+      {/* 4. Empty State */}
       {!devicesLoading && devices.length === 0 && (
-        <div className="p-10 text-center bg-white rounded-2xl border-2 border-dashed border-[#90A955]/40 shadow-xs flex flex-col items-center justify-center gap-3">
-          <div className="h-14 w-14 rounded-2xl bg-[#EAF4EE] flex items-center justify-center text-[#31572C]">
-            <Cpu className="h-7 w-7 text-[#4F772D]" />
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-base font-bold text-[#132A13]">Belum Ada Perangkat Smart Light Trap Terdaftar</h3>
-            <p className="text-xs text-[#52796F] max-w-md mx-auto leading-relaxed">
-              Koneksi ke Supabase berhasil, namun tabel <code className="font-mono bg-[#F6F9F5] px-1.5 py-0.5 rounded text-[#31572C]">public.devices</code> tidak mengembalikan data. Pastikan migrasi data awal <code className="font-mono text-[#31572C]">00004_initial_seed.sql</code> telah dijalankan di Supabase.
-            </p>
-          </div>
-          <div className="flex items-center gap-2 mt-2">
+        <div className="p-8 text-center bg-white rounded-lg border-2 border-dashed border-[#CBD5E1] shadow-xs flex flex-col items-center justify-center gap-2">
+          <Cpu className="h-8 w-8 text-[#A0AEC0]" />
+          <h3 className="text-sm font-bold text-[#192A20]">Belum Ada Perangkat Terdaftar</h3>
+          <p className="text-xs text-[#52796F] max-w-sm">
+            Tabel <code className="font-mono bg-[#F6F9F5] px-1 py-0.5 rounded text-[#31572C]">public.devices</code> kosong.
+          </p>
+          <div className="flex items-center gap-2 mt-1">
             <button
               onClick={() => refreshData()}
-              className="px-4 py-2 rounded-xl bg-[#31572C] text-white text-xs font-bold hover:bg-[#4F772D] transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
+              className="px-3 py-1.5 rounded-md bg-[#31572C] text-white text-xs font-semibold hover:bg-[#4F772D] flex items-center gap-1.5 cursor-pointer"
             >
-              <RotateCw className="h-3.5 w-3.5" />
-              <span>Segarkan Kueri</span>
+              <RotateCw className="h-3 w-3" />
+              <span>Segarkan</span>
             </button>
             {dataSource !== 'simulation_demo' && (
               <button
                 onClick={() => setIsLoginModalOpen(true)}
-                className="px-4 py-2 rounded-xl border border-[#90A955]/40 bg-[#F6F9F5] text-[#132A13] text-xs font-semibold hover:bg-white transition-colors cursor-pointer"
+                className="px-3 py-1.5 rounded-md border border-[#CBD5E1] bg-white text-xs font-medium hover:bg-slate-50 cursor-pointer"
               >
-                Gunakan Mode Simulasi
+                Gunakan Simulasi
               </button>
             )}
           </div>
         </div>
       )}
 
-      {/* 5A. TAMPILAN DESKTOP: TABEL RAMPING 7 KOLOM (hidden on mobile / lg:block) */}
+      {/* 5. Desktop Compact Table */}
       {!devicesLoading && devices.length > 0 && (
         <>
-          <div className="hidden lg:block rounded-xl border border-[#E2E8F0] bg-white shadow-xs overflow-hidden">
-        <table className="w-full text-left text-xs border-collapse">
-          <thead>
-            <tr className="border-b border-[#90A955]/30 bg-[#F6F9F5] text-[#31572C] font-semibold text-[11px] uppercase tracking-wider">
-              <th className="py-3 px-4">Perangkat & Lokasi</th>
-              <th className="py-3 px-4">Koneksi</th>
-              <th className="py-3 px-4">Lampu</th>
-              <th className="py-3 px-4">Baterai</th>
-              <th className="py-3 px-4">Air</th>
-              <th className="py-3 px-4">Status Operasi</th>
-              <th className="py-3 px-4 text-center">Aksi</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#E2E8F0]">
-            {filteredDevices.map((device) => {
-              const tel = device.currentTelemetry;
-              const isOnline = device.status === 'online';
-              const hasWarning = device.status === 'warning';
-              const isBatteryLow = tel.battery.busVoltageV < device.batteryCutoffThresholdV + 0.2;
-              const isTurbid = tel.water.isTurbid;
-              const isDryRun = tel.water.safetyLockout;
+          <div className="hidden lg:block rounded-lg border border-[#E2E8F0] bg-white shadow-xs overflow-hidden">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-[#E2E8F0] bg-[#F8FAF9] text-[#718096] font-semibold text-[11px] uppercase tracking-wider">
+                  <th className="py-2.5 px-3">Perangkat</th>
+                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 px-3">Lampu</th>
+                  <th className="py-2.5 px-3">Baterai</th>
+                  <th className="py-2.5 px-3">Air Baki</th>
+                  <th className="py-2.5 px-3">Operasi</th>
+                  <th className="py-2.5 px-3 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E2E8F0]">
+                {filteredDevices.map((device) => {
+                  const tel = device.currentTelemetry;
+                  const isOnline = device.status === 'online';
+                  const hasWarning = device.status === 'warning';
+                  const isBatteryLow = tel.battery.busVoltageV < device.batteryCutoffThresholdV + 0.2;
 
-              return (
-                <tr
-                  key={device.id}
-                  className="hover:bg-[#F8FAF9] transition-colors cursor-pointer"
-                  onClick={() => handleOpenDetail(device)}
-                >
-                  {/* Kolom 1: Perangkat & Lokasi */}
-                  <td className="py-3.5 px-4">
-                    <div className="font-semibold text-sm text-[#192A20]">
-                      {device.name}
-                    </div>
-                    <div className="text-xs text-[#718096] flex items-center gap-1.5 mt-0.5">
-                      <span className="font-mono font-medium text-[#2D6A4F]">{device.code}</span>
-                      <span>·</span>
-                      <span className="truncate max-w-[220px]">{device.locationName}</span>
-                    </div>
-                    <div className="text-[11px] text-[#A0AEC0]">{device.cropType}</div>
-                  </td>
+                  return (
+                    <tr
+                      key={device.id}
+                      className="hover:bg-[#F8FAF9] transition-colors cursor-pointer"
+                      onClick={() => handleOpenDetail(device)}
+                    >
+                      {/* Kolom 1: Perangkat */}
+                      <td className="py-2.5 px-3">
+                        <div className="font-semibold text-xs text-[#192A20] flex items-center gap-1.5">
+                          <span className="font-mono text-[#2D6A4F]">{device.code}</span>
+                          <span>·</span>
+                          <span>{device.name}</span>
+                        </div>
+                        <div className="text-[11px] text-[#718096] truncate max-w-[200px]">
+                          {device.locationName.split(' ')[0]} ({device.cropType})
+                        </div>
+                      </td>
 
-                  {/* Kolom 2: Koneksi */}
-                  <td className="py-3.5 px-4">
-                    <div className="inline-flex items-center gap-1.5 font-medium">
-                      <span
-                        className={`h-2 w-2 rounded-full shrink-0 ${
-                          isOnline
-                            ? 'bg-[#2D6A4F]'
-                            : hasWarning
-                            ? 'bg-[#D97706]'
-                            : 'bg-[#DC2626]'
-                        }`}
-                      />
-                      <span
-                        className={`font-semibold ${
-                          isOnline
-                            ? 'text-[#2D6A4F]'
-                            : hasWarning
-                            ? 'text-[#D97706]'
-                            : 'text-[#DC2626]'
-                        }`}
-                      >
-                        {isOnline ? 'Online' : hasWarning ? 'Peringatan' : 'Offline'}
-                      </span>
-                    </div>
-                    <div className="text-[11px] font-mono text-[#718096] mt-0.5">
-                      {tel.connectivity.networkType} · {tel.connectivity.rssiDbm} dBm
-                    </div>
-                  </td>
+                      {/* Kolom 2: Status Koneksi */}
+                      <td className="py-2.5 px-3">
+                        <span
+                          className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                            isOnline
+                              ? 'bg-[#EAF4EE] text-[#2D6A4F]'
+                              : hasWarning
+                              ? 'bg-[#FEF3C7] text-[#D97706]'
+                              : 'bg-[#FEE2E2] text-[#DC2626]'
+                          }`}
+                        >
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full ${
+                              isOnline ? 'bg-[#2D6A4F]' : hasWarning ? 'bg-[#D97706]' : 'bg-[#DC2626]'
+                            }`}
+                          />
+                          <span>{isOnline ? 'Online' : hasWarning ? 'Peringatan' : 'Offline'}</span>
+                        </span>
+                      </td>
 
-                  {/* Kolom 3: Lampu */}
-                  <td className="py-3.5 px-4">
-                    <div className="font-medium text-[#192A20] flex items-center gap-1.5">
-                      <span
-                        className={`h-2 w-2 rounded-full ${
-                          tel.lamp.isActive ? 'bg-[#D97706]' : 'bg-[#CBD5E1]'
-                        }`}
-                      />
-                      <span>{tel.lamp.isActive ? 'Menyala' : 'Mati'}</span>
-                    </div>
-                    <div className="text-[11px] text-[#718096] mt-0.5">
-                      {tel.lamp.scheduleStart}–{tel.lamp.scheduleEnd} WIB
-                    </div>
-                  </td>
+                      {/* Kolom 3: Lampu */}
+                      <td className="py-2.5 px-3">
+                        <div className="flex items-center gap-1 font-medium text-[11px] text-[#192A20]">
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full ${
+                              tel.lamp.isActive ? 'bg-[#D97706]' : 'bg-[#CBD5E1]'
+                            }`}
+                          />
+                          <span>{tel.lamp.isActive ? 'Menyala' : 'Mati'}</span>
+                        </div>
+                        <div className="text-[10px] text-[#718096]">
+                          {tel.lamp.scheduleStart}–{tel.lamp.scheduleEnd}
+                        </div>
+                      </td>
 
-                  {/* Kolom 4: Baterai */}
-                  <td className="py-3.5 px-4">
-                    <div className="font-mono tabular-nums font-bold text-sm text-[#192A20]">
-                      {tel.battery.busVoltageV.toFixed(2)} V
-                    </div>
-                    {isBatteryLow ? (
-                      <div className="text-[11px] text-[#DC2626] font-semibold mt-0.5">
-                        Baterai Rendah
-                      </div>
-                    ) : (
-                      <div className="text-[11px] font-mono text-[#718096] mt-0.5">
-                        {tel.battery.currentMa > 0 ? `+${tel.battery.currentMa}` : tel.battery.currentMa} mA
-                      </div>
-                    )}
-                  </td>
+                      {/* Kolom 4: Baterai */}
+                      <td className="py-2.5 px-3">
+                        <div className="font-mono tabular-nums font-bold text-xs text-[#192A20]">
+                          {tel.battery.busVoltageV.toFixed(1)}V
+                        </div>
+                        <div className={`text-[10px] ${isBatteryLow ? 'text-[#DC2626] font-semibold' : 'text-[#718096]'}`}>
+                          {isBatteryLow ? 'Rendah' : `${tel.battery.currentMa > 0 ? '+' : ''}${tel.battery.currentMa}mA`}
+                        </div>
+                      </td>
 
-                  {/* Kolom 5: Air */}
-                  <td className="py-3.5 px-4">
-                    <div className="text-xs text-[#192A20] font-medium">
-                      Baki: <span className="font-mono font-bold">{tel.water.trayLevelPercent}%</span>
-                      <span className="text-[#718096] text-[11px]"> ({tel.water.turbidityNtu} NTU)</span>
-                    </div>
-                    <div className="text-[11px] text-[#718096] mt-0.5">
-                      Tandon: <span className="font-mono font-semibold">{tel.water.tankLevelPercent}%</span> ({tel.water.tankVolumeLiters}/50 L)
-                    </div>
-                    {isDryRun && (
-                      <span className="inline-block mt-0.5 text-[10px] font-bold text-[#DC2626]">
-                        Dry-run lock aktif
-                      </span>
-                    )}
-                  </td>
+                      {/* Kolom 5: Air Baki */}
+                      <td className="py-2.5 px-3">
+                        <div className="font-medium text-xs text-[#192A20]">
+                          Baki <span className="font-mono font-bold">{tel.water.trayLevelPercent}%</span>
+                        </div>
+                        <div className="text-[10px] text-[#718096]">
+                          Tandon {tel.water.tankLevelPercent}% ({tel.water.turbidityNtu} NTU)
+                        </div>
+                      </td>
 
-                  {/* Kolom 6: Status Operasi (Tanpa Field Waktu) */}
-                  <td className="py-3.5 px-4">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#ECF39E]/40 border border-[#90A955]/30 text-[#132A13]">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#4F772D]" />
-                      <span>{isOnline ? 'PHT Aktif' : hasWarning ? 'Perlu Tinjauan' : 'Cadangan SD'}</span>
-                    </span>
-                  </td>
+                      {/* Kolom 6: Operasi */}
+                      <td className="py-2.5 px-3">
+                        <span className="text-[11px] font-medium text-[#31572C]">
+                          {isOnline ? 'PHT Aktif' : hasWarning ? 'Perlu Tinjauan' : 'Cadangan SD'}
+                        </span>
+                      </td>
 
-                  {/* Kolom 7: Aksi */}
-                  <td className="py-3.5 px-4 text-center">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenDetail(device);
-                        }}
-                        className="inline-flex items-center gap-1 rounded-lg border border-[#D1DCD6] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#1B4332] hover:bg-[#EAF4EE] transition-colors cursor-pointer"
-                        title="Lihat Telemetri & Kontrol Perangkat"
-                      >
-                        <span>Detail</span>
-                        <ChevronRight className="h-3.5 w-3.5" />
-                      </button>
-
-                      {canManageDevices && (
-                        <>
+                      {/* Kolom 7: Aksi */}
+                      <td className="py-2.5 px-3 text-center">
+                        <div className="flex items-center justify-center gap-1">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleOpenDetail(device);
                             }}
-                            className="p-1.5 rounded-lg border border-[#2D6A4F]/40 text-[#1B4332] hover:bg-[#EAF4EE] transition-colors cursor-pointer"
-                            title="Lihat Detail & Rotasi Token Hardware"
+                            className="p-1 rounded hover:bg-[#EAF4EE] text-[#1B4332] transition-colors cursor-pointer"
+                            title="Detail"
                           >
-                            <Key className="h-3.5 w-3.5" />
+                            <ChevronRight className="h-4 w-4" />
                           </button>
-                          <button
-                            onClick={(e) => handleOpenEdit(device, e)}
-                            className="p-1.5 rounded-lg border border-[#90A955]/40 text-[#31572C] hover:bg-[#ECF39E]/30 transition-colors cursor-pointer"
-                            title="Edit Data Perangkat"
-                          >
-                            <Edit2 className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={(e) => handleDeleteDevice(device, e)}
-                            className="p-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                            title="Hapus Perangkat dari Database"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </>
-                      )}
+
+                          {canManageDevices && (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenDetail(device);
+                                }}
+                                className="p-1 rounded text-[#2D6A4F] hover:bg-[#EAF4EE] transition-colors cursor-pointer"
+                                title="Kredensial & Token"
+                              >
+                                <Key className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={(e) => handleOpenEdit(device, e)}
+                                className="p-1 rounded text-[#31572C] hover:bg-[#ECF39E]/30 transition-colors cursor-pointer"
+                                title="Edit"
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={(e) => handleDeleteDevice(device, e)}
+                                className="p-1 rounded text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                                title="Hapus"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* 6. Mobile Compact Cards */}
+          <div className="lg:hidden space-y-2">
+            {filteredDevices.map((device) => {
+              const tel = device.currentTelemetry;
+              const isOnline = device.status === 'online';
+              const hasWarning = device.status === 'warning';
+
+              return (
+                <div
+                  key={device.id}
+                  onClick={() => handleOpenDetail(device)}
+                  className="rounded-lg border border-[#E2E8F0] bg-white p-3 shadow-xs space-y-2 cursor-pointer hover:border-[#2D6A4F] transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-bold text-xs text-[#192A20]">
+                        <span className="font-mono text-[#2D6A4F]">{device.code}</span> · {device.name}
+                      </div>
+                      <div className="text-[11px] text-[#718096]">
+                        {device.locationName.split(' ')[0]} ({device.cropType})
+                      </div>
                     </div>
-                  </td>
-                </tr>
+
+                    <span
+                      className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                        isOnline
+                          ? 'bg-[#EAF4EE] text-[#2D6A4F]'
+                          : hasWarning
+                          ? 'bg-[#FEF3C7] text-[#D97706]'
+                          : 'bg-[#FEE2E2] text-[#DC2626]'
+                      }`}
+                    >
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          isOnline ? 'bg-[#2D6A4F]' : hasWarning ? 'bg-[#D97706]' : 'bg-[#DC2626]'
+                        }`}
+                      />
+                      <span>{isOnline ? 'Online' : hasWarning ? 'Peringatan' : 'Offline'}</span>
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-1.5 text-[11px] pt-1 border-t border-[#F1F5F2]">
+                    <div>
+                      <span className="text-[10px] text-[#718096] block">Baterai</span>
+                      <span className="font-mono font-bold text-[#192A20]">{tel.battery.busVoltageV.toFixed(1)}V</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-[#718096] block">Lampu</span>
+                      <span className="font-medium text-[#192A20]">{tel.lamp.isActive ? 'ON' : 'OFF'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-[#718096] block">Baki / Tandon</span>
+                      <span className="font-mono text-[#192A20]">{tel.water.trayLevelPercent}% / {tel.water.tankLevelPercent}%</span>
+                    </div>
+                  </div>
+                </div>
               );
             })}
-          </tbody>
-        </table>
-      </div>
 
-      {/* 5B. TAMPILAN MOBILE & TABLET: KARTU VERTIKAL RESPONSIVE (lg:hidden) */}
-      <div className="lg:hidden space-y-3.5">
-        {filteredDevices.map((device) => {
-          const tel = device.currentTelemetry;
-          const isOnline = device.status === 'online';
-          const hasWarning = device.status === 'warning';
-          const isBatteryLow = tel.battery.busVoltageV < device.batteryCutoffThresholdV + 0.2;
-          const isTurbid = tel.water.isTurbid;
-          const isDryRun = tel.water.safetyLockout;
-
-          return (
-            <div
-              key={device.id}
-              className="rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-xs space-y-3"
-            >
-              {/* Baris 1: Nama Perangkat dan Status Koneksi */}
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="font-bold text-base text-[#192A20] leading-snug">
-                    {device.name}
-                  </h3>
-                  <div className="text-xs text-[#718096] flex flex-wrap items-center gap-1.5 mt-0.5">
-                    <span className="font-mono font-bold text-[#2D6A4F]">{device.code}</span>
-                    <span>·</span>
-                    <span>{device.locationName}</span>
-                  </div>
-                </div>
-
-                {/* Badge Status Koneksi */}
-                <span
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${
-                    isOnline
-                      ? 'bg-[#EAF4EE] text-[#2D6A4F]'
-                      : hasWarning
-                      ? 'bg-[#FEF3C7] text-[#D97706]'
-                      : 'bg-[#FEE2E2] text-[#DC2626]'
-                  }`}
-                >
-                  <span
-                    className={`h-2 w-2 rounded-full shrink-0 ${
-                      isOnline ? 'bg-[#2D6A4F]' : hasWarning ? 'bg-[#D97706]' : 'bg-[#DC2626]'
-                    }`}
-                  />
-                  <span>{isOnline ? 'Online' : hasWarning ? 'Peringatan' : 'Offline'}</span>
-                </span>
+            {filteredDevices.length === 0 && (
+              <div className="p-6 text-center bg-white rounded-lg border border-[#E2E8F0] text-xs text-[#718096]">
+                Tidak ada unit yang sesuai pencarian.
               </div>
-
-              {/* Varietas Tanaman */}
-              <div className="text-[11px] text-[#52796F]">
-                Komoditas: <span className="font-medium text-[#192A20]">{device.cropType}</span>
-              </div>
-
-              {/* Bagian Tengah: Grid 2 Kolom untuk Baterai, Lampu, Baki, dan Tandon */}
-              <div className="grid grid-cols-2 gap-2 text-xs pt-1">
-                {/* Box 1: Baterai */}
-                <div className="p-2.5 rounded-lg bg-[#F8FAF9] border border-[#E2E8F0] space-y-0.5">
-                  <div className="text-[11px] font-medium text-[#718096]">Baterai</div>
-                  <div className="font-mono font-bold text-sm text-[#192A20]">
-                    {tel.battery.busVoltageV.toFixed(2)} V
-                  </div>
-                  <div className="text-[10px] font-mono text-[#52796F]">
-                    Arus {tel.battery.currentMa > 0 ? `+${tel.battery.currentMa}` : tel.battery.currentMa} mA
-                  </div>
-                </div>
-
-                {/* Box 2: Lampu */}
-                <div className="p-2.5 rounded-lg bg-[#F8FAF9] border border-[#E2E8F0] space-y-0.5">
-                  <div className="text-[11px] font-medium text-[#718096]">Lampu UV (365nm)</div>
-                  <div className="font-semibold text-sm text-[#192A20]">
-                    {tel.lamp.isActive ? 'Menyala' : 'Mati'}
-                  </div>
-                  <div className="text-[10px] text-[#718096]">
-                    {tel.lamp.scheduleStart}–{tel.lamp.scheduleEnd} WIB
-                  </div>
-                </div>
-
-                {/* Box 3: Air Baki */}
-                <div className="p-2.5 rounded-lg bg-[#F8FAF9] border border-[#E2E8F0] space-y-0.5">
-                  <div className="text-[11px] font-medium text-[#718096]">Air Baki</div>
-                  <div className="font-mono font-bold text-sm text-[#192A20]">
-                    {tel.water.trayLevelPercent}%
-                  </div>
-                  <div className={`text-[10px] font-medium ${isTurbid ? 'text-[#DC2626]' : 'text-[#2D6A4F]'}`}>
-                    {isTurbid ? `Keruh (${tel.water.turbidityNtu} NTU)` : `Bersih (${tel.water.turbidityNtu} NTU)`}
-                  </div>
-                </div>
-
-                {/* Box 4: Tandon */}
-                <div className="p-2.5 rounded-lg bg-[#F8FAF9] border border-[#E2E8F0] space-y-0.5">
-                  <div className="text-[11px] font-medium text-[#718096]">Tandon Cadangan</div>
-                  <div className="font-mono font-bold text-sm text-[#192A20]">
-                    {tel.water.tankLevelPercent}%
-                  </div>
-                  <div className="text-[10px] text-[#718096]">
-                    {tel.water.tankVolumeLiters}/50 Liter
-                  </div>
-                </div>
-              </div>
-
-              {/* Baris Peringatan Aktif jika Ada */}
-              {(isDryRun || isBatteryLow || hasWarning || !isOnline) && (
-                <div className="p-2.5 rounded-lg bg-[#FEF3C7] border border-[#FDE68A] text-xs text-[#92400E] flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 shrink-0 text-[#D97706]" />
-                  <span className="font-medium text-[11px]">
-                    {isDryRun
-                      ? 'Peringatan: Dry-run lock aktif (air tandon kritis).'
-                      : isBatteryLow
-                      ? 'Peringatan: Tegangan baterai mendekati batas cut-off 11.8V.'
-                      : !isOnline
-                      ? 'Perangkat offline: Data disimpan sementara di MicroSD.'
-                      : 'Perhatian: Tangkapan hama atau kondisi sensor memerlukan evaluasi.'}
-                  </span>
-                </div>
-              )}
-
-              {/* Bagian Bawah: Status Kesiapan PHT */}
-              <div className="pt-2 border-t border-[#90A955]/20 flex items-center justify-between text-xs">
-                <span className="text-[#31572C] font-medium">Status Pengendalian:</span>
-                <span className="font-semibold text-[#132A13] bg-[#ECF39E]/40 px-2.5 py-0.5 rounded-full border border-[#90A955]/30">
-                  {isOnline ? 'PHT Aktif & Terjadwal' : 'Mode Siaga'}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2 pt-1">
-                <button
-                  onClick={() => handleOpenDetail(device)}
-                  className="flex-1 min-h-[40px] py-2 px-3 bg-[#1B4332] text-white rounded-lg text-xs font-semibold hover:bg-[#2D6A4F] transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <span>Lihat Detail</span>
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-                {canManageDevices && (
-                  <>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenDetail(device);
-                      }}
-                      className="min-h-[40px] px-2.5 rounded-lg border border-[#2D6A4F]/40 text-[#1B4332] hover:bg-[#EAF4EE] text-xs font-semibold flex items-center gap-1 cursor-pointer"
-                      title="Lihat Detail & Rotasi Token"
-                    >
-                      <Key className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Token</span>
-                    </button>
-                    <button
-                      onClick={(e) => handleOpenEdit(device, e)}
-                      className="min-h-[40px] px-3 rounded-lg border border-[#90A955]/40 text-[#31572C] hover:bg-[#ECF39E]/30 text-xs font-semibold flex items-center gap-1 cursor-pointer"
-                      title="Edit Perangkat"
-                    >
-                      <Edit2 className="h-3.5 w-3.5" />
-                      <span>Edit</span>
-                    </button>
-                    <button
-                      onClick={(e) => handleDeleteDevice(device, e)}
-                      className="min-h-[40px] px-3 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold flex items-center gap-1 cursor-pointer"
-                      title="Hapus Perangkat"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          );
-        })}
-
-        {filteredDevices.length === 0 && (
-          <div className="p-8 text-center bg-white rounded-xl border border-[#E2E8F0] text-xs text-[#718096]">
-            Tidak ada perangkat yang sesuai dengan kata kunci pencarian atau filter status.
+            )}
           </div>
-        )}
-      </div>
-    </>
-  )}
+        </>
+      )}
 
-      {/* Detail Modal */}
+      {/* Modals */}
       <DeviceDetailModal
         device={activeModalDevice}
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
       />
 
-      {/* Form Modal (Tambah / Edit Perangkat - Admin only) */}
       <DeviceFormModal
         isOpen={isFormModalOpen}
         onClose={() => {

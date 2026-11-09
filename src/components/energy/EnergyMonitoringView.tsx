@@ -62,32 +62,22 @@ export const EnergyMonitoringView: React.FC = () => {
   const minV = 11.5;
 
   return (
-    <div className="space-y-6">
-      {/* Breadcrumb */}
-      <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-[#52796F]">
-        <span className="text-[#718096]">Smart Light Trap</span>
-        <ChevronRight className="h-3.5 w-3.5 text-[#A0AEC0]" />
-        <span className="font-semibold text-[#192A20]">Daya & Baterai</span>
-      </nav>
-
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#192A20]">
-            Monitoring Tenaga Surya & Baterai
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#192A20]">
+            Monitoring Tenaga Surya &amp; Baterai
           </h1>
-          <p className="text-xs sm:text-sm text-[#52796F] mt-1 max-w-2xl">
-            Pengukuran tegangan bus, arus shunt sensor INA226, dan proteksi cut-off baterai LiFePO4 12.8V.
-          </p>
         </div>
 
         {/* Device Picker */}
         <div className="flex items-center gap-2 text-xs">
-          <span className="text-[#718096]">Pilih Unit:</span>
+          <span className="text-slate-500">Unit:</span>
           <select
             value={selectedDevice.id}
             onChange={(e) => setSelectedDeviceId(e.target.value)}
-            className="rounded-lg border border-[#E2E8F0] bg-white px-3 py-1.5 font-mono text-xs font-bold text-[#192A20] focus:border-[#2D6A4F] focus:outline-hidden"
+            className="rounded-lg border border-[#E2E8F0] bg-white px-2.5 py-1 font-mono text-xs font-bold text-[#192A20] focus:border-[#2D6A4F] focus:outline-hidden"
           >
             {devices.map((d) => (
               <option key={d.id} value={d.id}>
@@ -99,107 +89,102 @@ export const EnergyMonitoringView: React.FC = () => {
       </div>
 
       {/* Real-time Telemetry Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
         {/* Tegangan Bus INA226 */}
-        <div className="rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-xs">
-          <div className="flex items-center justify-between text-xs text-[#718096] mb-1">
-            <span>Tegangan Bus (V_bus)</span>
-            <Zap className="h-4 w-4 text-[#D97706]" />
+        <div className="rounded-xl border border-[#E2E8F0] bg-white p-3 shadow-2xs">
+          <div className="flex items-center justify-between text-xs text-[#718096] mb-0.5">
+            <span>Tegangan Bus (V)</span>
+            <Zap className="h-3.5 w-3.5 text-[#D97706]" />
           </div>
-          <div className="text-2xl font-bold font-mono tabular-nums text-[#192A20]">
-            {bat.busVoltageV.toFixed(2)} <span className="text-xs font-normal text-[#718096]">Volt</span>
+          <div className="text-xl font-bold font-mono tabular-nums text-[#192A20]">
+            {bat.busVoltageV.toFixed(2)} <span className="text-[11px] font-normal text-[#718096]">V</span>
           </div>
-          <div className="mt-1 text-[11px] text-[#2D6A4F] font-semibold">
-            Tegangan Shunt: {bat.shuntVoltageMv.toFixed(1)} mV
+          <div className="mt-0.5 text-[10px] text-[#2D6A4F] font-semibold">
+            Shunt: {bat.shuntVoltageMv.toFixed(1)} mV
           </div>
         </div>
 
         {/* Arus Baterai Netto */}
-        <div className="rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-xs">
-          <div className="flex items-center justify-between text-xs text-[#718096] mb-1">
-            <span>Arus Netto (I_load/charge)</span>
-            <BatteryCharging className="h-4 w-4 text-[#2D6A4F]" />
+        <div className="rounded-xl border border-[#E2E8F0] bg-white p-3 shadow-2xs">
+          <div className="flex items-center justify-between text-xs text-[#718096] mb-0.5">
+            <span>Arus Netto</span>
+            <BatteryCharging className="h-3.5 w-3.5 text-[#2D6A4F]" />
           </div>
-          <div className={`text-2xl font-bold font-mono tabular-nums ${bat.currentMa > 0 ? 'text-[#2D6A4F]' : 'text-[#192A20]'}`}>
-            {bat.currentMa > 0 ? `+${bat.currentMa}` : bat.currentMa} <span className="text-xs font-normal text-[#718096]">mA</span>
+          <div className={`text-xl font-bold font-mono tabular-nums ${bat.currentMa > 0 ? 'text-[#2D6A4F]' : 'text-[#192A20]'}`}>
+            {bat.currentMa > 0 ? `+${bat.currentMa}` : bat.currentMa} <span className="text-[11px] font-normal text-[#718096]">mA</span>
           </div>
-          <div className="mt-1 text-[11px] text-[#718096]">
-            {bat.isCharging ? 'Solar Charging Aktif' : 'Discharging (Beban Malam)'}
+          <div className="mt-0.5 text-[10px] text-[#718096]">
+            {bat.isCharging ? 'Solar Charging' : 'Discharging (Beban)'}
           </div>
         </div>
 
-        {/* Daya Beban / Masukan */}
-        <div className="rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-xs">
-          <div className="flex items-center justify-between text-xs text-[#718096] mb-1">
+        {/* Daya Listrik */}
+        <div className="rounded-xl border border-[#E2E8F0] bg-white p-3 shadow-2xs">
+          <div className="flex items-center justify-between text-xs text-[#718096] mb-0.5">
             <span>Daya Listrik (P)</span>
-            <Sun className="h-4 w-4 text-[#D97706]" />
+            <Sun className="h-3.5 w-3.5 text-[#D97706]" />
           </div>
-          <div className="text-2xl font-bold font-mono tabular-nums text-[#192A20]">
-            {(bat.powerMw / 1000).toFixed(2)} <span className="text-xs font-normal text-[#718096]">Watt</span>
+          <div className="text-xl font-bold font-mono tabular-nums text-[#192A20]">
+            {(bat.powerMw / 1000).toFixed(2)} <span className="text-[11px] font-normal text-[#718096]">W</span>
           </div>
-          <div className="mt-1 text-[11px] text-[#718096]">
-            Reg: 0x03 Power INA226
+          <div className="mt-0.5 text-[10px] text-[#718096] font-mono">
+            INA226 0x03
           </div>
         </div>
 
-        {/* Ambang Cut-Off Firmware */}
-        <div className="rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-xs">
-          <div className="flex items-center justify-between text-xs text-[#718096] mb-1">
-            <span>Batas Cut-off Aman</span>
-            <ShieldCheck className="h-4 w-4 text-[#2D6A4F]" />
+        {/* Ambang Cut-Off */}
+        <div className="rounded-xl border border-[#E2E8F0] bg-white p-3 shadow-2xs">
+          <div className="flex items-center justify-between text-xs text-[#718096] mb-0.5">
+            <span>Cut-off Proteksi</span>
+            <ShieldCheck className="h-3.5 w-3.5 text-[#2D6A4F]" />
           </div>
-          <div className="text-2xl font-bold font-mono tabular-nums text-[#192A20]">
-            {selectedDevice.batteryCutoffThresholdV.toFixed(1)} <span className="text-xs font-normal text-[#718096]">Volt</span>
+          <div className="text-xl font-bold font-mono tabular-nums text-[#192A20]">
+            {selectedDevice.batteryCutoffThresholdV.toFixed(1)} <span className="text-[11px] font-normal text-[#718096]">V</span>
           </div>
-          <div className="mt-1 text-[11px] text-[#52796F]">
-            Mencegah over-discharge LiFePO4
+          <div className="mt-0.5 text-[10px] text-[#52796F]">
+            LiFePO4 Safe Cut-off
           </div>
         </div>
       </div>
 
       {/* 24-Hour Voltage & Current Timeline Curve */}
-      <div className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-[#E2E8F0] pb-3">
-          <div>
-            <h2 className="text-sm font-bold text-[#192A20]">
-              Riwayat Profil Tegangan & Arus Baterai (24 Jam Terakhir)
-            </h2>
-            <p className="text-xs text-[#718096]">
-              Siklus pengisian panel surya siang hari (07:00 - 16:00) vs beban lampu UV malam hari (18:00 - 05:00)
-            </p>
-          </div>
-          <div className="flex items-center gap-4 text-xs">
-            <span className="flex items-center gap-1.5 text-[#2D6A4F] font-semibold">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#2D6A4F]" />
-              Tegangan Bus (V)
+      <div className="rounded-xl border border-[#E2E8F0] bg-white p-3.5 shadow-2xs space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 border-b border-[#E2E8F0] pb-2">
+          <h2 className="text-xs font-bold text-[#192A20]">
+            Profil Tegangan &amp; Arus Baterai (24 Jam)
+          </h2>
+          <div className="flex items-center gap-3 text-xs">
+            <span className="flex items-center gap-1.5 text-[#2D6A4F] font-semibold text-[11px]">
+              <span className="h-2 w-2 rounded-full bg-[#2D6A4F]" />
+              Tegangan (V)
             </span>
-            <span className="flex items-center gap-1.5 text-[#D97706] font-semibold">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#D97706]" />
-              Arus Solar (mA)
+            <span className="flex items-center gap-1.5 text-[#D97706] font-semibold text-[11px]">
+              <span className="h-2 w-2 rounded-full bg-[#D97706]" />
+              Arus (mA)
             </span>
           </div>
         </div>
 
         {/* Loading / Empty / Live Chart Viewport */}
         {isLoadingHistory ? (
-          <div className="h-64 flex flex-col items-center justify-center gap-2 bg-[#F8FAF9] rounded-xl border border-dashed border-[#CBD5E1]">
-            <Loader2 className="h-7 w-7 text-[#2D6A4F] animate-spin" />
-            <span className="text-xs text-[#52796F] font-medium">
-              Mengambil riwayat telemetri INA226 dari Supabase...
+          <div className="h-56 flex flex-col items-center justify-center gap-1.5 bg-[#F8FAF9] rounded-lg border border-dashed border-[#CBD5E1]">
+            <Loader2 className="h-6 w-6 text-[#2D6A4F] animate-spin" />
+            <span className="text-xs text-[#52796F]">
+              Memuat data telemetri INA226...
             </span>
           </div>
         ) : dataSource === 'supabase_live' && history.length === 0 ? (
-          <div className="h-64 flex flex-col items-center justify-center gap-2 bg-[#F8FAF9] rounded-xl border border-dashed border-[#CBD5E1] p-6 text-center">
-            <Zap className="h-8 w-8 text-[#90A955]" />
+          <div className="h-56 flex flex-col items-center justify-center gap-1.5 bg-[#F8FAF9] rounded-lg border border-dashed border-[#CBD5E1] p-4 text-center">
+            <Zap className="h-6 w-6 text-[#90A955]" />
             <div className="font-bold text-xs text-[#132A13]">
               Belum Ada Riwayat Telemetri untuk Unit Ini
             </div>
             <p className="text-[11px] text-[#718096] max-w-sm">
-              Tabel <code className="font-mono bg-white px-1 py-0.5 rounded">public.device_telemetry</code> belum mencatat paket data 24 jam terakhir untuk {selectedDevice.code}. Grafik akan muncul setelah perangkat mengirim heartbeat telemetri.
+              Data akan tampil secara otomatis saat mikrokontroler mengirimkan paket heartbeat telemetri.
             </p>
           </div>
         ) : (
-          <div className="h-64 w-full overflow-x-auto">
+          <div className="h-56 w-full overflow-x-auto">
             {(() => {
               const chartData =
                 dataSource === 'simulation_demo' || history.length === 0
@@ -215,7 +200,7 @@ export const EnergyMonitoringView: React.FC = () => {
                     }));
 
               return (
-                <svg className="w-full min-w-[720px] h-full" viewBox="0 0 800 240">
+                <svg className="w-full min-w-[680px] h-full" viewBox="0 0 800 240">
                   {/* Grid Lines */}
                   {[11.5, 12.0, 12.5, 13.0, 13.5, 14.0, 14.5].map((v) => {
                     const y = 200 - ((v - minV) / (maxV - minV)) * 180;
@@ -288,7 +273,7 @@ export const EnergyMonitoringView: React.FC = () => {
                         <polyline
                           fill="none"
                           stroke="#2D6A4F"
-                          strokeWidth="2.5"
+                          strokeWidth="2"
                           points={points}
                         />
                         {chartData.map((item, i) => {
@@ -300,7 +285,7 @@ export const EnergyMonitoringView: React.FC = () => {
                               key={i}
                               cx={x}
                               cy={y}
-                              r="3"
+                              r="2.5"
                               fill="#2D6A4F"
                               stroke="#FFFFFF"
                               strokeWidth="1.5"
@@ -314,7 +299,7 @@ export const EnergyMonitoringView: React.FC = () => {
                   {/* X Axis Time Labels */}
                   {chartData
                     .filter((_, i) => i % Math.max(1, Math.floor(chartData.length / 8)) === 0)
-                    .map((item, i, arr) => {
+                    .map((item, i) => {
                       const step = Math.max(1, Math.floor(chartData.length / 8));
                       const origIdx = Math.min(chartData.length - 1, i * step);
                       const x = 55 + (origIdx / Math.max(1, chartData.length - 1)) * 710;
@@ -324,7 +309,7 @@ export const EnergyMonitoringView: React.FC = () => {
                           x={x}
                           y="222"
                           textAnchor="middle"
-                          fontSize="9.5"
+                          fontSize="9"
                           fill="#718096"
                           className="font-mono tabular-nums"
                         >
@@ -340,35 +325,35 @@ export const EnergyMonitoringView: React.FC = () => {
       </div>
 
       {/* Engineering Note on LiFePO4 Voltage & Calibration */}
-      <div className="rounded-xl border border-[#D1DCD6] bg-[#F8FAF9] p-5 shadow-xs space-y-3">
-        <div className="flex items-start gap-3">
-          <div className="p-2.5 rounded-lg bg-[#EAF4EE] text-[#1B4332] shrink-0">
-            <Info className="h-5 w-5" />
+      <div className="rounded-xl border border-[#D1DCD6] bg-[#F8FAF9] p-3 shadow-2xs space-y-2">
+        <div className="flex items-start gap-2.5">
+          <div className="p-1.5 rounded-lg bg-[#EAF4EE] text-[#1B4332] shrink-0 mt-0.5">
+            <Info className="h-4 w-4" />
           </div>
-          <div className="flex-1 space-y-2 text-xs">
-            <h3 className="font-bold text-[#192A20]">
-              Pedoman Teknis Pengukuran Energi LiFePO4 & Proteksi Hardware
+          <div className="flex-1 space-y-1.5 text-xs">
+            <h3 className="font-bold text-[#192A20] text-xs">
+              Catatan Teknis LiFePO4 &amp; Proteksi Sistem
             </h3>
-            <p className="text-[#4A5568] leading-relaxed">
-              Baterai Lithium Iron Phosphate (LiFePO4) memiliki kurva pengosongan yang sangat datar di rentang 13.2V hingga 12.8V. Sesuai prinsip rekayasa agritech, persentase baterai tidak boleh diestimasi semata-mata dari tegangan tanpa kalibrasi Coulomb Counter (integrasi arus shunt INA226).
+            <p className="text-[#4A5568] leading-relaxed text-[11px]">
+              Kurva pengosongan LiFePO4 sangat datar (13.2V–12.8V). Kapasitas diestimasi melalui integrasi arus shunt INA226 (Coulomb Counter).
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1 text-[11px]">
-              <div className="p-3 bg-white rounded-lg border border-[#E2E8F0]">
-                <strong className="text-[#192A20] block mb-1">Proteksi Hardware (BMS)</strong>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-0.5 text-[11px]">
+              <div className="p-2 bg-white rounded-lg border border-[#E2E8F0]">
+                <strong className="text-[#192A20] block mb-0.5">BMS Hardware</strong>
                 <p className="text-[#718096]">
-                  Proteksi primer dilakukan oleh BMS 4S 30A independen untuk over-voltage (14.6V) dan under-voltage (10.0V).
+                  BMS 4S 30A membatasi over-voltage (14.6V) dan under-voltage (10.0V).
                 </p>
               </div>
-              <div className="p-3 bg-white rounded-lg border border-[#E2E8F0]">
-                <strong className="text-[#192A20] block mb-1">Proteksi Firmware ESP32</strong>
+              <div className="p-2 bg-white rounded-lg border border-[#E2E8F0]">
+                <strong className="text-[#192A20] block mb-0.5">Firmware Auto Cut-Off</strong>
                 <p className="text-[#718096]">
-                  ESP32 mematikan relay lampu UV jika tegangan bus turun &lt; 11.8V selama 3 pembacaan berturut-turut untuk menjaga daya modem 4G.
+                  Lampu UV dimatikan jika tegangan &lt; 11.8V untuk menjaga daya mikrokontroler.
                 </p>
               </div>
-              <div className="p-3 bg-white rounded-lg border border-[#E2E8F0]">
-                <strong className="text-[#192A20] block mb-1">Kapasitas Panel Surya</strong>
+              <div className="p-2 bg-white rounded-lg border border-[#E2E8F0]">
+                <strong className="text-[#192A20] block mb-0.5">Panel Surya</strong>
                 <p className="text-[#718096]">
-                  Modul surya 50Wp monokristalin menghasilkan rata-rata 180Wh pada hari cerah, cukup untuk konsumsi harian 125Wh sistem.
+                  50Wp menghasilkan ~180Wh/hari (konsumsi harian sistem ~125Wh).
                 </p>
               </div>
             </div>

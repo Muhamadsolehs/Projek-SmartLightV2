@@ -83,146 +83,121 @@ const ActuatorCard: React.FC<ActuatorCardProps> = ({
 }) => {
   return (
     <div
-      className={`p-5 rounded-2xl border transition-all ${
+      className={`p-3.5 rounded-xl border transition-all ${
         dbStatus
-          ? 'bg-emerald-50/60 border-[#2D6A4F] shadow-sm'
-          : 'bg-white border-slate-200 shadow-xs'
+          ? 'bg-[#EAF4EE]/25 border-[#2D6A4F]/60 shadow-xs ring-1 ring-[#2D6A4F]/20'
+          : 'bg-white border-[#E2E8F0] shadow-2xs hover:border-[#D1DCD6]'
       }`}
     >
       {/* Header: Title, Pin, Database Status Badge */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5">
           <div
-            className={`flex h-11 w-11 items-center justify-center rounded-xl font-mono text-sm font-bold shadow-xs transition-colors ${
+            className={`flex h-8 w-8 items-center justify-center rounded-lg font-mono text-xs font-bold transition-colors ${
               dbStatus
-                ? 'bg-[#2D6A4F] text-white shadow-emerald-900/20'
-                : 'bg-slate-100 text-slate-600'
+                ? 'bg-[#1B4332] text-white shadow-xs'
+                : 'bg-[#F1F5F2] text-[#52796F] border border-[#E2E8F0]'
             }`}
           >
             R{channel}
           </div>
           <div>
-            <h3 className="font-bold text-sm text-[#192A20] flex items-center gap-1.5">
-              <Icon className={`h-4 w-4 ${dbStatus ? 'text-[#2D6A4F]' : 'text-slate-500'}`} />
-              {name}
+            <h3 className="font-bold text-xs text-[#192A20] flex items-center gap-1.5">
+              <Icon className={`h-3.5 w-3.5 ${dbStatus ? 'text-[#2D6A4F]' : 'text-[#52796F]'}`} />
+              <span>{name}</span>
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5 font-mono flex items-center gap-1.5">
-              <span>{hardwarePin}</span>
-              <span>·</span>
-              <span className="text-emerald-800 bg-emerald-100/80 px-1.5 py-0.2 rounded font-bold">
-                {dbColumn}
-              </span>
+            <p className="text-[10px] text-[#718096] font-mono mt-0.5">
+              {hardwarePin.split('·')[0].trim()} · {dbColumn}
             </p>
           </div>
         </div>
 
-        {/* Live Database Status Badge */}
-        <div className="text-right">
+        {/* Small Status Badge */}
+        <span
+          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border transition-colors ${
+            dbStatus
+              ? 'bg-emerald-50 text-[#1B4332] border-emerald-200'
+              : 'bg-slate-50 text-slate-600 border-slate-200'
+          }`}
+        >
           <span
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono font-bold border transition-colors ${
-              dbStatus
-                ? 'bg-emerald-100 text-emerald-900 border-emerald-400 shadow-xs'
-                : 'bg-slate-100 text-slate-600 border-slate-200'
+            className={`h-1.5 w-1.5 rounded-full ${
+              dbStatus ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'
             }`}
-          >
-            <span
-              className={`h-2 w-2 rounded-full ${
-                dbStatus
-                  ? 'bg-emerald-500 animate-pulse'
-                  : 'bg-slate-400'
-              }`}
-            />
-            {dbStatus ? 'ON (true)' : 'OFF (false)'}
-          </span>
-          <div className="text-[10px] text-slate-400 mt-1">Status Tabel Relay</div>
-        </div>
+          />
+          {dbStatus ? 'ON' : 'OFF'}
+        </span>
       </div>
 
       {/* Description / Function */}
-      <p className="text-xs text-slate-600 mt-3 leading-relaxed">{description}</p>
+      <p className="text-[11px] text-[#718096] mt-2 line-clamp-2 leading-relaxed">{description}</p>
 
-      {/* Protection or Interlock Banner */}
+      {/* Protection or Interlock */}
       {protectionNote && (
-        <div className="mt-2.5 p-2 rounded-lg bg-slate-50 border border-slate-100 text-[11px] text-slate-600 flex items-center justify-between">
-          <span className="text-slate-500">Mekanisme:</span>
-          <span className="font-semibold text-slate-700">{protectionNote}</span>
+        <div className="mt-2 px-2 py-1 rounded-md bg-[#F8FAF9] border border-[#E2E8F0] text-[10px] text-[#718096] flex items-center justify-between">
+          <span className="text-[#A0AEC0]">Proteksi:</span>
+          <span className="font-medium text-[#192A20] truncate">{protectionNote}</span>
         </div>
       )}
 
-      {/* ===================================================================== */}
-      {/* KONTROL MANUAL: PILIHAN ON (true) & OFF (false)                        */}
-      {/* ===================================================================== */}
-      <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
-        <div className="flex items-center justify-between text-[11px] font-medium text-slate-500">
-          <span>Pilihan Kontrol Manual:</span>
-          <span className="text-[10px] font-mono">
-            Nilai di DB:{' '}
-            <strong className={dbStatus ? 'text-emerald-700 font-bold' : 'text-slate-700 font-bold'}>
-              {dbStatus ? 'true' : 'false'}
-            </strong>
-          </span>
-        </div>
+      {/* Kontrol ON / OFF Buttons */}
+      <div className="mt-3 pt-2.5 border-t border-[#E2E8F0] grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          disabled={isExecuting || !canControl}
+          onClick={onTurnOn}
+          className={`py-1.5 px-2.5 rounded-lg font-semibold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+            dbStatus
+              ? 'bg-[#1B4332] text-white shadow-xs'
+              : 'border border-[#2D6A4F] bg-white text-[#1B4332] hover:bg-[#EAF4EE]'
+          }`}
+          title={`Nyalakan Relay ${channel}`}
+        >
+          {isExecuting ? (
+            <RefreshCw className="h-3 w-3 animate-spin" />
+          ) : dbStatus ? (
+            <Check className="h-3 w-3 text-white" />
+          ) : (
+            <Power className="h-3 w-3" />
+          )}
+          <span>Nyalakan (ON)</span>
+        </button>
 
-        <div className="grid grid-cols-2 gap-2">
-          {/* Tombol ON (true) */}
-          <button
-            type="button"
-            disabled={isExecuting}
-            onClick={onTurnOn}
-            className={`py-2.5 px-3 rounded-xl font-bold text-xs transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-              dbStatus
-                ? 'bg-[#2D6A4F] text-white ring-2 ring-emerald-500/50 shadow-sm'
-                : 'bg-emerald-50/80 text-emerald-800 border border-emerald-300 hover:bg-[#2D6A4F] hover:text-white'
-            }`}
-            title={`Set kolom ${dbColumn} menjadi true (ON) di tabel relay_status`}
-          >
-            {isExecuting ? (
-              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-            ) : dbStatus ? (
-              <Check className="h-3.5 w-3.5 text-white" />
-            ) : (
-              <Power className="h-3.5 w-3.5" />
-            )}
-            <span>Nyalakan (ON)</span>
-          </button>
-
-          {/* Tombol OFF (false) */}
-          <button
-            type="button"
-            disabled={isExecuting}
-            onClick={onTurnOff}
-            className={`py-2.5 px-3 rounded-xl font-bold text-xs transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-              !dbStatus
-                ? 'bg-slate-800 text-white ring-2 ring-slate-400/50 shadow-sm'
-                : 'bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-800 hover:text-white'
-            }`}
-            title={`Set kolom ${dbColumn} menjadi false (OFF) di tabel relay_status`}
-          >
-            {isExecuting ? (
-              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-            ) : !dbStatus ? (
-              <Check className="h-3.5 w-3.5 text-white" />
-            ) : (
-              <Square className="h-3.5 w-3.5" />
-            )}
-            <span>Matikan (OFF)</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          disabled={isExecuting || !canControl}
+          onClick={onTurnOff}
+          className={`py-1.5 px-2.5 rounded-lg font-semibold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+            !dbStatus
+              ? 'bg-slate-700 text-white shadow-xs'
+              : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+          }`}
+          title={`Matikan Relay ${channel}`}
+        >
+          {isExecuting ? (
+            <RefreshCw className="h-3 w-3 animate-spin" />
+          ) : !dbStatus ? (
+            <Check className="h-3 w-3 text-white" />
+          ) : (
+            <Square className="h-3 w-3" />
+          )}
+          <span>Matikan (OFF)</span>
+        </button>
       </div>
 
-      {/* Quick Timed Actions (e.g. Isi 15s, Kuras 25s, Uji 60s) */}
+      {/* Quick Timed Options */}
       {timedOptions && timedOptions.length > 0 && onTimedAction && (
-        <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-          <span className="text-[11px] text-slate-400 font-medium">Operasi Berbatas Waktu:</span>
-          <div className="flex items-center gap-1.5">
+        <div className="mt-2 pt-2 border-t border-[#E2E8F0] flex items-center justify-between gap-1 text-[10px]">
+          <span className="text-[#A0AEC0]">Timer:</span>
+          <div className="flex items-center gap-1">
             {timedOptions.map((opt) => (
               <button
                 key={opt.seconds}
                 type="button"
-                disabled={isExecuting || activeTimer !== undefined && activeTimer !== null}
+                disabled={isExecuting || (activeTimer !== undefined && activeTimer !== null) || !canControl}
                 onClick={() => onTimedAction(opt.seconds, opt.label)}
-                className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-semibold disabled:opacity-40 transition-colors cursor-pointer"
-                title={`Jalankan selama ${opt.seconds} detik lalu matikan otomatis`}
+                className="px-2 py-0.5 rounded-md bg-[#F1F5F2] text-[#192A20] hover:bg-[#E2E8F0] border border-[#E2E8F0] text-[10px] font-medium disabled:opacity-40 transition-colors cursor-pointer"
+                title={`Aktifkan selama ${opt.seconds}s`}
               >
                 {activeTimer ? `${activeTimer}s...` : opt.label}
               </button>
@@ -230,20 +205,6 @@ const ActuatorCard: React.FC<ActuatorCardProps> = ({
           </div>
         </div>
       )}
-
-      {/* Footer Info */}
-      <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
-        <div className="flex items-center gap-1 truncate">
-          <Clock className="h-3 w-3 text-slate-400 shrink-0" />
-          <span>Status Hardware:</span>
-          <span className="font-mono text-slate-600 font-medium truncate">
-            {isDeviceOnline ? (actualStatus === 'ON' ? 'Aktif (0V)' : 'Standby (3.3V)') : 'Menunggu ESP8266'}
-          </span>
-        </div>
-        <span className="font-mono px-1.5 py-0.2 rounded text-[10px] font-bold bg-slate-100 text-slate-600">
-          id=1 · {dbColumn}
-        </span>
-      </div>
     </div>
   );
 };
@@ -608,28 +569,17 @@ export const ManualControlView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Breadcrumb Navigation */}
-      <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-[#52796F]">
-        <span className="text-[#718096]">Smart Light Trap</span>
-        <ChevronRight className="h-3.5 w-3.5 text-[#A0AEC0]" />
-        <span className="font-semibold text-[#192A20]">Kontrol Manual &amp; Aktuator</span>
-      </nav>
-
+    <div className="space-y-4">
       {/* Page Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-[#E2E8F0] pb-3">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#192A20] flex items-center gap-2.5">
-            <Sliders className="h-7 w-7 text-[#2D6A4F]" />
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#192A20]">
             Kontrol Manual &amp; Aktuator
           </h1>
-          <p className="text-xs sm:text-sm text-[#52796F] mt-1 max-w-3xl leading-relaxed">
-            Pengendalian langsung saklar 4-channel relay fisik ESP8266 NodeMCU (Active LOW), pompa pengisi tandon, katup solenoid drain baki, lampu UV 365nm, kipas blower, dan makro siklus operasional lapangan.
-          </p>
         </div>
 
         {/* Global Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             disabled={isExecuting}
@@ -638,18 +588,18 @@ export const ManualControlView: React.FC = () => {
               await refreshData();
               setFeedback({ type: 'success', message: 'Data status perangkat berhasil disinkronkan.' });
             }}
-            className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+            className="px-2.5 py-1.5 rounded-lg border border-[#E2E8F0] bg-white hover:bg-[#F8FAF9] text-xs font-semibold text-[#192A20] flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
             title="Muat ulang status telemetri dari cloud"
           >
-            <RefreshCw className={`h-3.5 w-3.5 text-slate-500 ${isExecuting ? 'animate-spin' : ''}`} />
-            <span>Refresh Status</span>
+            <RefreshCw className={`h-3.5 w-3.5 text-[#52796F] ${isExecuting ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
           </button>
 
           <button
             type="button"
             disabled={!canControl || !isDeviceOnline || isExecuting}
             onClick={() => setIsAllOffModalOpen(true)}
-            className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-2.5 py-1.5 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             title="Matikan seluruh aktuator fisik secara serempak"
           >
             <Square className="h-3.5 w-3.5" />
@@ -660,36 +610,31 @@ export const ManualControlView: React.FC = () => {
 
       {/* Role Permission Alert (if viewer or analyst) */}
       {!canControl && (
-        <div className="p-4 rounded-2xl border border-rose-200 bg-rose-50 text-xs text-rose-900 flex items-start gap-3 shadow-xs">
-          <Lock className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <div className="font-bold text-rose-950">Mode Baca-Saja (Akses Kontrol Terbatas)</div>
-            <p className="text-[11px] text-rose-700 leading-relaxed">
-              Anda saat ini masuk sebagai <strong>{roleMeta.label}</strong>. Tombol pengaktifan relay fisik, pompa baki, saklar lampu, dan reboot mikrokontroler dinonaktifkan demi keselamatan operasional lapangan. Hak kendali hanya diberikan kepada <strong>Operator Teknis Lapangan</strong> dan <strong>Administrator Sistem</strong>.
-            </p>
-          </div>
+        <div className="p-3 rounded-xl border border-rose-200 bg-rose-50 text-xs text-rose-900 flex items-center gap-2.5 shadow-2xs">
+          <Lock className="h-4 w-4 text-rose-600 shrink-0" />
+          <p className="text-xs text-rose-800">
+            <strong>Mode Baca-Saja ({roleMeta.label}):</strong> Tombol pengaktifan relay fisik dinonaktifkan. Hak kendali hanya untuk Operator dan Admin.
+          </p>
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* DEVICE SELECTOR & ONLINE / OFFLINE INTEGRITY STRIP                         */}
-      {/* ========================================================================= */}
-      <div className="p-4 sm:p-5 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+      {/* Device Selector & Live Telemetry Bar */}
+      <div className="p-3.5 rounded-xl border border-[#E2E8F0] bg-white shadow-2xs space-y-2.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E2E8F0] pb-2">
           <div className="flex items-center gap-2">
-            <Radio className="h-5 w-5 text-[#2D6A4F]" />
-            <h2 className="font-bold text-sm text-[#192A20]">Pilih Perangkat Target Kontrol:</h2>
+            <Radio className="h-4 w-4 text-[#2D6A4F]" />
+            <span className="font-semibold text-xs text-[#192A20]">Pilih Target Kontrol:</span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <span>Status Armada:</span>
-            <span className="font-mono font-bold text-slate-700">
+          <div className="flex items-center gap-2 text-xs text-[#718096] font-mono">
+            <span>Armada:</span>
+            <span className="font-semibold text-[#192A20]">
               {devices.filter((d) => d.status === 'online').length} Online / {devices.length} Total
             </span>
           </div>
         </div>
 
-        {/* Device Selection Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* Device Selection Pills */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {devices.map((dev) => {
             const isSelected = dev.id === selectedDevice.id;
             const isOnline = dev.status === 'online';
@@ -699,30 +644,29 @@ export const ManualControlView: React.FC = () => {
                 key={dev.id}
                 type="button"
                 onClick={() => setSelectedDeviceId(dev.id)}
-                className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer relative ${
+                className={`p-2 rounded-lg border text-left transition-all cursor-pointer ${
                   isSelected
-                    ? 'border-[#2D6A4F] bg-[#F4F9F6] shadow-sm ring-2 ring-[#2D6A4F]/20'
-                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
+                    ? 'border-[#2D6A4F] bg-[#EAF4EE]/40 shadow-2xs ring-1 ring-[#2D6A4F]'
+                    : 'border-[#E2E8F0] bg-white hover:border-[#D1DCD6] hover:bg-[#F8FAF9]'
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs font-bold text-[#1B4332] bg-[#EAF4EE] px-2 py-0.5 rounded border border-[#2D6A4F]/20">
+                  <span className="font-mono text-xs font-bold text-[#1B4332]">
                     {dev.code}
                   </span>
                   <span
-                    className={`inline-flex items-center gap-1 text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full ${
-                      isOnline ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                    className={`inline-flex items-center gap-1 text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-full border ${
+                      isOnline
+                        ? 'bg-emerald-50 text-[#1B4332] border-emerald-200'
+                        : 'bg-rose-50 text-rose-700 border-rose-200'
                     }`}
                   >
                     <span className={`h-1.5 w-1.5 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-rose-500'}`} />
                     {isOnline ? 'ONLINE' : 'OFFLINE'}
                   </span>
                 </div>
-                <div className="font-bold text-xs text-[#192A20] mt-2 truncate">{dev.name}</div>
-                <div className="text-[11px] text-slate-500 truncate mt-0.5">
-                  {dev.locationName} · {dev.farmSector}
-                </div>
-                <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] font-mono text-slate-500">
+                <div className="text-[11px] text-[#718096] truncate mt-1">{dev.name}</div>
+                <div className="mt-1 pt-1 border-t border-[#E2E8F0] flex items-center justify-between text-[10px] font-mono text-[#A0AEC0]">
                   <span>Bat: {dev.currentTelemetry?.battery?.busVoltageV?.toFixed(1) || '12.8'}V</span>
                   <span>Tandon: {dev.currentTelemetry?.water?.tankLevelPercent || 0}%</span>
                 </div>
@@ -731,227 +675,170 @@ export const ManualControlView: React.FC = () => {
           })}
         </div>
 
-        {/* Selected Device Banner & Offline Warning */}
-        <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-slate-700">Target Kontrol Aktif:</span>
-              <span className="font-mono font-bold text-[#1B4332] bg-white px-2.5 py-0.5 rounded border border-slate-200 shadow-2xs">
-                {selectedDevice.code} ({selectedDevice.name})
-              </span>
-              <span
-                className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                  isDeviceOnline ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                }`}
-              >
-                {isDeviceOnline ? '● Terhubung (Heartbeat Aktif)' : '○ Koneksi Terputus / Stale'}
-              </span>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-600">
-              <span className="flex items-center gap-1.5">
-                <Zap className="h-3.5 w-3.5 text-amber-600" />
-                Bus: <strong className="font-mono text-slate-900">{tel?.battery?.busVoltageV?.toFixed(2)} V</strong>
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Layers className="h-3.5 w-3.5 text-[#2D6A4F]" />
-                Tandon: <strong className="font-mono text-slate-900">{tel?.water?.tankLevelPercent}% ({tel?.water?.tankVolumeLiters}L)</strong>
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5 text-slate-500" />
-                Sync: <strong className="font-mono text-slate-900">{selectedDevice.lastSyncAt ? selectedDevice.lastSyncAt.split('T')[1]?.slice(0, 8) : 'Real-time'} WIB</strong>
-              </span>
-            </div>
+        {/* Selected Device Telemetry Summary */}
+        <div className="p-2.5 rounded-lg bg-[#F8FAF9] border border-[#E2E8F0] flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="text-[#718096] text-[11px]">Target:</span>
+            <span className="font-mono font-bold text-[#1B4332] bg-white px-2 py-0.5 rounded border border-[#D1DCD6] text-xs">
+              {selectedDevice.code} ({selectedDevice.name})
+            </span>
+            <span
+              className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold border ${
+                isDeviceOnline
+                  ? 'bg-emerald-50 text-[#1B4332] border-emerald-200'
+                  : 'bg-rose-50 text-rose-700 border-rose-200'
+              }`}
+            >
+              {isDeviceOnline ? '● Online' : '○ Offline'}
+            </span>
           </div>
 
-          {!isDeviceOnline && (
-            <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900 flex items-center gap-2 animate-in fade-in">
-              <Info className="h-4 w-4 text-amber-600 shrink-0" />
-              <span>
-                <strong>Info Sinkronisasi:</strong> Perangkat {selectedDevice.code} belum mengirimkan heartbeat telemetri terbaru. Anda tetap dapat mengontrol status relay secara langsung ke tabel database Supabase (<code>public.relay_status</code>). Mikrokontroler akan menyinkronkan status saat tersambung.
-              </span>
-            </div>
-          )}
+          <div className="flex items-center gap-3 text-xs text-[#718096]">
+            <span className="flex items-center gap-1">
+              <Zap className="h-3 w-3 text-amber-600" />
+              <strong className="font-mono text-[#192A20]">{tel?.battery?.busVoltageV?.toFixed(2)} V</strong>
+            </span>
+            <span className="flex items-center gap-1">
+              <Layers className="h-3 w-3 text-[#2D6A4F]" />
+              <strong className="font-mono text-[#192A20]">{tel?.water?.tankLevelPercent}%</strong>
+            </span>
+            <span className="flex items-center gap-1 text-[11px] text-[#A0AEC0]">
+              <Clock className="h-3 w-3" />
+              <span className="font-mono">{selectedDevice.lastSyncAt ? selectedDevice.lastSyncAt.split('T')[1]?.slice(0, 8) : 'Real-time'} WIB</span>
+            </span>
+          </div>
         </div>
+
+        {!isDeviceOnline && (
+          <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-900 flex items-center gap-1.5">
+            <Info className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+            <span>Perangkat offline. Perubahan relay langsung disimpan ke database Supabase dan disinkronkan saat terhubung kembali.</span>
+          </div>
+        )}
       </div>
 
       {/* Real-Time Command Feedback Alert */}
       {feedback && (
         <div
-          className={`p-4 rounded-xl border text-xs flex items-start gap-3 transition-all animate-in fade-in ${
+          className={`p-3 rounded-xl border text-xs flex items-center gap-2.5 transition-all ${
             feedback.type === 'success'
-              ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+              ? 'bg-emerald-50 border-emerald-200 text-[#1B4332]'
               : feedback.type === 'error'
-              ? 'bg-rose-50 border-rose-300 text-rose-900'
-              : 'bg-blue-50 border-blue-300 text-blue-900'
+              ? 'bg-rose-50 border-rose-200 text-rose-900'
+              : 'bg-blue-50 border-blue-200 text-blue-900'
           }`}
         >
           {feedback.type === 'success' ? (
-            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
           ) : feedback.type === 'error' ? (
-            <AlertTriangle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+            <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
           ) : (
-            <RefreshCw className="h-5 w-5 text-blue-600 animate-spin shrink-0 mt-0.5" />
+            <RefreshCw className="h-4 w-4 text-blue-600 animate-spin shrink-0" />
           )}
-          <div className="flex-1 min-w-0">
-            <div className="font-bold">
-              {feedback.type === 'success' ? 'Berhasil Terkirim & Terkonfirmasi' : feedback.type === 'error' ? 'Peringatan / Kegagalan' : 'Sedang Memproses'}
-            </div>
-            <p className="mt-0.5 text-[11px] leading-relaxed">{feedback.message}</p>
-          </div>
+          <span className="flex-1 font-medium">{feedback.message}</span>
+          <button
+            type="button"
+            onClick={() => setFeedback(null)}
+            className="text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* KONTROL MANUAL STATUS TABEL RELAY_STATUS (SUPABASE)                        */}
-      {/* ========================================================================= */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-950 via-[#132A13] to-[#1B4332] text-white shadow-lg border border-emerald-800/40 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center shrink-0">
-              <Database className="h-5 w-5 text-[#ECF39E]" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm sm:text-base font-bold text-white tracking-wide">
-                  Kontrol Manual Database Supabase (Tabel <code className="text-[#ECF39E]">relay_status</code>)
-                </h2>
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" title="Realtime Aktif" />
-              </div>
-              <p className="text-xs text-emerald-200/80 mt-0.5 font-mono">
-                Target: rest/v1/relay_status?id=eq.1 · Unit: {selectedDevice.code}
-                {lastRelayUpdatedAt && ` · Update: ${lastRelayUpdatedAt.split('T')[1]?.slice(0, 8)} UTC`}
-              </p>
-            </div>
+      {/* Supabase relay_status database live control bar */}
+      <div className="p-3.5 rounded-xl bg-white border border-[#E2E8F0] shadow-2xs space-y-2.5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-[#E2E8F0] pb-2.5">
+          <div className="flex items-center gap-2">
+            <Database className="h-4 w-4 text-[#2D6A4F]" />
+            <h2 className="text-xs font-bold text-[#192A20] tracking-wide flex items-center gap-1.5">
+              <span>Status Database Relay</span>
+              <code className="text-[#1B4332] bg-[#EAF4EE] px-1.5 py-0.5 rounded font-mono text-[10px]">relay_status</code>
+            </h2>
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" title="Realtime Aktif" />
+            <span className="text-[10px] text-[#718096] font-mono hidden sm:inline">
+              · {selectedDevice.code}
+            </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
-              disabled={isExecuting}
+              disabled={isExecuting || !canControl}
               onClick={() => handleSetAllRelays(true)}
-              className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer disabled:opacity-50"
-              title="Set seluruh channel (1-4) menjadi true"
+              className="px-2.5 py-1 rounded-lg bg-[#1B4332] hover:bg-[#2D6A4F] text-white font-semibold text-xs flex items-center gap-1 transition-all cursor-pointer shadow-2xs disabled:opacity-40"
             >
-              <Power className="h-3.5 w-3.5" />
+              <Power className="h-3 w-3" />
               <span>Semua ON</span>
             </button>
             <button
               type="button"
-              disabled={isExecuting}
+              disabled={isExecuting || !canControl}
               onClick={() => handleSetAllRelays(false)}
-              className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer disabled:opacity-50"
-              title="Set seluruh channel (1-4) menjadi false"
+              className="px-2.5 py-1 rounded-lg border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold text-xs flex items-center gap-1 transition-all cursor-pointer shadow-2xs disabled:opacity-40"
             >
-              <Square className="h-3.5 w-3.5" />
+              <Square className="h-3 w-3" />
               <span>Semua OFF</span>
             </button>
             <button
               type="button"
               disabled={isRefreshingTable}
               onClick={fetchRelayTableStatus}
-              className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50 border border-white/10"
-              title="Muat ulang data dari Supabase"
+              className="p-1 rounded-lg border border-[#E2E8F0] bg-white hover:bg-slate-50 text-[#718096] text-xs transition-all cursor-pointer disabled:opacity-50 shadow-2xs"
+              title="Refresh tabel relay"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingTable ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Refresh</span>
             </button>
           </div>
         </div>
 
         {/* Live Channel Status Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-emerald-800/50">
-          <div className="p-2.5 rounded-xl bg-black/20 border border-emerald-500/20 flex items-center justify-between">
-            <div className="min-w-0">
-              <span className="text-[10px] text-emerald-300 block font-mono">channel_1</span>
-              <span className="text-xs font-bold text-white truncate block">Pompa Air</span>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5">
+          {[
+            { ch: 1, name: 'Pompa Air', state: relayTableStatus[1] },
+            { ch: 2, name: 'Solenoid Drain', state: relayTableStatus[2] },
+            { ch: 3, name: 'Lampu LED UV', state: relayTableStatus[3] },
+            { ch: 4, name: 'Kipas Blower', state: relayTableStatus[4] },
+          ].map((item) => (
+            <div key={item.ch} className="p-2 rounded-lg bg-[#F8FAF9] border border-[#E2E8F0] flex items-center justify-between">
+              <div className="min-w-0">
+                <span className="text-[9px] text-[#A0AEC0] block font-mono">channel_{item.ch}</span>
+                <span className="text-[11px] font-semibold text-[#192A20] truncate block">{item.name}</span>
+              </div>
+              <span
+                className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border ${
+                  item.state ? 'bg-emerald-50 text-[#1B4332] border-emerald-200' : 'bg-white text-slate-500 border-slate-200'
+                }`}
+              >
+                {item.state ? 'ON' : 'OFF'}
+              </span>
             </div>
-            <span
-              className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                relayTableStatus[1]
-                  ? 'bg-emerald-400 text-black font-extrabold shadow-xs'
-                  : 'bg-white/10 text-emerald-200'
-              }`}
-            >
-              {relayTableStatus[1] ? 'TRUE (ON)' : 'FALSE (OFF)'}
-            </span>
-          </div>
-
-          <div className="p-2.5 rounded-xl bg-black/20 border border-emerald-500/20 flex items-center justify-between">
-            <div className="min-w-0">
-              <span className="text-[10px] text-emerald-300 block font-mono">channel_2</span>
-              <span className="text-xs font-bold text-white truncate block">Solenoid Drain</span>
-            </div>
-            <span
-              className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                relayTableStatus[2]
-                  ? 'bg-emerald-400 text-black font-extrabold shadow-xs'
-                  : 'bg-white/10 text-emerald-200'
-              }`}
-            >
-              {relayTableStatus[2] ? 'TRUE (ON)' : 'FALSE (OFF)'}
-            </span>
-          </div>
-
-          <div className="p-2.5 rounded-xl bg-black/20 border border-emerald-500/20 flex items-center justify-between">
-            <div className="min-w-0">
-              <span className="text-[10px] text-emerald-300 block font-mono">channel_3</span>
-              <span className="text-xs font-bold text-white truncate block">Lampu LED UV</span>
-            </div>
-            <span
-              className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                relayTableStatus[3]
-                  ? 'bg-emerald-400 text-black font-extrabold shadow-xs'
-                  : 'bg-white/10 text-emerald-200'
-              }`}
-            >
-              {relayTableStatus[3] ? 'TRUE (ON)' : 'FALSE (OFF)'}
-            </span>
-          </div>
-
-          <div className="p-2.5 rounded-xl bg-black/20 border border-emerald-500/20 flex items-center justify-between">
-            <div className="min-w-0">
-              <span className="text-[10px] text-emerald-300 block font-mono">channel_4</span>
-              <span className="text-xs font-bold text-white truncate block">Kipas / Aux</span>
-            </div>
-            <span
-              className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                relayTableStatus[4]
-                  ? 'bg-emerald-400 text-black font-extrabold shadow-xs'
-                  : 'bg-white/10 text-emerald-200'
-              }`}
-            >
-              {relayTableStatus[4] ? 'TRUE (ON)' : 'FALSE (OFF)'}
-            </span>
-          </div>
+          ))}
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* 4 DEDICATED ACTUATOR CONTROL CARDS                                        */}
-      {/* ========================================================================= */}
-      <div className="space-y-4">
+      {/* 4 Dedicated Actuator Control Cards */}
+      <div className="space-y-2.5">
         <div className="flex items-center justify-between">
-          <h2 className="text-base sm:text-lg font-bold text-[#192A20] flex items-center gap-2">
-            <Cpu className="h-5 w-5 text-[#2D6A4F]" />
-            Panel Aktuator Fisik (4-Channel Relay ESP8266 NodeMCU)
+          <h2 className="text-sm font-bold text-[#192A20] flex items-center gap-1.5">
+            <Cpu className="h-4 w-4 text-[#2D6A4F]" />
+            Panel Aktuator Fisik (4-Channel Relay NodeMCU)
           </h2>
-          <span className="text-xs text-slate-500 font-mono">
-            Protokol: Active LOW (0V=ON, 3.3V=OFF)
+          <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-md bg-[#F1F5F2] border border-[#E2E8F0] text-[#52796F]">
+            Active LOW
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          
-          {/* 1. POMPA AIR PENGISI (Relay 1 - D1 / GPIO5 - channel_1) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {/* 1. POMPA AIR PENGISI */}
           <ActuatorCard
             channel={1}
             name="Pompa Air Pengisi Baki"
-            hardwarePin="D1 / GPIO5 · Submersible 12V DC"
+            hardwarePin="D1 / GPIO5 · 12V DC"
             dbColumn="channel_1"
             dbStatus={Boolean(relayTableStatus[1])}
             icon={Droplets}
-            description="Mengalirkan air bersih dari tandon cadangan ke baki penampung bangkai serangga untuk menjaga kejernihan air pantulan."
+            description="Mengalirkan air bersih dari tandon cadangan ke baki penampung serangga."
             actualStatus={actualPumpStatus}
             lastCommand={getLastCommandForRelay(1)}
             isExecuting={isExecuting}
@@ -965,18 +852,18 @@ export const ManualControlView: React.FC = () => {
             ]}
             onTimedAction={(sec, label) => handleTimedRelayAction(1, sec, label)}
             activeTimer={channelTimers[1]}
-            protectionNote="Interlock Tandon ≥15% · Auto-Cutoff Timeout Maks 45s"
+            protectionNote="Interlock Tandon ≥15% · Auto-Cutoff Maks 45s"
           />
 
-          {/* 2. KATUP SOLENOID DRAIN (Relay 2 - D2 / GPIO4 - channel_2) */}
+          {/* 2. KATUP SOLENOID DRAIN */}
           <ActuatorCard
             channel={2}
             name="Katup Solenoid Drain Baki"
-            hardwarePin="D2 / GPIO4 · Solenoid NC 12V"
+            hardwarePin="D2 / GPIO4 · Solenoid NC"
             dbColumn="channel_2"
             dbStatus={Boolean(relayTableStatus[2])}
             icon={ArrowDownCircle}
-            description="Membuka saluran pembuangan air kotor baki perangkap untuk menguras kotoran dan bangkai serangga yang menumpuk."
+            description="Membuka saluran pembuangan air kotor baki perangkap untuk menguras bangkai serangga."
             actualStatus={actualDrainStatus}
             lastCommand={getLastCommandForRelay(2)}
             isExecuting={isExecuting}
@@ -992,15 +879,15 @@ export const ManualControlView: React.FC = () => {
             protectionNote="Normally Closed (Aman Tertutup Saat Mati Daya)"
           />
 
-          {/* 3. LAMPU LED UV PENARIK (Relay 3 - D7 / GPIO13 - channel_3) */}
+          {/* 3. LAMPU LED UV PENARIK */}
           <ActuatorCard
             channel={3}
             name="Lampu LED Perangkap (UV 365nm)"
-            hardwarePin="D7 / GPIO13 · High Power LED Near-UV"
+            hardwarePin="D7 / GPIO13 · High Power UV"
             dbColumn="channel_3"
             dbStatus={Boolean(relayTableStatus[3])}
             icon={Lightbulb}
-            description="Menyalakan modul lampu ultraviolet 365nm nokturnal penarik serangga hama wereng dan penggerek batang padi."
+            description="Menyalakan lampu ultraviolet 365nm penarik serangga nokturnal seperti wereng dan penggerek batang."
             actualStatus={actualLampStatus}
             lastCommand={getLastCommandForRelay(3)}
             isExecuting={isExecuting}
@@ -1013,18 +900,18 @@ export const ManualControlView: React.FC = () => {
             ]}
             onTimedAction={(sec, label) => handleTimedRelayAction(3, sec, label)}
             activeTimer={channelTimers[3]}
-            protectionNote="Driver Arus ~850 mA · Tanpa PWM (Kontrol Saklar Relay)"
+            protectionNote="Driver Arus ~850 mA · Saklar Relay ON/OFF"
           />
 
-          {/* 4. KIPAS BLOWER / AUXILIARY (Relay 4 - D0 / GPIO16 - channel_4) */}
+          {/* 4. KIPAS BLOWER / AUXILIARY */}
           <ActuatorCard
             channel={4}
             name="Kipas Blower / Port Aux"
-            hardwarePin="D0 / GPIO16 · DC Fan / Auxiliary Port"
+            hardwarePin="D0 / GPIO16 · DC Fan / Aux"
             dbColumn="channel_4"
             dbStatus={Boolean(relayTableStatus[4])}
             icon={Fan}
-            description="Mengaktifkan kipas sirkulasi blower atau port beban cadangan untuk menjaga sirkulasi udara dan anti-embun pada kaca kamera."
+            description="Mengaktifkan kipas sirkulasi blower atau port cadangan untuk ventilasi dan anti-embun."
             actualStatus={fanStatus}
             lastCommand={getLastCommandForRelay(4)}
             isExecuting={isExecuting}
@@ -1037,142 +924,124 @@ export const ManualControlView: React.FC = () => {
             ]}
             onTimedAction={(sec, label) => handleTimedRelayAction(4, sec, label)}
             activeTimer={channelTimers[4]}
-            protectionNote="Kontrol Saklar Relay ON/OFF (Tanpa PWM Slider)"
+            protectionNote="Saklar Relay ON/OFF"
           />
-
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* SECTION 2: MAKRO LAPANGAN, KAMERA, & REBOOT                               */}
-      {/* ========================================================================= */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        
+      {/* Makro Lapangan, Kamera, & Reboot */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Card 1: Kamera Manual Snapshot */}
-        <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-3">
+        <div className="p-3.5 rounded-xl border border-[#E2E8F0] bg-white shadow-2xs hover:border-[#D1DCD6] transition-colors space-y-2">
           <div className="flex items-center gap-2 text-[#192A20]">
-            <Camera className="h-5 w-5 text-[#2D6A4F]" />
-            <h3 className="font-bold text-sm">Kamera Baki OV5640</h3>
+            <Camera className="h-4 w-4 text-[#2D6A4F]" />
+            <h3 className="font-semibold text-xs text-[#192A20]">Kamera Baki OV5640</h3>
           </div>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            Picukan pemotretan baki instan dengan LED iluminasi 4000K untuk inspeksi visual kondisi air dan bangkai serangga di luar jadwal rutin.
+          <p className="text-[11px] text-[#718096] leading-normal">
+            Ambil foto kondisi baki dan serangga secara instan di luar jadwal rutin.
           </p>
-          <div className="pt-2">
-            <button
-              type="button"
-              disabled={!canControl || !isDeviceOnline || isExecuting}
-              onClick={() => executeActuatorCommand('CAPTURE_NOW', undefined, 'Snapshot kamera baki berhasil diambil dan diunggah.')}
-              className="w-full py-2.5 px-3 rounded-xl bg-white border border-[#2D6A4F] text-[#1B4332] font-semibold text-xs hover:bg-[#EAF4EE] disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
-            >
-              <Camera className="h-4 w-4 text-[#2D6A4F]" />
-              <span>Ambil Foto Baki Sekarang</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            disabled={!canControl || !isDeviceOnline || isExecuting}
+            onClick={() => executeActuatorCommand('CAPTURE_NOW', undefined, 'Snapshot kamera baki berhasil diambil dan diunggah.')}
+            className="w-full py-1.5 px-3 rounded-lg bg-white border border-[#2D6A4F] text-[#1B4332] font-semibold text-xs hover:bg-[#EAF4EE] disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+          >
+            <Camera className="h-3.5 w-3.5 text-[#2D6A4F]" />
+            <span>Ambil Snapshot Baki</span>
+          </button>
         </div>
 
         {/* Card 2: Siklus Cuci & Kuras Lengkap */}
-        <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-3">
+        <div className="p-3.5 rounded-xl border border-[#E2E8F0] bg-white shadow-2xs hover:border-[#D1DCD6] transition-colors space-y-2">
           <div className="flex items-center gap-2 text-[#192A20]">
-            <RefreshCw className="h-5 w-5 text-blue-600" />
-            <h3 className="font-bold text-sm">Siklus Cuci Baki Lengkap</h3>
+            <RefreshCw className="h-4 w-4 text-[#2D6A4F]" />
+            <h3 className="font-semibold text-xs text-[#192A20]">Siklus Cuci Baki Lengkap</h3>
           </div>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            Menjalankan urutan terkoordinasi: katup drain dibuka 25 detik untuk membuang air kotor, lalu pompa mengisi ulang 5L air bersih dari tandon.
+          <p className="text-[11px] text-[#718096] leading-normal">
+            Buka drain baki 25s untuk membuang air kotor, lalu isi ulang 5L air bersih dari tandon.
           </p>
-          <div className="pt-2">
-            <button
-              type="button"
-              disabled={!canControl || !isDeviceOnline || isExecuting}
-              onClick={() => executeActuatorCommand('FORCE_WATER_CHANGE', undefined, 'Siklus pengurasan dan pengisian tandon berhasil dijalankan.')}
-              className="w-full py-2.5 px-3 rounded-xl bg-[#2D6A4F] text-white font-semibold text-xs hover:bg-[#1B4332] disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
-            >
-              <Droplets className="h-4 w-4" />
-              <span>Jalankan Siklus Kuras &amp; Isi</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            disabled={!canControl || !isDeviceOnline || isExecuting}
+            onClick={() => executeActuatorCommand('FORCE_WATER_CHANGE', undefined, 'Siklus pengurasan dan pengisian tandon berhasil dijalankan.')}
+            className="w-full py-1.5 px-3 rounded-lg bg-[#1B4332] hover:bg-[#2D6A4F] text-white font-semibold text-xs disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+          >
+            <Droplets className="h-3.5 w-3.5" />
+            <span>Jalankan Siklus Cuci</span>
+          </button>
         </div>
 
-        {/* Card 3: Soft Reboot ESP8266 */}
-        <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-3">
+            {/* Card 3: Soft Restart ESP8266 */}
+        <div className="p-3.5 rounded-xl border border-[#E2E8F0] bg-white shadow-2xs hover:border-[#D1DCD6] transition-colors space-y-2">
           <div className="flex items-center gap-2 text-[#192A20]">
-            <RotateCcw className="h-5 w-5 text-slate-700" />
-            <h3 className="font-bold text-sm">Soft Restart Mikrokontroler</h3>
+            <RotateCcw className="h-4 w-4 text-[#52796F]" />
+            <h3 className="font-semibold text-xs text-[#192A20]">Soft Restart ESP8266</h3>
           </div>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            Lakukan soft restart pada firmware ESP8266 NodeMCU tanpa menghapus konfigurasi kalibrasi sensor, kredensial Wi-Fi, dan status EEPROM.
+          <p className="text-[11px] text-[#718096] leading-normal">
+            Restart firmware NodeMCU tanpa menghapus konfigurasi kalibrasi &amp; Wi-Fi.
           </p>
-          <div className="pt-2">
-            <button
-              type="button"
-              disabled={!canControl || !isDeviceOnline || isExecuting}
-              onClick={() => setIsRebootModalOpen(true)}
-              className="w-full py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <RotateCcw className="h-4 w-4 text-slate-600" />
-              <span>Soft Reboot ESP8266</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            disabled={!canControl || !isDeviceOnline || isExecuting}
+            onClick={() => setIsRebootModalOpen(true)}
+            className="w-full py-1.5 px-3 rounded-lg border border-[#E2E8F0] bg-[#F8FAF9] hover:bg-[#E2E8F0] text-[#192A20] font-semibold text-xs disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+          >
+            <RotateCcw className="h-3.5 w-3.5 text-[#52796F]" />
+            <span>Soft Reboot ESP8266</span>
+          </button>
         </div>
-
       </div>
 
-      {/* ========================================================================= */}
-      {/* SECTION 3: SESSION COMMAND AUDIT LOG                                      */}
-      {/* ========================================================================= */}
-      <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-          <div>
-            <h3 className="font-bold text-sm text-[#192A20] flex items-center gap-2">
-              <Clock className="h-4 w-4 text-[#2D6A4F]" />
-              Riwayat Perintah Kontrol Manual ({selectedDevice.code})
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Log audit instruksi aktuator yang dikirimkan ke mikrokontroler melalui antrean Supabase
-            </p>
-          </div>
-          <span className="text-xs text-slate-400 font-mono">
+      {/* Session Command Audit Log */}
+      <div className="p-3.5 rounded-xl border border-[#E2E8F0] bg-white shadow-2xs space-y-2.5">
+        <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-2">
+          <h3 className="font-semibold text-xs text-[#192A20] flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5 text-[#2D6A4F]" />
+            Riwayat Perintah ({selectedDevice.code})
+          </h3>
+          <span className="text-[11px] text-[#A0AEC0] font-mono">
             {deviceCommands.length} perintah tercatat
           </span>
         </div>
 
-        <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden bg-white">
+        <div className="divide-y divide-[#E2E8F0] border border-[#E2E8F0] rounded-lg overflow-hidden bg-white max-h-60 overflow-y-auto">
           {deviceCommands.length === 0 ? (
-            <div className="p-8 text-center text-xs text-slate-400">
-              Belum ada riwayat perintah kontrol manual pada sesi ini untuk unit {selectedDevice.code}.
+            <div className="p-4 text-center text-xs text-[#A0AEC0]">
+              Belum ada riwayat perintah pada sesi ini untuk unit {selectedDevice.code}.
             </div>
           ) : (
             deviceCommands.map((cmd) => (
               <div
                 key={cmd.id}
-                className="p-3.5 hover:bg-slate-50/80 transition-colors flex items-center justify-between gap-3 text-xs"
+                className="p-2.5 hover:bg-[#F8FAF9] transition-colors flex items-center justify-between gap-2 text-xs"
               >
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-slate-900">{cmd.commandType}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono font-bold text-[#192A20] text-[11px]">{cmd.commandType}</span>
                     {cmd.parameters?.relay && (
-                      <span className="font-mono text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded font-semibold">
-                        Relay {cmd.parameters.relay} → {cmd.parameters.state}
+                      <span className="font-mono text-[9px] bg-[#F1F5F2] text-[#192A20] border border-[#E2E8F0] px-1.5 py-0.5 rounded font-semibold">
+                        R{cmd.parameters.relay} → {cmd.parameters.state}
                       </span>
                     )}
                     <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                      className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border ${
                         cmd.status === 'COMPLETED'
-                          ? 'bg-emerald-100 text-emerald-800'
+                          ? 'bg-emerald-50 text-[#1B4332] border-emerald-200'
                           : cmd.status === 'ACKNOWLEDGED'
-                          ? 'bg-blue-100 text-blue-800'
+                          ? 'bg-blue-50 text-blue-800 border-blue-200'
                           : cmd.status === 'FAILED'
-                          ? 'bg-rose-100 text-rose-800'
-                          : 'bg-amber-100 text-amber-800'
+                          ? 'bg-rose-50 text-rose-800 border-rose-200'
+                          : 'bg-amber-50 text-amber-800 border-amber-200'
                       }`}
                     >
                       {cmd.status}
                     </span>
                   </div>
-                  <div className="text-[11px] text-slate-500 mt-1 truncate">
-                    {cmd.responseMessage || 'Menunggu konfirmasi polling dari mikrokontroler...'}
+                  <div className="text-[10px] text-[#718096] truncate mt-0.5">
+                    {cmd.responseMessage || 'Menunggu polling...'}
                   </div>
                 </div>
-                <div className="font-mono text-[11px] text-slate-400 text-right shrink-0">
+                <div className="font-mono text-[10px] text-[#A0AEC0] text-right shrink-0">
                   {cmd.executedAt ? cmd.executedAt.split('T')[1]?.slice(0, 8) : 'Pending'} WIB
                 </div>
               </div>
@@ -1186,37 +1055,37 @@ export const ManualControlView: React.FC = () => {
       {/* ========================================================================= */}
       {isAllOffModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-2xl border border-rose-300 bg-white p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+          <div className="w-full max-w-lg rounded-2xl border border-rose-200 bg-white p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
             <div className="flex items-start gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-rose-100 text-rose-800 shrink-0">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-rose-50 text-rose-700 border border-rose-200 shrink-0">
                 <AlertTriangle className="h-6 w-6" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-base font-bold text-gray-900">
+                <h3 className="text-base font-bold text-[#192A20]">
                   Konfirmasi Matikan Semua Aktuator
                 </h3>
-                <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                <p className="text-xs text-[#718096] mt-1 leading-relaxed">
                   Tindakan ini akan mengirimkan perintah <strong>OFF</strong> ke seluruh 4 channel relay fisik pada unit <strong>{selectedDevice.code}</strong> (Pompa, Solenoid Drain, Lampu UV, dan Kipas Blower).
                 </p>
               </div>
             </div>
 
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 leading-relaxed">
+            <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-xs text-amber-900 leading-relaxed">
               <strong>Catatan Keselamatan:</strong> Setiap aktuator akan dikirim perintah OFF satu per satu ke database Supabase agar status kegagalan parsial dapat terpantau secara transparan.
             </div>
 
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-100">
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#E2E8F0]">
               <button
                 type="button"
                 onClick={() => setIsAllOffModalOpen(false)}
-                className="px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-xs font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-lg border border-[#E2E8F0] bg-white text-[#192A20] text-xs font-semibold hover:bg-[#F8FAF9] transition-colors cursor-pointer"
               >
                 Batal
               </button>
               <button
                 type="button"
                 onClick={handleExecuteAllOff}
-                className="px-4 py-2 rounded-lg bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition-all cursor-pointer shadow-xs"
+                className="px-4 py-2 rounded-lg bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition-all cursor-pointer shadow-2xs"
               >
                 Matikan Seluruh Aktuator Sekarang
               </button>
@@ -1230,26 +1099,26 @@ export const ManualControlView: React.FC = () => {
       {/* ========================================================================= */}
       {isRebootModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+          <div className="w-full max-w-md rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
             <div className="flex items-start gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-700 shrink-0">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#EAF4EE] text-[#1B4332] border border-emerald-200 shrink-0">
                 <RotateCcw className="h-6 w-6" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-base font-bold text-gray-900">
+                <h3 className="text-base font-bold text-[#192A20]">
                   Konfirmasi Soft Reboot: {selectedDevice.code}
                 </h3>
-                <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                <p className="text-xs text-[#718096] mt-1 leading-relaxed">
                   Perangkat fisik akan melakukan soft restart via perintah mikrokontroler. Selama proses reboot (~5 detik), perangkat tidak dapat menerima perintah.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-100">
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#E2E8F0]">
               <button
                 type="button"
                 onClick={() => setIsRebootModalOpen(false)}
-                className="px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-xs font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-lg border border-[#E2E8F0] bg-white text-[#192A20] text-xs font-semibold hover:bg-[#F8FAF9] transition-colors cursor-pointer"
               >
                 Batal
               </button>
@@ -1259,7 +1128,7 @@ export const ManualControlView: React.FC = () => {
                   setIsRebootModalOpen(false);
                   await executeActuatorCommand('REBOOT_ESP32', undefined, 'Perintah reboot ESP8266 telah diterima perangkat.');
                 }}
-                className="px-4 py-2 rounded-lg bg-[#1B4332] text-white text-xs font-bold hover:bg-[#2D6A4F] transition-all cursor-pointer shadow-xs"
+                className="px-4 py-2 rounded-lg bg-[#1B4332] text-white text-xs font-bold hover:bg-[#2D6A4F] transition-all cursor-pointer shadow-2xs"
               >
                 Lanjutkan Reboot
               </button>
@@ -1271,34 +1140,34 @@ export const ManualControlView: React.FC = () => {
       {/* Modal Laporan Hasil Matikan Semua */}
       {allOffResults && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h3 className="text-base font-bold text-gray-900">
+          <div className="w-full max-w-lg rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3">
+              <h3 className="text-base font-bold text-[#192A20]">
                 Laporan Eksekusi: Matikan Semua Aktuator
               </h3>
               <button
                 type="button"
                 onClick={() => setAllOffResults(null)}
-                className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 cursor-pointer"
+                className="p-1 rounded-lg text-[#718096] hover:text-[#192A20] hover:bg-[#F8FAF9] cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
+            <div className="divide-y divide-[#E2E8F0] border border-[#E2E8F0] rounded-xl overflow-hidden">
               {allOffResults.map((res) => (
                 <div key={res.relay} className="p-3 bg-white flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     {res.success ? (
-                      <Check className="h-4 w-4 text-emerald-600 shrink-0" />
+                      <Check className="h-4 w-4 text-[#2D6A4F] shrink-0" />
                     ) : (
                       <X className="h-4 w-4 text-rose-600 shrink-0" />
                     )}
-                    <span className="font-semibold text-slate-800">{res.name}</span>
+                    <span className="font-semibold text-[#192A20]">{res.name}</span>
                   </div>
                   <span
                     className={`font-mono text-[11px] ${
-                      res.success ? 'text-emerald-700 font-semibold' : 'text-rose-700 font-bold'
+                      res.success ? 'text-[#1B4332] font-semibold' : 'text-rose-700 font-bold'
                     }`}
                   >
                     {res.message}
@@ -1311,7 +1180,7 @@ export const ManualControlView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setAllOffResults(null)}
-                className="px-4 py-2 rounded-lg bg-[#1B4332] text-white text-xs font-bold hover:bg-[#2D6A4F] transition-all cursor-pointer shadow-xs"
+                className="px-4 py-2 rounded-lg bg-[#1B4332] text-white text-xs font-bold hover:bg-[#2D6A4F] transition-all cursor-pointer shadow-2xs"
               >
                 Tutup Laporan
               </button>

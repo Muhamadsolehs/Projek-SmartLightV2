@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { getAdminClient } from '../_shared/supabaseClient.ts';
 import { verifyDeviceAuth } from '../_shared/auth.ts';
+import { notifyTelegram } from '../_shared/telegramNotifier.ts';
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -112,7 +113,9 @@ serve(async (req: Request) => {
       })
       .eq('id', device.id);
 
-    // 5. Automated Alert Generation (with 1-hour cooldown deduplication)
+    // 5. Automated Alert Generation & Telegram Dispatch (with hourly cooldown deduplication)
+    const hourKey = new Date().toISOString().slice(0, 13); // e.g. '2026-11-09T11'
+
     if (busVoltage < device.battery_cutoff_threshold_v) {
       await supabase.from('device_alerts').insert({
         device_id: device.id,
@@ -123,6 +126,18 @@ serve(async (req: Request) => {
         status: 'triggered',
         metadata: { bus_voltage_v: busVoltage, cutoff_v: device.battery_cutoff_threshold_v },
       });
+
+      // Dispatch Telegram notification (Non-blocking post-commit with hourly deduplication)
+      const eventKey = `battery_low_${device.id}_${hourKey}`;
+      notifyTelegram({
+        event_type: 'BATTERY_LOW',
+        event_key: eventKey,
+        device_id: device.id,
+        device_code: device.device_code,
+        voltage: busVoltage,
+        threshold_v: device.battery_cutoff_threshold_v,
+        timestamp: recordedAt,
+      }).catch((e) => console.error('[device-telemetry] Telegram battery notify error:', e));
     }
 
     if (tankPercent < 15) {
@@ -135,6 +150,18 @@ serve(async (req: Request) => {
         status: 'triggered',
         metadata: { tank_level_percent: tankPercent },
       });
+
+      // Dispatch Telegram notification for critical water level
+      const eventKey = `water_critical_${device.id}_${hourKey}`;
+      notifyTelegram({
+        event_type: 'DEVICE_ERROR',
+        event_key: eventKey,
+        device_id: device.id,
+        device_code: device.device_code,
+        category: 'WATER_TANK_CRITICAL',
+        message: `Kapasitas tandon air tersisa ${tankPercent}%. Pompa diproteksi dry-run lockout.`,
+        timestamp: recordedAt,
+      }).catch((e) => console.error('[device-telemetry] Telegram water alert notify error:', e));
     }
 
     return new Response(

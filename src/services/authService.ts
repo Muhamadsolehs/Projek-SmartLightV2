@@ -51,17 +51,16 @@ async function fetchAndBuildUserProfile(
     metadata?.full_name ||
     (effectiveEmail ? effectiveEmail.split('@')[0] : 'Pengguna');
 
-  // Penentuan Role (Prioritas: Kolom Database Profiles -> User Metadata -> Fallback Cerdas Akun Admin)
+  // Penentuan Role (Prinsip Keamanan Least-Privilege):
+  // Role HANYA boleh diambil dari record terpercaya tabel profiles di database Supabase yang dilindungi RLS.
+  // Jika pembacaan tabel profiles gagal atau record tidak ditemukan, role WAJIB tetap 'viewer' (akses minimal).
+  // DILARANG keras memberikan fallback role 'admin' berdasarkan pola email atau kegagalan query.
   let role: UserRole = 'viewer';
   if (profileRecord?.role) {
     role = sanitizeRole(profileRecord.role);
-  } else if (metadata?.role && metadata.role !== 'viewer') {
-    role = sanitizeRole(metadata.role);
-  } else if (cleanEmail === 'admin@gmail.com' || cleanEmail.startsWith('admin@')) {
-    // Fallback jika tabel profiles terblokir RLS oleh Supabase tapi email adalah akun admin
-    role = 'admin';
+  } else {
     console.warn(
-      `[authService] Menggunakan role 'admin' untuk ${cleanEmail} karena pembacaan tabel profiles diblokir RLS Supabase.`
+      `[authService] Profil database tidak ditemukan atau role tidak valid untuk ${cleanEmail || authUserId}. Menerapkan peran default 'viewer' (least-privilege).`
     );
   }
 

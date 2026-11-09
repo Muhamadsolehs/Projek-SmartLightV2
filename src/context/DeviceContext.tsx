@@ -161,11 +161,7 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const saved = localStorage.getItem('slt_user');
       if (saved) {
         const parsed = JSON.parse(saved);
-        let role = sanitizeRole(parsed.role);
-        // Auto-heal: jika email adalah admin@gmail.com tapi role cache lama masih viewer
-        if (parsed.email?.toLowerCase() === 'admin@gmail.com' && role === 'viewer') {
-          role = 'admin';
-        }
+        const role = sanitizeRole(parsed.role);
         return {
           ...parsed,
           role,
@@ -182,8 +178,8 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Telegram Config
   const [telegramConfig, setTelegramConfig] = useState<TelegramConfig>({
     enabled: true,
-    botToken: 'bot71829381:AAF4-sample-esp32-light-trap-token',
-    chatId: '-100234891823',
+    botToken: '(Terkonfigurasi di Supabase Secrets)',
+    chatId: '1523500422',
     lastTestStatus: 'idle',
   });
 
@@ -750,7 +746,7 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       if (isSupabaseConfigured) {
         // Call Edge Function send-telegram-alert
-        const { error } = await supabase.functions.invoke('send-telegram-alert', {
+        const { data, error } = await supabase.functions.invoke('send-telegram-alert', {
           body: {
             alert_type: 'test_notification',
             severity: 'info',
@@ -761,28 +757,28 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           },
         });
 
-        if (!error) {
-          setTelegramConfig((prev) => ({
-            ...prev,
-            lastTestStatus: 'success',
-            lastTestMessage: `Pesan sukses dikirim via Supabase Edge Function ke Telegram Chat ID ${prev.chatId}.`,
-          }));
-          return;
+        if (error) {
+          throw new Error(error.message || 'Gagal menghubungi Supabase Edge Function.');
         }
+
+        if (data && !data.success) {
+          throw new Error(data.details || data.error || 'Telegram Bot API menolak pengiriman.');
+        }
+
+        setTelegramConfig((prev) => ({
+          ...prev,
+          lastTestStatus: 'success',
+          lastTestMessage: `Pesan sukses dikirim via Supabase Edge Function ke Telegram Chat ID ${prev.chatId || '1523500422'}.`,
+        }));
+        return;
       }
 
-      // Fallback response
-      await new Promise((r) => setTimeout(r, 1000));
-      setTelegramConfig((prev) => ({
-        ...prev,
-        lastTestStatus: 'success',
-        lastTestMessage: `Pesan uji coba sukses diproses: "[ALERT SLT] Tes integrasi notifikasi Smart Light Trap Subang berhasil."`,
-      }));
-    } catch {
+      throw new Error('Klien Supabase belum terkonfigurasi. Pastikan VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY diatur di .env.');
+    } catch (err: any) {
       setTelegramConfig((prev) => ({
         ...prev,
         lastTestStatus: 'failed',
-        lastTestMessage: 'Gagal mengirim pesan uji coba.',
+        lastTestMessage: err?.message || 'Gagal mengirim pesan uji coba.',
       }));
     }
   };

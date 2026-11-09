@@ -25,3 +25,14 @@ verify_jwt = false
 [functions.system-heartbeat]
 verify_jwt = false
 
+# telegram-notify verifies TELEGRAM_INTERNAL_SECRET header internally for S2S calls
+[functions.telegram-notify]
+verify_jwt = false
+
+# device-offline-check scheduled background job / cron
+[functions.device-offline-check]
+verify_jwt = false
+
+# send-telegram-alert bridges dashboard test requests
+[functions.send-telegram-alert]
+verify_jwt = false
