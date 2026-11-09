@@ -92,6 +92,7 @@ export const ALLOWED_EVENT_TYPES = [
   'WATER_CHANGE',
   'BATTERY_LOW',
   'DEVICE_ERROR',
+  'PEST_THRESHOLD',
   'TEST_NOTIFICATION',
 ] as const;
 
@@ -109,6 +110,27 @@ function buildHtmlMessage(
   const timestamp = formatWibTime(payload.timestamp || payload.recorded_at || payload.occurred_at);
 
   switch (eventType) {
+    case 'PEST_THRESHOLD': {
+      const targetCount = Number(payload.target_count || payload.cumulative_target_count || 0);
+      const threshold = Number(payload.threshold || 50);
+      const dominantPest = escapeHtml(payload.dominant_pest || 'Hama Sasaran PHT');
+      const sessionId = escapeHtml(payload.session_id ? String(payload.session_id).substring(0, 8) + '...' : '-');
+      return [
+        `🚨 <b>SMART LIGHT TRAP ALERT — AMBANG BATAS HAMA</b>`,
+        ``,
+        `Akumulasi tangkapan hama sasaran malam ini melewati batas kendali PHT!`,
+        ``,
+        `<b>Perangkat:</b> <code>${deviceCode}</code>`,
+        `<b>Akumulasi Malam Ini:</b> <b>${targetCount} ekor</b>`,
+        `<b>Batas Ambang:</b> ${threshold} ekor/malam`,
+        `<b>Hama Terbanyak:</b> ${dominantPest}`,
+        `<b>Sesi ID:</b> <code>${sessionId}</code>`,
+        `<b>Status:</b> CRITICAL PHT THRESHOLD`,
+        `<b>Rekomendasi:</b> Periksa baki perangkap dan aktifkan tindakan agronomis PHT.`,
+        `<b>Waktu:</b> ${timestamp}`,
+      ].join('\n');
+    }
+
     case 'DEVICE_ONLINE': {
       return [
         `🟢 <b>SMART LIGHT TRAP</b>`,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Sliders,
   Power,
@@ -226,6 +226,18 @@ export const ManualControlView: React.FC = () => {
     type: 'success' | 'error' | 'info';
     message: string;
   } | null>(null);
+
+  // Default target perangkat ke SLT-SBG-01 saat halaman pertama kali dimuat
+  const hasSetDefaultRef = useRef(false);
+  useEffect(() => {
+    if (!hasSetDefaultRef.current && devices && devices.length > 0) {
+      const sbg01 = devices.find((d) => d.code === 'SLT-SBG-01');
+      if (sbg01) {
+        setSelectedDeviceId(sbg01.id);
+        hasSetDefaultRef.current = true;
+      }
+    }
+  }, [devices, setSelectedDeviceId]);
 
   // Active timers per relay channel
   const [channelTimers, setChannelTimers] = useState<Record<number, number | null>>({});
@@ -618,101 +630,78 @@ export const ManualControlView: React.FC = () => {
         </div>
       )}
 
-      {/* Device Selector & Live Telemetry Bar */}
-      <div className="p-3.5 rounded-xl border border-[#E2E8F0] bg-white shadow-2xs space-y-2.5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E2E8F0] pb-2">
-          <div className="flex items-center gap-2">
-            <Radio className="h-4 w-4 text-[#2D6A4F]" />
-            <span className="font-semibold text-xs text-[#192A20]">Pilih Target Kontrol:</span>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-[#718096] font-mono">
-            <span>Armada:</span>
-            <span className="font-semibold text-[#192A20]">
-              {devices.filter((d) => d.status === 'online').length} Online / {devices.length} Total
-            </span>
-          </div>
-        </div>
+      {/* Device Selector & Live Telemetry Bar (Simplified Dropdown) */}
+      <div className="p-3 sm:p-3.5 rounded-xl border border-[#E2E8F0] bg-white shadow-2xs space-y-2">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          {/* Left: Dropdown with Target Label & Status */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-1.5 text-[#192A20]">
+              <Radio className="h-4 w-4 text-[#2D6A4F] shrink-0" />
+              <label htmlFor="device-target-select" className="font-semibold text-xs whitespace-nowrap">
+                Pilih Target Kontrol:
+              </label>
+            </div>
 
-        {/* Device Selection Pills */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {devices.map((dev) => {
-            const isSelected = dev.id === selectedDevice.id;
-            const isOnline = dev.status === 'online';
+            <div className="flex items-center gap-2">
+              <select
+                id="device-target-select"
+                value={selectedDevice.id}
+                onChange={(e) => setSelectedDeviceId(e.target.value)}
+                className="text-xs font-semibold text-[#192A20] bg-[#F8FAF9] hover:bg-[#F1F5F2] border border-[#E2E8F0] rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#2D6A4F] focus:border-[#2D6A4F] cursor-pointer transition-colors shadow-2xs"
+              >
+                {devices.map((dev) => (
+                  <option key={dev.id} value={dev.id}>
+                    {dev.code} - {dev.name} ({dev.status === 'online' ? 'Online' : 'Offline'})
+                  </option>
+                ))}
+              </select>
 
-            return (
-              <button
-                key={dev.id}
-                type="button"
-                onClick={() => setSelectedDeviceId(dev.id)}
-                className={`p-2 rounded-lg border text-left transition-all cursor-pointer ${
-                  isSelected
-                    ? 'border-[#2D6A4F] bg-[#EAF4EE]/40 shadow-2xs ring-1 ring-[#2D6A4F]'
-                    : 'border-[#E2E8F0] bg-white hover:border-[#D1DCD6] hover:bg-[#F8FAF9]'
+              {/* Status Badge */}
+              <span
+                className={`inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${
+                  isDeviceOnline
+                    ? 'bg-emerald-50 text-[#1B4332] border-emerald-200'
+                    : 'bg-rose-50 text-rose-700 border-rose-200'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs font-bold text-[#1B4332]">
-                    {dev.code}
-                  </span>
-                  <span
-                    className={`inline-flex items-center gap-1 text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-full border ${
-                      isOnline
-                        ? 'bg-emerald-50 text-[#1B4332] border-emerald-200'
-                        : 'bg-rose-50 text-rose-700 border-rose-200'
-                    }`}
-                  >
-                    <span className={`h-1.5 w-1.5 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                    {isOnline ? 'ONLINE' : 'OFFLINE'}
-                  </span>
-                </div>
-                <div className="text-[11px] text-[#718096] truncate mt-1">{dev.name}</div>
-                <div className="mt-1 pt-1 border-t border-[#E2E8F0] flex items-center justify-between text-[10px] font-mono text-[#A0AEC0]">
-                  <span>Bat: {dev.currentTelemetry?.battery?.busVoltageV?.toFixed(1) || '12.8'}V</span>
-                  <span>Tandon: {dev.currentTelemetry?.water?.tankLevelPercent || 0}%</span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Selected Device Telemetry Summary */}
-        <div className="p-2.5 rounded-lg bg-[#F8FAF9] border border-[#E2E8F0] flex flex-wrap items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="text-[#718096] text-[11px]">Target:</span>
-            <span className="font-mono font-bold text-[#1B4332] bg-white px-2 py-0.5 rounded border border-[#D1DCD6] text-xs">
-              {selectedDevice.code} ({selectedDevice.name})
-            </span>
-            <span
-              className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold border ${
-                isDeviceOnline
-                  ? 'bg-emerald-50 text-[#1B4332] border-emerald-200'
-                  : 'bg-rose-50 text-rose-700 border-rose-200'
-              }`}
-            >
-              {isDeviceOnline ? '● Online' : '○ Offline'}
-            </span>
+                <span className={`h-1.5 w-1.5 rounded-full ${isDeviceOnline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                {isDeviceOnline ? 'ONLINE' : 'OFFLINE'}
+              </span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3 text-xs text-[#718096]">
-            <span className="flex items-center gap-1">
-              <Zap className="h-3 w-3 text-amber-600" />
-              <strong className="font-mono text-[#192A20]">{tel?.battery?.busVoltageV?.toFixed(2)} V</strong>
+          {/* Right: Live Telemetry Metrics */}
+          <div className="flex flex-wrap items-center gap-3 text-xs text-[#718096] bg-[#F8FAF9] px-3 py-1.5 rounded-lg border border-[#E2E8F0]">
+            <span className="flex items-center gap-1.5">
+              <Zap className="h-3.5 w-3.5 text-amber-500" />
+              <span className="text-[11px] text-[#718096]">Tegangan:</span>
+              <strong className="font-mono text-[#192A20]">
+                {(tel?.battery?.busVoltageV ?? selectedDevice.currentTelemetry?.battery?.busVoltageV ?? 12.8).toFixed(2)} V
+              </strong>
             </span>
-            <span className="flex items-center gap-1">
-              <Layers className="h-3 w-3 text-[#2D6A4F]" />
-              <strong className="font-mono text-[#192A20]">{tel?.water?.tankLevelPercent}%</strong>
+            <span className="text-[#E2E8F0]">|</span>
+            <span className="flex items-center gap-1.5">
+              <Droplets className="h-3.5 w-3.5 text-[#2D6A4F]" />
+              <span className="text-[11px] text-[#718096]">Tandon:</span>
+              <strong className="font-mono text-[#192A20]">
+                {tel?.water?.tankLevelPercent ?? selectedDevice.currentTelemetry?.water?.tankLevelPercent ?? 0}%
+              </strong>
             </span>
-            <span className="flex items-center gap-1 text-[11px] text-[#A0AEC0]">
+            <span className="text-[#E2E8F0]">|</span>
+            <span className="flex items-center gap-1.5 text-[11px] text-[#A0AEC0]">
               <Clock className="h-3 w-3" />
-              <span className="font-mono">{selectedDevice.lastSyncAt ? selectedDevice.lastSyncAt.split('T')[1]?.slice(0, 8) : 'Real-time'} WIB</span>
+              <span className="font-mono">
+                {selectedDevice.lastSyncAt ? selectedDevice.lastSyncAt.split('T')[1]?.slice(0, 8) : 'Real-time'} WIB
+              </span>
             </span>
           </div>
         </div>
 
+        {/* Offline Warning Notice (Subtle, Compact 1-liner) */}
         {!isDeviceOnline && (
-          <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-900 flex items-center gap-1.5">
+          <div className="px-2.5 py-1 bg-amber-50/80 border border-amber-200/80 rounded-lg text-[11px] text-amber-900 flex items-center gap-1.5">
             <Info className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-            <span>Perangkat offline. Perubahan relay langsung disimpan ke database Supabase dan disinkronkan saat terhubung kembali.</span>
+            <span>Perangkat offline. Perintah relay akan disimpan di Supabase dan disinkronkan saat terhubung kembali.</span>
           </div>
         )}
       </div>

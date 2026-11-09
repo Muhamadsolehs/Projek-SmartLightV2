@@ -1,0 +1,34 @@
+# ==============================================================================
+# YOLOv8 Training Configuration for IP102 Smart Light Trap
+# ==============================================================================
+
+model:
+  base_weights: "yolov8n.pt"  # Ultralytics YOLOv8 nano baseline
+  task: "detect"
+
+training:
+  data_yaml: "datasets/IP102_YOLO/data.yaml"
+  epochs: 50
+  patience: 10          # Early stopping patience in epochs
+  batch_size: 16        # Reduce to 8 or 4 if running on CPU or low-VRAM GPU
+  image_size: 640       # Standard YOLO resolution
+  optimizer: "auto"     # AdamW or SGD
+  lr0: 0.01
+  lrf: 0.01
+  weight_decay: 0.0005
+  warmup_epochs: 3
+  device: "auto"        # '0' for CUDA GPU, 'cpu' for CPU
+  workers: 4
+  project: "runs/detect"
+  name: "ip102_training"
+  exist_ok: true
+  save: true
+  save_period: -1       # Only keep best.pt and last.pt
+  plots: true           # Generate confusion_matrix.png, results.png, etc.
+  verbose: true
+
+evaluation:
+  conf_threshold: 0.25
+  iou_threshold: 0.60
+  split: "val"          # 'val' or 'test'
+

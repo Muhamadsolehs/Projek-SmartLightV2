@@ -1,0 +1,39 @@
+# ==============================================================================
+# IP102 Dataset Configuration for Smart Light Trap
+# ==============================================================================
+
+# Raw Pascal VOC Dataset Paths
+raw_dataset:
+  root_dir: "IP102_v1.1"
+  voc_dir: "IP102_v1.1/Detection/VOC2007"
+  annotations_dir: "IP102_v1.1/Detection/VOC2007/Annotations"
+  images_dir: "IP102_v1.1/Detection/VOC2007/JPEGImages"
+  imagesets_dir: "IP102_v1.1/Detection/VOC2007/ImageSets/Main"
+  trainval_split: "IP102_v1.1/Detection/VOC2007/ImageSets/Main/trainval.txt"
+  test_split: "IP102_v1.1/Detection/VOC2007/ImageSets/Main/test.txt"
+  classes_file: "IP102_v1.1/IP102/classes.txt"
+
+# Converted YOLO Format Output Structure
+yolo_dataset:
+  output_dir: "datasets/IP102_YOLO"
+  val_ratio_from_trainval: 0.20  # 20% of official trainval used for validation
+  seed: 42
+  image_extensions: [".jpg", ".jpeg", ".png"]
+
+# Key agricultural / Smart Light Trap priority pests for analytics highlighting
+priority_pests:
+  - id: 7   # 0-indexed (class 8 in classes.txt): brown plant hopper (Nilaparvata lugens)
+    name: "brown plant hopper"
+  - id: 8   # 0-indexed (class 9): white backed plant hopper (Sogatella furcifera)
+    name: "white backed plant hopper"
+  - id: 9   # 0-indexed (class 10): small brown plant hopper (Laodelphax striatellus)
+    name: "small brown plant hopper"
+  - id: 11  # 0-indexed (class 12): rice leafhopper (Nephotettix cincticeps)
+    name: "rice leafhopper"
+  - id: 3   # 0-indexed (class 4): asiatic rice borer (Chilo suppressalis)
+    name: "asiatic rice borer"
+  - id: 4   # 0-indexed (class 5): yellow rice borer (Scirpophaga incertulas)
+    name: "yellow rice borer"
+  - id: 23  # 0-indexed (class 24): army worm (Mythimna separata)
+    name: "army worm"
+

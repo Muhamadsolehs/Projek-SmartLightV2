@@ -13,6 +13,7 @@ export interface TelegramNotifyPayload {
     | 'WATER_CHANGE'
     | 'BATTERY_LOW'
     | 'DEVICE_ERROR'
+    | 'PEST_THRESHOLD'
     | 'TEST_NOTIFICATION';
   event_key: string;
   device_id?: string | null;

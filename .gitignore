@@ -10,3 +10,16 @@ firmware/**/credentials.h
 firmware/**/secrets.h
 credentials.h
 .tools/
+
+# Machine Learning datasets, models & runs
+IP102_v1.1/
+datasets/
+runs/
+*.pt
+*.pth
+*.onnx
+*.zip
+*.tar*
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
