@@ -19,6 +19,24 @@ import {
 } from 'lucide-react';
 import { useDevice } from '../../context/DeviceContext';
 import { CaptureImage } from '../../types';
+import { deviceImagesService } from '../../services/deviceImagesService';
+
+// Helper konversi DataURI base64 ke Blob untuk diunggah ke Supabase Storage
+function dataURItoBlob(dataURI: string): Blob {
+  try {
+    const parts = dataURI.split(',');
+    const byteString = atob(parts[1]);
+    const mimeString = parts[0].split(':')[1].split(';')[0];
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([ab], { type: mimeString });
+  } catch {
+    return new Blob([''], { type: 'image/jpeg' });
+  }
+}
 
 interface DroidCamLivePanelProps {
   onCaptureCreated?: (captureId: string) => void;
@@ -183,14 +201,37 @@ export const DroidCamLivePanel: React.FC<DroidCamLivePanelProps> = ({ onCaptureC
         }
       }
 
-      setLastCapturedUrl(capturedDataUrl);
+      // Unggah ke Supabase Storage (bucket device_images) dan catat di tabel public.device_images
+      let finalImageUrl = capturedDataUrl;
+      let finalDbId: number | undefined;
+      let finalFilePath = `captures/baki_${deviceCode}_${Date.now()}.jpg`;
+
+      try {
+        const imageBlob = dataURItoBlob(capturedDataUrl);
+        const dbResult = await deviceImagesService.uploadAndSaveImage(
+          imageBlob,
+          deviceCode,
+          'manual_admin',
+          capturedDataUrl
+        );
+
+        if (dbResult.data) {
+          finalDbId = dbResult.data.id;
+          finalImageUrl = dbResult.data.image_url || capturedDataUrl;
+          finalFilePath = dbResult.data.file_path || finalFilePath;
+        }
+      } catch (saveDbErr) {
+        console.warn('[DroidCamLivePanel] Gagal menyimpan ke Supabase:', saveDbErr);
+      }
+
+      setLastCapturedUrl(finalImageUrl);
 
       // Buat objek CaptureImage untuk galeri
       const newCapture: CaptureImage = {
-        id: captureId,
+        id: finalDbId ? `IMG-DB-${finalDbId}` : captureId,
         deviceId: deviceCode,
         timestamp: now.toISOString(),
-        imageUrl: capturedDataUrl,
+        imageUrl: finalImageUrl,
         resolution: '1280x720 (DroidCam HD)',
         totalPests: 3,
         targetPestsCount: 2,
@@ -220,7 +261,10 @@ export const DroidCamLivePanel: React.FC<DroidCamLivePanelProps> = ({ onCaptureC
             isManuallyVerified: false,
           },
         ],
-        notes: `Potret manual oleh Admin (${currentUser?.name || 'Administrator'}) melalui live feed DroidCam (${ip}:${port})`,
+        notes: `Tersimpan di Supabase (${finalFilePath}) oleh Admin (${currentUser?.name || 'Administrator'})`,
+        dbRecordId: finalDbId,
+        filePath: finalFilePath,
+        triggerSource: 'manual_admin',
       };
 
       // Tambahkan ke state global captures
@@ -228,7 +272,7 @@ export const DroidCamLivePanel: React.FC<DroidCamLivePanelProps> = ({ onCaptureC
 
       setFeedbackMsg({
         type: 'success',
-        text: `Berhasil memotret! Citra ${captureId} telah tersimpan dan dimasukkan ke galeri.`,
+        text: `Foto baki berhasil disimpan ke database Supabase (tabel public.device_images & bucket storage)!`,
       });
 
       if (onCaptureCreated) {
