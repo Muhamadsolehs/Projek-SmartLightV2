@@ -20,9 +20,25 @@ export function sanitizeSupabaseUrl(url: string): string {
   }
 }
 
-const rawSupabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+// Fallback kredensial publik proyek produksi jika environment variable di Vercel belum diset
+const DEFAULT_SUPABASE_URL = 'https://xzzjfwstrpayhnpymqpq.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_pJOVYiINorwqPGSzRX1M_w__IMG1xWq';
+
+// Deteksi dari berbagai kemungkinan prefix variabel lingkungan (Vite, Supabase Integration Vercel, Next.js format)
+const rawSupabaseUrl =
+  import.meta.env.VITE_SUPABASE_URL ||
+  (import.meta.env as any).SUPABASE_URL ||
+  (import.meta.env as any).NEXT_PUBLIC_SUPABASE_URL ||
+  DEFAULT_SUPABASE_URL;
+
 export const supabaseUrl = sanitizeSupabaseUrl(rawSupabaseUrl);
-export const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
+
+export const supabaseAnonKey = (
+  import.meta.env.VITE_SUPABASE_ANON_KEY ||
+  (import.meta.env as any).SUPABASE_ANON_KEY ||
+  (import.meta.env as any).NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  DEFAULT_SUPABASE_ANON_KEY
+).trim();
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&
@@ -33,8 +49,8 @@ export const isSupabaseConfigured = Boolean(
 );
 
 // Fallback dummy URL so createClient does not throw at initialization if not configured yet
-const validUrl = isSupabaseConfigured ? supabaseUrl : 'https://placeholder.supabase.co';
-const validKey = isSupabaseConfigured ? supabaseAnonKey : 'placeholder-anon-key';
+const validUrl = isSupabaseConfigured ? supabaseUrl : DEFAULT_SUPABASE_URL;
+const validKey = isSupabaseConfigured ? supabaseAnonKey : DEFAULT_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(validUrl, validKey, {
   auth: {
