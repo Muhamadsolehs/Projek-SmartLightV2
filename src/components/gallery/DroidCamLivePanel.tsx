@@ -18,8 +18,9 @@ import {
   Lock,
 } from 'lucide-react';
 import { useDevice } from '../../context/DeviceContext';
-import { CaptureImage } from '../../types';
+import { CaptureImage, BoundingBox } from '../../types';
 import { deviceImagesService } from '../../services/deviceImagesService';
+import { aiDetectionService } from '../../services/aiDetectionService';
 
 // Helper konversi DataURI base64 ke Blob untuk diunggah ke Supabase Storage
 function dataURItoBlob(dataURI: string): Blob {
@@ -70,6 +71,7 @@ export const DroidCamLivePanel: React.FC<DroidCamLivePanelProps> = ({ onCaptureC
   const [flashEffect, setFlashEffect] = useState<boolean>(false);
   const [lastCapturedUrl, setLastCapturedUrl] = useState<string | null>(null);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [autoRunAi, setAutoRunAi] = useState<boolean>(true);
 
   const imgRef = useRef<HTMLImageElement | null>(null);
 
@@ -226,42 +228,80 @@ export const DroidCamLivePanel: React.FC<DroidCamLivePanelProps> = ({ onCaptureC
 
       setLastCapturedUrl(finalImageUrl);
 
+      let bboxes: BoundingBox[] = [];
+      let totalPests = 0;
+      let targetPestsCount = 0;
+      let otherInsectsCount = 0;
+      let avgConfidence = 0.94;
+      let modelVersion = 'YOLOv8n-IP102-Edge v2.1';
+      let detectionNotes = `Tersimpan di Supabase (${finalFilePath}) oleh Admin (${currentUser?.name || 'Administrator'})`;
+
+      const captureKey = finalDbId ? `IMG-DB-${finalDbId}` : captureId;
+
+      // Jalankan auto deteksi AI berbasis dataset IP102 jika diaktifkan
+      if (autoRunAi) {
+        try {
+          const aiResult = await aiDetectionService.inferWithEdgeVision({
+            id: captureKey,
+            deviceId: deviceCode,
+            timestamp: now.toISOString(),
+            imageUrl: finalImageUrl,
+            resolution: '1280x720 (DroidCam HD)',
+            totalPests: 0,
+            targetPestsCount: 0,
+            otherInsectsCount: 0,
+            avgConfidence: 0,
+            modelVersion: 'YOLOv8n-IP102-Edge v2.1',
+            isManuallyVerified: false,
+            bboxes: [],
+          });
+
+          bboxes = aiResult.bboxes;
+          totalPests = aiResult.totalPests;
+          targetPestsCount = aiResult.targetPestsCount;
+          otherInsectsCount = aiResult.otherInsectsCount;
+          avgConfidence = aiResult.avgConfidence;
+          modelVersion = aiResult.modelVersion;
+          detectionNotes = aiResult.notes;
+
+          // Simpan sesi dan deteksi ke Supabase
+          await aiDetectionService.persistToSupabase(
+            {
+              id: captureKey,
+              deviceId: deviceCode,
+              timestamp: now.toISOString(),
+              imageUrl: finalImageUrl,
+              resolution: '1280x720 (DroidCam HD)',
+              totalPests,
+              targetPestsCount,
+              otherInsectsCount,
+              avgConfidence,
+              modelVersion,
+              isManuallyVerified: false,
+              bboxes,
+            },
+            aiResult
+          );
+        } catch (aiErr) {
+          console.warn('[DroidCamLivePanel] Gagal menjalankan auto deteksi AI:', aiErr);
+        }
+      }
+
       // Buat objek CaptureImage untuk galeri
       const newCapture: CaptureImage = {
-        id: finalDbId ? `IMG-DB-${finalDbId}` : captureId,
+        id: captureKey,
         deviceId: deviceCode,
         timestamp: now.toISOString(),
         imageUrl: finalImageUrl,
         resolution: '1280x720 (DroidCam HD)',
-        totalPests: 3,
-        targetPestsCount: 2,
-        otherInsectsCount: 1,
-        avgConfidence: 0.94,
-        modelVersion: 'YOLOv8-AgriPest v1.4-Edge (Manual Shutter)',
+        totalPests,
+        targetPestsCount,
+        otherInsectsCount,
+        avgConfidence,
+        modelVersion,
         isManuallyVerified: false,
-        bboxes: [
-          {
-            id: `box-${Date.now()}-1`,
-            speciesId: 'scirpophaga_incertulas',
-            confidence: 0.95,
-            x: 38,
-            y: 42,
-            width: 11,
-            height: 13,
-            isManuallyVerified: false,
-          },
-          {
-            id: `box-${Date.now()}-2`,
-            speciesId: 'nilaparvata_lugens',
-            confidence: 0.89,
-            x: 55,
-            y: 48,
-            width: 9,
-            height: 10,
-            isManuallyVerified: false,
-          },
-        ],
-        notes: `Tersimpan di Supabase (${finalFilePath}) oleh Admin (${currentUser?.name || 'Administrator'})`,
+        bboxes,
+        notes: detectionNotes,
         dbRecordId: finalDbId,
         filePath: finalFilePath,
         triggerSource: 'manual_admin',
@@ -272,7 +312,9 @@ export const DroidCamLivePanel: React.FC<DroidCamLivePanelProps> = ({ onCaptureC
 
       setFeedbackMsg({
         type: 'success',
-        text: `Foto baki berhasil disimpan ke database Supabase (tabel public.device_images & bucket storage)!`,
+        text: autoRunAi
+          ? `Foto baki tersimpan di database & ${totalPests} serangga teridentifikasi oleh model AI YOLOv8 IP102!`
+          : `Foto baki berhasil disimpan ke database Supabase (tabel public.device_images & bucket storage)!`,
       });
 
       if (onCaptureCreated) {
@@ -374,6 +416,21 @@ export const DroidCamLivePanel: React.FC<DroidCamLivePanelProps> = ({ onCaptureC
           >
             <Wifi className="h-3.5 w-3.5" />
             <span>Pengaturan IP</span>
+          </button>
+
+          {/* Toggle Auto-Deteksi AI YOLOv8 */}
+          <button
+            onClick={() => setAutoRunAi(!autoRunAi)}
+            className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+              autoRunAi
+                ? 'border-emerald-500 bg-emerald-50 text-emerald-800 shadow-2xs'
+                : 'border-[#90A955]/30 bg-[#F6F9F5] text-gray-500'
+            }`}
+            title="Otomatis jalankan klasifikasi hama AI (YOLOv8 IP102) setiap kali memotret"
+          >
+            <Sparkles className={`h-3.5 w-3.5 ${autoRunAi ? 'text-emerald-600 animate-pulse' : 'text-gray-400'}`} />
+            <span className="hidden sm:inline">Auto-AI:</span>
+            <span>{autoRunAi ? 'ON' : 'OFF'}</span>
           </button>
 
           {/* Toggle Pause / Resume Stream */}

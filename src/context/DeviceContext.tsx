@@ -24,6 +24,7 @@ import { alertService } from '../services/alertService';
 import { pestService } from '../services/pestService';
 import { waterService } from '../services/waterService';
 import { deviceImagesService } from '../services/deviceImagesService';
+import { aiDetectionService } from '../services/aiDetectionService';
 import { hasPermission, sanitizeRole } from '../lib/permissions';
 
 export type NavigationTab =
@@ -72,6 +73,10 @@ interface DeviceContextType {
   captures: CaptureImage[];
   addCapture: (capture: CaptureImage) => void;
   deleteCapture: (captureId: string, dbRecordId?: number, filePath?: string) => Promise<void>;
+  runAiDetection: (captureId: string) => Promise<CaptureImage | null>;
+  deleteBoundingBox: (captureId: string, boxId: string) => void;
+  addBoundingBox: (captureId: string, box: BoundingBox) => void;
+  clearBoundingBoxes: (captureId: string) => void;
   updateBoundingBoxLabel: (
     captureId: string,
     boxId: string,
@@ -667,6 +672,107 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     );
   };
 
+  const deleteBoundingBox = (captureId: string, boxId: string) => {
+    setCaptures((prev) =>
+      prev.map((cap) => {
+        if (cap.id !== captureId) return cap;
+        const updatedBoxes = cap.bboxes.filter((b) => b.id !== boxId);
+        const targetCount = updatedBoxes.filter(
+          (b) => b.speciesId !== 'other_neutral' && b.speciesId !== 'unidentified'
+        ).length;
+        const otherCount = updatedBoxes.length - targetCount;
+        const updated: CaptureImage = {
+          ...cap,
+          bboxes: updatedBoxes,
+          totalPests: updatedBoxes.length,
+          targetPestsCount: targetCount,
+          otherInsectsCount: otherCount,
+          notes: `Kotak dihapus manual oleh ${currentUser?.name || 'Operator'}. Sisa: ${updatedBoxes.length} serangga.`,
+        };
+
+        try {
+          const existing = localStorage.getItem('slt_custom_captures');
+          const list: CaptureImage[] = existing ? JSON.parse(existing) : [];
+          const idx = list.findIndex((c) => c.id === captureId);
+          if (idx >= 0) {
+            list[idx] = updated;
+          } else {
+            list.unshift(updated);
+          }
+          localStorage.setItem('slt_custom_captures', JSON.stringify(list));
+        } catch {}
+
+        return updated;
+      })
+    );
+  };
+
+  const addBoundingBox = (captureId: string, newBox: BoundingBox) => {
+    setCaptures((prev) =>
+      prev.map((cap) => {
+        if (cap.id !== captureId) return cap;
+        const updatedBoxes = [...cap.bboxes, newBox];
+        const targetCount = updatedBoxes.filter(
+          (b) => b.speciesId !== 'other_neutral' && b.speciesId !== 'unidentified'
+        ).length;
+        const otherCount = updatedBoxes.length - targetCount;
+        const updated: CaptureImage = {
+          ...cap,
+          bboxes: updatedBoxes,
+          totalPests: updatedBoxes.length,
+          targetPestsCount: targetCount,
+          otherInsectsCount: otherCount,
+          isManuallyVerified: true,
+          notes: `Ditambahkan manual oleh ${currentUser?.name || 'Operator'}. Total: ${updatedBoxes.length} serangga.`,
+        };
+
+        try {
+          const existing = localStorage.getItem('slt_custom_captures');
+          const list: CaptureImage[] = existing ? JSON.parse(existing) : [];
+          const idx = list.findIndex((c) => c.id === captureId);
+          if (idx >= 0) {
+            list[idx] = updated;
+          } else {
+            list.unshift(updated);
+          }
+          localStorage.setItem('slt_custom_captures', JSON.stringify(list));
+        } catch {}
+
+        return updated;
+      })
+    );
+  };
+
+  const clearBoundingBoxes = (captureId: string) => {
+    setCaptures((prev) =>
+      prev.map((cap) => {
+        if (cap.id !== captureId) return cap;
+        const updated: CaptureImage = {
+          ...cap,
+          bboxes: [],
+          totalPests: 0,
+          targetPestsCount: 0,
+          otherInsectsCount: 0,
+          notes: 'Semua kotak anotasi dibersihkan manual.',
+        };
+
+        try {
+          const existing = localStorage.getItem('slt_custom_captures');
+          const list: CaptureImage[] = existing ? JSON.parse(existing) : [];
+          const idx = list.findIndex((c) => c.id === captureId);
+          if (idx >= 0) {
+            list[idx] = updated;
+          } else {
+            list.unshift(updated);
+          }
+          localStorage.setItem('slt_custom_captures', JSON.stringify(list));
+        } catch {}
+
+        return updated;
+      })
+    );
+  };
+
   const addCapture = (newCapture: CaptureImage) => {
     setCaptures((prev) => [newCapture, ...prev]);
     try {
@@ -693,6 +799,53 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         localStorage.setItem('slt_custom_captures', JSON.stringify(filtered));
       }
     } catch {}
+  };
+
+  /**
+   * Menjalankan inferensi model deteksi & klasifikasi serangga berbasis dataset IP102
+   * pada citra baki yang dipilih.
+   */
+  const runAiDetection = async (captureId: string): Promise<CaptureImage | null> => {
+    const target = captures.find((c) => c.id === captureId);
+    if (!target) return null;
+
+    try {
+      const result = await aiDetectionService.runInference(target);
+
+      const updatedCapture: CaptureImage = {
+        ...target,
+        bboxes: result.bboxes,
+        totalPests: result.totalPests,
+        targetPestsCount: result.targetPestsCount,
+        otherInsectsCount: result.otherInsectsCount,
+        avgConfidence: result.avgConfidence,
+        modelVersion: result.modelVersion,
+        notes: result.notes,
+        isManuallyVerified: false,
+      };
+
+      setCaptures((prev) =>
+        prev.map((c) => (c.id === captureId ? updatedCapture : c))
+      );
+
+      // Simpan di local storage cache agar tidak hilang saat reload
+      try {
+        const existing = localStorage.getItem('slt_custom_captures');
+        const list: CaptureImage[] = existing ? JSON.parse(existing) : [];
+        const index = list.findIndex((c) => c.id === captureId);
+        if (index >= 0) {
+          list[index] = updatedCapture;
+        } else {
+          list.unshift(updatedCapture);
+        }
+        localStorage.setItem('slt_custom_captures', JSON.stringify(list));
+      } catch {}
+
+      return updatedCapture;
+    } catch (err) {
+      console.error('[DeviceContext] Gagal menjalankan inferensi deteksi hama:', err);
+      return null;
+    }
   };
 
   const triggerHardwareSimulation = (scenario: string) => {
@@ -928,6 +1081,10 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         captures,
         addCapture,
         deleteCapture,
+        runAiDetection,
+        deleteBoundingBox,
+        addBoundingBox,
+        clearBoundingBoxes,
         updateBoundingBoxLabel,
         waterLogs,
         triggerHardwareSimulation,
