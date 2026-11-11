@@ -37,10 +37,14 @@ import {
   Share2,
   Compass,
   ArrowUpRight,
+  ChevronDown,
+  Shield,
+  LayoutDashboard,
 } from 'lucide-react';
 import { SystemLogo } from '../common/SystemLogo';
 import { ShareModal } from '../common/ShareModal';
 import { FeaturePillarsSection } from './FeaturePillarsSection';
+import { getRoleMetadata } from '../../lib/permissions';
 
 interface PestSpecieData {
   id: string;
@@ -130,6 +134,9 @@ export const LandingPageView: React.FC = () => {
   // Mobile Navigation Menu Drawer State
   const [isMobileNavOpen, setIsMobileNavOpen] = useState<boolean>(false);
 
+  // User Profile Dropdown Menu State
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState<boolean>(false);
+
   // Social Share & Poster Modal State
   const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
 
@@ -207,10 +214,10 @@ export const LandingPageView: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#F6F9F5] text-[#132A13] selection:bg-[#4F772D] selection:text-white font-sans pt-16">
       {/* 1. FIXED HEADER (GLASSMORPHISM HIJAU #132A13 MENYATU DENGAN TEMA) */}
-      <header className="fixed top-0 inset-x-0 z-50 flex h-16 items-center justify-between gap-4 sm:gap-8 border-b border-[#90A955]/30 bg-[#132A13]/85 px-4 sm:px-6 backdrop-blur-md shadow-md text-white">
+      <header className="fixed top-0 inset-x-0 z-50 flex h-16 items-center justify-between gap-2 sm:gap-6 border-b border-[#90A955]/30 bg-[#132A13]/85 px-3 sm:px-6 backdrop-blur-md shadow-md text-white">
         {/* Zone 1: Brand Wordmark with Official System Logo */}
-        <div className="flex items-center gap-2.5 whitespace-nowrap shrink-0">
-          <SystemLogo size="md" showText={true} theme="dark" />
+        <div className="flex items-center gap-2 whitespace-nowrap shrink-0 min-w-0">
+          <SystemLogo size="md" showText={true} theme="dark" compactOnMobile={true} hideSubtitleOnMobile={true} />
         </div>
 
         {/* Zone 2: Navigation Links */}
@@ -236,52 +243,104 @@ export const LandingPageView: React.FC = () => {
         </nav>
 
         {/* Zone 3: Primary Action, Auth Trigger & Mobile Hamburger Menu */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {isAuthenticated && currentUser ? (
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#31572C]/80 border border-[#90A955]/50 text-xs">
-                <div className="h-6 w-6 rounded-lg bg-[#4F772D] text-[#ECF39E] font-bold text-[10px] flex items-center justify-center border border-[#ECF39E]/40">
-                  {currentUser.avatarInitials}
-                </div>
-                <div className="hidden sm:block text-left">
-                  <span className="font-bold text-white block leading-tight">{currentUser.name}</span>
-                  <span className="text-[10px] text-[#ECF39E] block leading-none">{currentUser.role.split(' ')[0]}</span>
-                </div>
+            <div className="flex items-center gap-1.5 sm:gap-2.5">
+              {/* User Profile Button with Dropdown Menu (Masuk Dashboard & Keluar) */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                  className="flex items-center gap-1.5 sm:gap-2 p-1 sm:px-3 sm:py-1.5 rounded-xl bg-[#31572C]/80 hover:bg-[#31572C] active:scale-95 border border-[#90A955]/50 hover:border-[#ECF39E]/60 text-xs shrink-0 cursor-pointer transition-all shadow-xs"
+                  title="Menu Profil Pengguna"
+                  aria-expanded={isProfileMenuOpen}
+                  aria-haspopup="true"
+                >
+                  <div className="h-6 w-6 rounded-lg bg-[#4F772D] text-[#ECF39E] font-bold text-[10px] flex items-center justify-center border border-[#ECF39E]/40 shrink-0">
+                    {currentUser.avatarInitials}
+                  </div>
+                  <div className="hidden sm:block text-left">
+                    <span className="font-bold text-white block leading-tight">{currentUser.name}</span>
+                    <span className="text-[10px] text-[#ECF39E] block leading-none">{currentUser.role.split(' ')[0]}</span>
+                  </div>
+                  <ChevronDown className={`h-3 w-3 text-[#ECF39E] transition-transform duration-200 ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Profile Dropdown Popup */}
+                {isProfileMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setIsProfileMenuOpen(false)}
+                      aria-hidden="true"
+                    />
+                    <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-[#132A13]/95 border border-[#90A955]/60 shadow-2xl p-3 z-50 text-white backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
+                      {/* User Info Header */}
+                      <div className="flex items-center gap-2.5 pb-2.5 mb-2.5 border-b border-[#90A955]/30">
+                        <div className="h-9 w-9 rounded-xl bg-[#4F772D] text-[#ECF39E] font-bold text-xs flex items-center justify-center border border-[#ECF39E]/40 shadow-xs shrink-0">
+                          {currentUser.avatarInitials}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold text-white text-xs truncate leading-tight">{currentUser.name}</div>
+                          <div className="text-[10px] text-[#ECF39E]/80 truncate">{currentUser.email || currentUser.role}</div>
+                          <div className="mt-1 inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[#31572C] text-[#ECF39E] border border-[#90A955]/40">
+                            <Shield className="h-2.5 w-2.5 text-[#ECF39E]" />
+                            <span>{getRoleMetadata(currentUser.role).label}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons: Masuk Dashboard & Keluar */}
+                      <div className="space-y-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsProfileMenuOpen(false);
+                            handleEnterDashboard('overview');
+                          }}
+                          className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-[#4F772D] via-[#90A955] to-[#4F772D] text-white text-xs font-extrabold hover:brightness-110 transition-all cursor-pointer shadow-md border border-[#ECF39E]/50"
+                        >
+                          <div className="flex items-center gap-2">
+                            <LayoutDashboard className="h-3.5 w-3.5 text-[#ECF39E]" />
+                            <span>Masuk Dashboard</span>
+                          </div>
+                          <ArrowRight className="h-3.5 w-3.5 text-[#ECF39E]" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsProfileMenuOpen(false);
+                            logout();
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-red-300 hover:text-white hover:bg-red-500/20 text-xs font-semibold border border-transparent hover:border-red-500/30 transition-all cursor-pointer"
+                        >
+                          <LogOut className="h-3.5 w-3.5 text-red-400" />
+                          <span>Keluar (Logout)</span>
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
-
-              {/* Buka Dashboard Button - Menggunakan warna lebih terang (#4F772D / #90A955) agar menonjol */}
-              <button
-                onClick={() => handleEnterDashboard('overview')}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#4F772D] via-[#90A955] to-[#4F772D] px-3.5 sm:px-4 py-2 text-xs font-extrabold text-white shadow-md hover:brightness-110 transition-all hover:scale-[1.02] whitespace-nowrap shrink-0 cursor-pointer border border-[#ECF39E]/60"
-              >
-                <span>Buka Dashboard</span>
-                <ArrowRight className="h-3.5 w-3.5 text-[#ECF39E]" />
-              </button>
-
-              <button
-                onClick={logout}
-                className="p-2 rounded-xl text-[#ECF39E] hover:text-red-400 hover:bg-white/10 border border-[#90A955]/40 transition-colors cursor-pointer"
-                title="Keluar (Logout)"
-                aria-label="Logout"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
             </div>
           ) : (
-            /* Jika belum login: Tombol Masuk ke Akun dengan palet hijau lebih terang #4F772D / #90A955 */
+            /* Jika belum login: Tombol Masuk ke Akun dengan ukuran responsif */
             <button
               onClick={() => setIsLoginModalOpen(true)}
-              className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl bg-gradient-to-r from-[#4F772D] via-[#90A955] to-[#4F772D] text-xs font-extrabold text-white hover:brightness-110 transition-all cursor-pointer shadow-md border border-[#ECF39E]/60"
+              className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-[#4F772D] via-[#90A955] to-[#4F772D] text-xs font-extrabold text-white hover:brightness-110 transition-all cursor-pointer shadow-md border border-[#ECF39E]/60 whitespace-nowrap shrink-0"
             >
-              <LogIn className="h-3.5 w-3.5 text-[#ECF39E]" />
-              <span>Masuk ke Akun</span>
+              <LogIn className="h-3.5 w-3.5 text-[#ECF39E] shrink-0" />
+              <span>
+                <span className="hidden min-[380px]:inline">Masuk ke </span>Akun
+              </span>
             </button>
           )}
 
           {/* Hamburger Menu Toggle Button for Mobile (< lg) */}
           <button
             onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
-            className="lg:hidden p-2 rounded-xl text-[#ECF39E] hover:text-white hover:bg-white/10 border border-[#90A955]/40 transition-colors cursor-pointer"
+            className="lg:hidden p-1.5 sm:p-2 rounded-xl text-[#ECF39E] hover:text-white hover:bg-white/10 border border-[#90A955]/40 transition-colors cursor-pointer shrink-0"
             aria-label={isMobileNavOpen ? 'Tutup menu navigasi' : 'Buka menu navigasi'}
             title="Menu Navigasi"
           >
@@ -292,7 +351,58 @@ export const LandingPageView: React.FC = () => {
 
       {/* Mobile Navigation Dropdown Menu (Glassmorphism #132A13) */}
       {isMobileNavOpen && (
-        <div className="lg:hidden fixed top-16 inset-x-0 z-40 bg-[#132A13]/95 border-b border-[#90A955]/40 backdrop-blur-xl px-5 py-4 shadow-2xl animate-in slide-in-from-top-2 duration-200">
+        <div className="lg:hidden fixed top-16 inset-x-0 z-40 bg-[#132A13]/95 border-b border-[#90A955]/40 backdrop-blur-xl px-5 py-4 shadow-2xl animate-in slide-in-from-top-2 duration-200 max-h-[calc(100vh-4rem)] overflow-y-auto">
+          {/* User Profile Card & Actions inside Mobile Drawer */}
+          {isAuthenticated && currentUser ? (
+            <div className="mb-3.5 pb-3.5 border-b border-[#90A955]/30 flex flex-col gap-2.5">
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-[#31572C]/60 border border-[#90A955]/40 shadow-inner">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-xl bg-[#4F772D] text-[#ECF39E] font-bold text-xs flex items-center justify-center border border-[#ECF39E]/40 shadow-xs">
+                    {currentUser.avatarInitials}
+                  </div>
+                  <div>
+                    <span className="font-bold text-white text-xs block leading-tight">{currentUser.name}</span>
+                    <span className="text-[10px] text-[#ECF39E] block">{currentUser.role}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    logout();
+                    setIsMobileNavOpen(false);
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/20 text-red-300 border border-red-500/30 text-xs font-semibold hover:bg-red-500/30 transition-colors cursor-pointer"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span>Keluar</span>
+                </button>
+              </div>
+
+              <button
+                onClick={() => {
+                  setIsMobileNavOpen(false);
+                  handleEnterDashboard('overview');
+                }}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#4F772D] via-[#90A955] to-[#4F772D] py-2.5 text-xs font-extrabold text-white shadow-md border border-[#ECF39E]/60 cursor-pointer"
+              >
+                <span>Buka Dashboard Operasional</span>
+                <ArrowRight className="h-4 w-4 text-[#ECF39E]" />
+              </button>
+            </div>
+          ) : (
+            <div className="mb-3.5 pb-3.5 border-b border-[#90A955]/30">
+              <button
+                onClick={() => {
+                  setIsMobileNavOpen(false);
+                  setIsLoginModalOpen(true);
+                }}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#4F772D] via-[#90A955] to-[#4F772D] py-2.5 text-xs font-extrabold text-white shadow-md border border-[#ECF39E]/60 cursor-pointer"
+              >
+                <LogIn className="h-4 w-4 text-[#ECF39E]" />
+                <span>Masuk ke Akun</span>
+              </button>
+            </div>
+          )}
+
           <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-[#90A955]/20 text-[11px] font-semibold text-[#ECF39E]/80 uppercase tracking-wider">
             <span>Navigasi Cepat</span>
             <span className="text-[10px] text-[#90A955]">Smart Trap Subang</span>

@@ -5,6 +5,8 @@ interface SystemLogoProps {
   size?: 'sm' | 'md' | 'lg';
   showText?: boolean;
   theme?: 'dark' | 'light';
+  hideSubtitleOnMobile?: boolean;
+  compactOnMobile?: boolean;
 }
 
 export const SystemLogo: React.FC<SystemLogoProps> = ({
@@ -12,6 +14,8 @@ export const SystemLogo: React.FC<SystemLogoProps> = ({
   size = 'md',
   showText = false,
   theme = 'dark',
+  hideSubtitleOnMobile = false,
+  compactOnMobile = false,
 }) => {
   const sizeMap = {
     sm: { box: 'h-8 w-8', icon: 32, title: 'text-xs', sub: 'text-[9px]' },
@@ -21,11 +25,21 @@ export const SystemLogo: React.FC<SystemLogoProps> = ({
 
   const currentSize = sizeMap[size];
 
+  const boxClasses = compactOnMobile
+    ? 'h-8 w-8 sm:h-10 sm:w-10'
+    : currentSize.box;
+  const titleClasses = compactOnMobile
+    ? 'text-xs sm:text-sm font-extrabold'
+    : currentSize.title;
+  const subClasses = (compactOnMobile || hideSubtitleOnMobile)
+    ? 'hidden sm:block text-[9px] sm:text-[10px]'
+    : currentSize.sub;
+
   return (
-    <div className={`flex items-center gap-2.5 ${className}`}>
+    <div className={`flex items-center gap-2 sm:gap-2.5 ${className}`}>
       {/* Emblem SVG Icon */}
       <div
-        className={`relative ${currentSize.box} shrink-0 rounded-xl bg-gradient-to-br from-[#132A13] via-[#31572C] to-[#4F772D] p-1.5 shadow-md border border-[#90A955]/40 flex items-center justify-center overflow-hidden group`}
+        className={`relative ${boxClasses} shrink-0 rounded-xl bg-gradient-to-br from-[#132A13] via-[#31572C] to-[#4F772D] p-1.5 shadow-md border border-[#90A955]/40 flex items-center justify-center overflow-hidden group`}
       >
         <svg
           viewBox="0 0 40 40"
@@ -108,14 +122,14 @@ export const SystemLogo: React.FC<SystemLogoProps> = ({
       {showText && (
         <div className="leading-tight">
           <span
-            className={`block tracking-tight font-extrabold ${currentSize.title} ${
+            className={`block tracking-tight ${titleClasses} ${
               theme === 'dark' ? 'text-white' : 'text-[#132A13]'
             }`}
           >
             Smart Light Trap
           </span>
           <span
-            className={`block tracking-wide font-semibold ${currentSize.sub} ${
+            className={`tracking-wide font-semibold ${subClasses} ${
               theme === 'dark' ? 'text-[#ECF39E]' : 'text-[#4F772D]'
             }`}
           >
