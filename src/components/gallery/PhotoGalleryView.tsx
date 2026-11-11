@@ -172,7 +172,7 @@ export const PhotoGalleryView: React.FC = () => {
     if (!confirmDelete) return;
 
     try {
-      await deleteCapture(cap.id, cap.dbRecordId, cap.filePath);
+      await deleteCapture(cap.id, cap.dbRecordId, cap.filePath, cap.imageUrl);
       setSaveSuccessMsg(`Foto ${cap.id} berhasil dihapus dari database.`);
       setTimeout(() => setSaveSuccessMsg(null), 3500);
       if (selectedCaptureId === cap.id) {
