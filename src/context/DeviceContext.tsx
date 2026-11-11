@@ -23,7 +23,7 @@ import { deviceService, ProvisionDeviceResult } from '../services/deviceService'
 import { alertService } from '../services/alertService';
 import { pestService } from '../services/pestService';
 import { waterService } from '../services/waterService';
-import { deviceImagesService } from '../services/deviceImagesService';
+import { deviceImagesService, getDeletedCaptureTombstones, addDeletedCaptureTombstone } from '../services/deviceImagesService';
 import { aiDetectionService } from '../services/aiDetectionService';
 import { hasPermission, sanitizeRole } from '../lib/permissions';
 
@@ -72,7 +72,12 @@ interface DeviceContextType {
   ) => Promise<DeviceCommand>;
   captures: CaptureImage[];
   addCapture: (capture: CaptureImage) => void;
-  deleteCapture: (captureId: string, dbRecordId?: number, filePath?: string) => Promise<void>;
+  deleteCapture: (
+    captureId: string,
+    dbRecordId?: number,
+    filePath?: string,
+    imageUrl?: string
+  ) => Promise<void>;
   runAiDetection: (captureId: string) => Promise<CaptureImage | null>;
   deleteBoundingBox: (captureId: string, boxId: string) => void;
   addBoundingBox: (captureId: string, box: BoundingBox) => void;
@@ -269,18 +274,60 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (custom) customCaptures = JSON.parse(custom);
       } catch {}
 
+      // Dapatkan tombstone foto yang telah dihapus agar tidak muncul kembali setelah refresh
+      const tombstones = getDeletedCaptureTombstones();
+
+      const isItemDeleted = (item: {
+        id?: string;
+        dbRecordId?: number;
+        filePath?: string;
+        imageUrl?: string;
+      }) => {
+        if (!item) return false;
+        if (item.id && tombstones.has(item.id)) return true;
+        if (item.id && tombstones.has(`SES-${item.id}`)) return true;
+        if (
+          item.dbRecordId &&
+          (tombstones.has(String(item.dbRecordId)) ||
+            tombstones.has(`db-${item.dbRecordId}`) ||
+            tombstones.has(`IMG-DB-${item.dbRecordId}`))
+        ) {
+          return true;
+        }
+        if (item.filePath && tombstones.has(item.filePath)) return true;
+        if (item.imageUrl && tombstones.has(item.imageUrl)) return true;
+        if (item.id && item.id.startsWith('IMG-DB-')) {
+          const num = item.id.replace('IMG-DB-', '');
+          if (tombstones.has(num) || tombstones.has(`db-${num}`)) return true;
+        }
+        return false;
+      };
+
+      const cleanDbImages = (fetchedDbImages || []).filter(
+        (img) =>
+          !isItemDeleted({
+            id: `IMG-DB-${img.id}`,
+            dbRecordId: img.id,
+            filePath: img.file_path,
+            imageUrl: img.image_url,
+          })
+      );
+
+      const cleanCustomCaptures = customCaptures.filter((c) => !isItemDeleted(c));
+      const cleanFetchedCaptures = (fetchedCaptures || []).filter((s) => !isItemDeleted(s));
+
       // Petakan gambar dari tabel public.device_images & bucket Supabase ke CaptureImage
       // Menggabungkan anotasi deteksi dari capture_sessions Supabase atau local cache
-      const mappedDbImages: CaptureImage[] = (fetchedDbImages || []).map((img) => {
+      const mappedDbImages: CaptureImage[] = cleanDbImages.map((img) => {
         const imgKey = `IMG-DB-${img.id}`;
 
         // 1. Cari data deteksi dari local customCaptures
-        const customMatch = customCaptures.find(
+        const customMatch = cleanCustomCaptures.find(
           (c) => c.dbRecordId === img.id || c.id === imgKey || (c.imageUrl && c.imageUrl === img.image_url)
         );
 
         // 2. Cari data deteksi dari fetchedCaptures (tabel public.capture_sessions & public.insect_detections)
-        const sessionMatch = (fetchedCaptures || []).find(
+        const sessionMatch = cleanFetchedCaptures.find(
           (s) =>
             s.id === `SES-${imgKey}` ||
             s.notes?.includes(img.file_path || '') ||
@@ -369,10 +416,11 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
 
       // Gabungkan dan hilangkan duplikasi berdasarkan ID / URL
-      const combinedCaptures = [...mappedDbImages, ...customCaptures, ...(fetchedCaptures || [])];
+      const combinedCaptures = [...mappedDbImages, ...cleanCustomCaptures, ...cleanFetchedCaptures];
       const seenKeys = new Set<string>();
       const dedupedCaptures: CaptureImage[] = [];
       for (const item of combinedCaptures) {
+        if (isItemDeleted(item)) continue;
         const key = item.dbRecordId ? `db-${item.dbRecordId}` : item.imageUrl || item.id;
         if (!seenKeys.has(key)) {
           seenKeys.add(key);
@@ -909,23 +957,80 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch {}
   };
 
-  const deleteCapture = async (captureId: string, dbRecordId?: number, filePath?: string) => {
-    if (dbRecordId) {
-      try {
-        await deviceImagesService.deleteImage(dbRecordId, filePath);
-      } catch (err) {
-        console.warn('[DeviceContext] Gagal menghapus gambar di database Supabase:', err);
-      }
-    }
-    setCaptures((prev) => prev.filter((c) => c.id !== captureId));
+  const deleteCapture = async (
+    captureId: string,
+    dbRecordId?: number,
+    filePath?: string,
+    imageUrl?: string
+  ) => {
+    const target = captures.find((c) => c.id === captureId);
+    const finalDbId =
+      dbRecordId ||
+      target?.dbRecordId ||
+      (captureId.startsWith('IMG-DB-')
+        ? parseInt(captureId.replace('IMG-DB-', ''), 10)
+        : undefined);
+    const finalFilePath =
+      filePath ||
+      target?.filePath ||
+      (target?.imageUrl && target.imageUrl.includes('/captures/')
+        ? 'captures/' + target.imageUrl.split('/captures/')[1].split('?')[0]
+        : undefined);
+    const finalImageUrl = imageUrl || target?.imageUrl;
+
+    // 1. Tambahkan ke daftar tombstone agar foto tidak pernah muncul kembali setelah refresh
+    addDeletedCaptureTombstone(
+      captureId,
+      finalDbId,
+      finalDbId ? `db-${finalDbId}` : undefined,
+      finalDbId ? `IMG-DB-${finalDbId}` : undefined,
+      finalFilePath,
+      finalImageUrl,
+      `SES-${captureId}`,
+      finalDbId ? `SES-IMG-DB-${finalDbId}` : undefined
+    );
+
+    // 2. Bersihkan dari state memori React secara instan
+    setCaptures((prev) =>
+      prev.filter((c) => {
+        if (c.id === captureId) return false;
+        if (finalDbId && (c.dbRecordId === finalDbId || c.id === `IMG-DB-${finalDbId}`)) return false;
+        if (finalFilePath && c.filePath === finalFilePath) return false;
+        if (finalImageUrl && c.imageUrl === finalImageUrl) return false;
+        return true;
+      })
+    );
+
+    // 3. Bersihkan dari localStorage cache
     try {
       const custom = localStorage.getItem('slt_custom_captures');
       if (custom) {
-        const list = JSON.parse(custom);
-        const filtered = list.filter((c: any) => c.id !== captureId);
+        const list: CaptureImage[] = JSON.parse(custom);
+        const filtered = list.filter((c) => {
+          if (c.id === captureId) return false;
+          if (finalDbId && (c.dbRecordId === finalDbId || c.id === `IMG-DB-${finalDbId}`)) return false;
+          if (finalFilePath && c.filePath === finalFilePath) return false;
+          if (finalImageUrl && c.imageUrl === finalImageUrl) return false;
+          return true;
+        });
         localStorage.setItem('slt_custom_captures', JSON.stringify(filtered));
       }
     } catch {}
+
+    // 4. Eksekusi penghapusan di database Supabase (device_images, capture_sessions, insect_detections) & storage
+    try {
+      const res = await deviceImagesService.deleteImage(
+        finalDbId,
+        finalFilePath,
+        captureId,
+        finalImageUrl
+      );
+      if (!res.success && res.error) {
+        console.warn('[DeviceContext] Peringatan hapus di database Supabase:', res.error);
+      }
+    } catch (err) {
+      console.warn('[DeviceContext] Exception saat menghapus gambar di Supabase:', err);
+    }
   };
 
   /**
