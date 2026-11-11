@@ -305,35 +305,43 @@ export const aiDetectionService = {
           try {
             imgData = ctx.getImageData(0, 0, width, height);
           } catch {
-            // Jika canvas tainted CORS dari eksternal DroidCam IP, fallback ke 1 box wereng terpusat
-            const fallbackBox: BoundingBox = {
-              id: `box-cv-${Date.now()}-1`,
-              speciesId: 'nilaparvata_lugens',
-              confidence: 0.95,
-              x: 38,
-              y: 40,
-              width: 24,
-              height: 18,
-              isManuallyVerified: false,
-            };
-            resolve({
-              captureId: capture.id,
-              deviceId: capture.deviceId,
-              totalPests: 1,
-              targetPestsCount: 1,
-              otherInsectsCount: 0,
-              avgConfidence: 0.95,
-              modelVersion: 'YOLOv8n-IP102-Edge v2.1',
-              bboxes: [fallbackBox],
-              executionTimeMs: 130,
-              inferenceEngine: 'client_edge_yolo',
-              notes: 'Deteksi terfokus: 1 ekor Wereng Batang Coklat (WBC) teridentifikasi pada baki/tanaman.',
-              speciesDistribution: { nilaparvata_lugens: 1 },
-            });
+            resolve(emptyResult('Citra baki tidak dapat diakses secara langsung karena pembatasan CORS.'));
             return;
           }
 
           const data = imgData.data;
+
+          // Evaluasi intensitas cahaya global citra untuk mendeteksi frame gelap/kosong
+          let totalLum = 0;
+          let sampleCount = 0;
+          for (let i = 0; i < data.length; i += 16) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            totalLum += 0.299 * r + 0.587 * g + 0.114 * b;
+            sampleCount++;
+          }
+          const avgImageLum = sampleCount > 0 ? totalLum / sampleCount : 0;
+
+          // Jika citra gelap total (lensa tertutup, frame hitam kosong, atau lampu UV mati)
+          if (avgImageLum < 18) {
+            resolve(
+              emptyResult(
+                'Citra baki kosong / gelap (Pencahayaan rendah atau kamera tertutup). Tidak ada objek serangga terdeteksi.'
+              )
+            );
+            return;
+          }
+
+          // Jika citra mengalami over-exposure ekstrim (putih silau)
+          if (avgImageLum > 245) {
+            resolve(
+              emptyResult(
+                'Citra baki mengalami over-exposure (terlalu terang). Tidak ada serangga terdeteksi.'
+              )
+            );
+            return;
+          }
 
           // 1. Grid Sampling untuk mendeteksi organism clusters
           const gridW = 32;
@@ -406,8 +414,8 @@ export const aiDetectionService = {
                 b < 115 &&
                 !(r > 240 && g > 240 && b > 240);
 
-              // Kondisi 3: Siluet Serangga Gelap di Baki Air
-              const isDark = lum < 50 && b < 60;
+              // Kondisi 3: Siluet Serangga Gelap di Baki Air (hanya jika ada kontras dengan permukaan baki)
+              const isDark = avgImageLum > 55 && lum < 45 && (avgImageLum - lum) > 25;
 
               if (isMoth) {
                 cellTypeGrid[gy][gx] = 1;
@@ -638,19 +646,6 @@ export const aiDetectionService = {
                 });
               }
             }
-          } else {
-            // Jika pencahayaan ekstrem atau foto luar ruangan tanpa cluster kontras tinggi,
-            // deteksi terpusat pada tanaman
-            finalBoxes.push({
-              id: `box-cv-${Date.now()}-1`,
-              speciesId: 'scirpophaga_incertulas',
-              confidence: 0.94,
-              x: 44,
-              y: 32,
-              width: 16,
-              height: 28,
-              isManuallyVerified: false,
-            });
           }
 
           const targetCount = finalBoxes.filter((b) => b.speciesId !== 'other_neutral').length;
@@ -658,7 +653,7 @@ export const aiDetectionService = {
           const avgConf =
             finalBoxes.length > 0
               ? Math.round((finalBoxes.reduce((acc, b) => acc + b.confidence, 0) / finalBoxes.length) * 1000) / 1000
-              : 0.95;
+              : 0;
 
           const speciesDist: Record<string, number> = {};
           finalBoxes.forEach((b) => {
@@ -666,9 +661,16 @@ export const aiDetectionService = {
           });
 
           const spName =
-            finalBoxes.length === 1
+            finalBoxes.length === 0
+              ? 'Baki Bersih (0 Ekor)'
+              : finalBoxes.length === 1
               ? IP102_SUBANG_TAXONOMY[finalBoxes[0].speciesId]?.commonName || 'Hama Padi'
               : `${finalBoxes.length} serangga`;
+
+          const notes =
+            finalBoxes.length === 0
+              ? 'Baki bersih: Tidak ditemukan objek hama atau serangga pada citra ini.'
+              : `Deteksi AI selesai: Ditemukan ${finalBoxes.length} individu (${spName}).`;
 
           resolve({
             captureId: capture.id,
@@ -681,7 +683,7 @@ export const aiDetectionService = {
             bboxes: finalBoxes,
             executionTimeMs: 140,
             inferenceEngine: 'client_edge_yolo',
-            notes: `Deteksi AI selesai: Ditemukan ${finalBoxes.length} individu (${spName}).`,
+            notes,
             speciesDistribution: speciesDist,
           });
         } catch (err) {
