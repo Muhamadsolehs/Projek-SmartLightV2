@@ -299,8 +299,8 @@ export const deviceService = {
     const ACTUATOR_NAMES: Record<number, string> = {
       1: 'Pompa Air Pengisi (Relay 1 - D1 / GPIO5)',
       2: 'Katup Solenoid Drain (Relay 2 - D2 / GPIO4)',
-      3: 'Lampu LED UV 365nm (Relay 3 - D7 / GPIO13)',
-      4: 'Kipas Blower / Aux (Relay 4 - D0 / GPIO16)',
+      3: 'Kipas Blower / Aux (Relay 3 - D7 / GPIO13)',
+      4: 'Lampu LED UV 365nm (Relay 4 - D0 / GPIO16)',
     };
 
     const results: { relay: number; name: string; success: boolean; message: string }[] = [];

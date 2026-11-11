@@ -788,24 +788,24 @@ export const DeviceDetailModal: React.FC<{
                     </div>
                   </div>
 
-                  {/* Relay 3: LED UV Penarik */}
+                  {/* Relay 3: Kipas / Auxiliary */}
                   <div className={`p-4 rounded-xl border transition-all ${
-                    relayStates[3] ? 'bg-amber-50/50 border-amber-300 shadow-xs' : 'bg-white border-slate-200'
+                    relayStates[3] ? 'bg-emerald-50/50 border-[#2D6A4F] shadow-xs' : 'bg-white border-slate-200'
                   }`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
                         <span className={`flex h-8 w-8 items-center justify-center rounded-lg font-mono text-xs font-bold ${
-                          relayStates[3] ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-600'
+                          relayStates[3] ? 'bg-[#2D6A4F] text-white' : 'bg-slate-100 text-slate-600'
                         }`}>
                           R3
                         </span>
                         <div>
-                          <div className="font-bold text-xs sm:text-sm text-[#192A20]">Relay 3: Lampu UV 365nm</div>
-                          <div className="text-[10px] font-mono text-slate-500">D7 / GPIO13 · LED Nokturnal</div>
+                          <div className="font-bold text-xs sm:text-sm text-[#192A20]">Relay 3: Kipas Blower / Aux</div>
+                          <div className="text-[10px] font-mono text-slate-500">D7 / GPIO13 · Output Kipas / Aux</div>
                         </div>
                       </div>
                       <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
-                        relayStates[3] ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
+                        relayStates[3] ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
                       }`}>
                         {relayStates[3] ? 'ON (0V)' : 'OFF (3.3V)'}
                       </span>
@@ -821,29 +821,29 @@ export const DeviceDetailModal: React.FC<{
                             : 'bg-[#2D6A4F] text-white hover:bg-[#1B4332]'
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
                       >
-                        {relayStates[3] ? 'Matikan Lampu' : 'Nyalakan Lampu'}
+                        {relayStates[3] ? 'Matikan Kipas' : 'Nyalakan Kipas'}
                       </button>
                     </div>
                   </div>
 
-                  {/* Relay 4: Auxiliary */}
+                  {/* Relay 4: LED UV Penarik */}
                   <div className={`p-4 rounded-xl border transition-all ${
-                    relayStates[4] ? 'bg-emerald-50/50 border-[#2D6A4F] shadow-xs' : 'bg-white border-slate-200'
+                    relayStates[4] ? 'bg-amber-50/50 border-amber-300 shadow-xs' : 'bg-white border-slate-200'
                   }`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
                         <span className={`flex h-8 w-8 items-center justify-center rounded-lg font-mono text-xs font-bold ${
-                          relayStates[4] ? 'bg-[#2D6A4F] text-white' : 'bg-slate-100 text-slate-600'
+                          relayStates[4] ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-600'
                         }`}>
                           R4
                         </span>
                         <div>
-                          <div className="font-bold text-xs sm:text-sm text-[#192A20]">Relay 4: Auxiliary / Port Beban</div>
-                          <div className="text-[10px] font-mono text-slate-500">D0 / GPIO16 · Output Cadangan (Kipas/Aux)</div>
+                          <div className="font-bold text-xs sm:text-sm text-[#192A20]">Relay 4: Lampu UV 365nm</div>
+                          <div className="text-[10px] font-mono text-slate-500">D0 / GPIO16 · LED Nokturnal</div>
                         </div>
                       </div>
                       <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
-                        relayStates[4] ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
+                        relayStates[4] ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
                       }`}>
                         {relayStates[4] ? 'ON (0V)' : 'OFF (3.3V)'}
                       </span>
@@ -859,7 +859,7 @@ export const DeviceDetailModal: React.FC<{
                             : 'bg-[#2D6A4F] text-white hover:bg-[#1B4332]'
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
                       >
-                        {relayStates[4] ? 'Matikan Aux' : 'Nyalakan Aux'}
+                        {relayStates[4] ? 'Matikan Lampu' : 'Nyalakan Lampu'}
                       </button>
                     </div>
                   </div>

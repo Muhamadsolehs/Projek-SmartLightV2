@@ -4,6 +4,7 @@ import {
   DeviceAlert,
   DeviceCommand,
   CaptureImage,
+  BoundingBox,
   WaterChangeLog,
   InsectSpeciesId,
   UserProfile,
@@ -325,12 +326,6 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             customMatch.notes.includes('Baki bersih') ||
             customMatch.notes.includes('Tidak ditemukan') ||
             customMatch.notes.includes('terlalu gelap')
-          )) ||
-          (sessionMatch?.notes && (
-            sessionMatch.notes.includes('Deteksi AI') ||
-            sessionMatch.notes.includes('Baki bersih') ||
-            sessionMatch.notes.includes('Tidak ditemukan') ||
-            sessionMatch.notes.includes('terlalu gelap')
           )) ||
           ((img as any).notes && (
             (img as any).notes.includes('Deteksi AI') ||
@@ -664,8 +659,8 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               const rNum = params?.relay || 1;
               const rState = params?.state || 'ON';
               resp = `Relay ${rNum} berhasil diset ke ${rState} (Logika Active LOW).`;
-              if (rNum === 3) {
-                // Relay 3 is LED / Lamp
+              if (rNum === 4) {
+                // Relay 4 is LED / Lamp
                 setDevices((prev) =>
                   prev.map((d) =>
                     d.id === deviceId

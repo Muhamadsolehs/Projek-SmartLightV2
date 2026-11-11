@@ -10,6 +10,7 @@ export interface Ip102TaxonomyMeta {
   speciesId: InsectSpeciesId;
   commonName: string;
   scientificName: string;
+  family?: string;
   ip102ClassIds: number[];
   ip102Names: string[];
   classification: 'target_pest' | 'neutral_insect';
@@ -744,7 +745,7 @@ export const aiDetectionService = {
           id: code,
           common_name: meta.commonName,
           scientific_name: meta.scientificName,
-          family: meta.family,
+          family: meta.family || 'Insecta',
           is_target_pest: meta.classification === 'target_pest',
           economic_threshold_per_night: 50,
           risk_level: meta.classification === 'target_pest' ? 'high' : 'low',

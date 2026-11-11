@@ -47,7 +47,7 @@ interface ActuatorCardProps {
   dbColumn: 'channel_1' | 'channel_2' | 'channel_3' | 'channel_4';
   dbStatus: boolean; // Nilai boolean pada kolom tabel relay_status di Supabase (true = ON, false = OFF)
   icon: React.ComponentType<{ className?: string }>;
-  description: string;
+  description?: string;
   actualStatus: 'ON' | 'OFF' | 'UNKNOWN';
   lastCommand: DeviceCommand | null;
   isExecuting: boolean;
@@ -83,6 +83,7 @@ const ActuatorCard: React.FC<ActuatorCardProps> = ({
 }) => {
   return (
     <div
+      title={description || name}
       className={`p-3.5 rounded-xl border transition-all ${
         dbStatus
           ? 'bg-[#EAF4EE]/25 border-[#2D6A4F]/60 shadow-xs ring-1 ring-[#2D6A4F]/20'
@@ -128,17 +129,6 @@ const ActuatorCard: React.FC<ActuatorCardProps> = ({
           {dbStatus ? 'ON' : 'OFF'}
         </span>
       </div>
-
-      {/* Description / Function */}
-      <p className="text-[11px] text-[#718096] mt-2 line-clamp-2 leading-relaxed">{description}</p>
-
-      {/* Protection or Interlock */}
-      {protectionNote && (
-        <div className="mt-2 px-2 py-1 rounded-md bg-[#F8FAF9] border border-[#E2E8F0] text-[10px] text-[#718096] flex items-center justify-between">
-          <span className="text-[#A0AEC0]">Proteksi:</span>
-          <span className="font-medium text-[#192A20] truncate">{protectionNote}</span>
-        </div>
-      )}
 
       {/* Kontrol ON / OFF Buttons */}
       <div className="mt-3 pt-2.5 border-t border-[#E2E8F0] grid grid-cols-2 gap-2">
@@ -331,14 +321,15 @@ export const ManualControlView: React.FC = () => {
     ? (relayTableStatus[2] ? 'ON' : 'OFF')
     : (tel?.water?.drainValveStatus === 'open' ? 'ON' : 'OFF');
 
-  const actualLampStatus = relayTableStatus[3] !== undefined
-    ? (relayTableStatus[3] ? 'ON' : 'OFF')
+  // Relay 4 (Lampu LED UV):
+  const actualLampStatus = relayTableStatus[4] !== undefined
+    ? (relayTableStatus[4] ? 'ON' : 'OFF')
     : (tel?.lamp?.isActive ? 'ON' : 'OFF');
 
-  // Relay 4 (Kipas / Aux): fallback state
+  // Relay 3 (Kipas / Aux): fallback state
   const [actualFanStatus, setActualFanStatus] = useState<'ON' | 'OFF' | 'UNKNOWN'>('OFF');
-  const fanStatus = relayTableStatus[4] !== undefined
-    ? (relayTableStatus[4] ? 'ON' : 'OFF')
+  const fanStatus = relayTableStatus[3] !== undefined
+    ? (relayTableStatus[3] ? 'ON' : 'OFF')
     : actualFanStatus;
 
   // Filter commands for selected device
@@ -355,7 +346,7 @@ export const ManualControlView: React.FC = () => {
           Number(c.parameters?.relay) === channel
       ) ||
       (channel === 1 && deviceCommands.find((c) => c.commandType === 'FORCE_WATER_CHANGE')) ||
-      (channel === 3 && deviceCommands.find((c) => c.commandType === 'TOGGLE_LAMP')) ||
+      (channel === 4 && deviceCommands.find((c) => c.commandType === 'TOGGLE_LAMP')) ||
       null
     );
   };
@@ -429,8 +420,8 @@ export const ManualControlView: React.FC = () => {
     const channelNames: Record<number, string> = {
       1: 'Pompa Air Pengisi (channel_1)',
       2: 'Katup Solenoid Drain (channel_2)',
-      3: 'Lampu LED UV 365nm (channel_3)',
-      4: 'Kipas Blower / Aux (channel_4)',
+      3: 'Kipas Blower / Aux (channel_3)',
+      4: 'Lampu LED UV 365nm (channel_4)',
     };
     const chName = channelNames[channel] || `Channel ${channel}`;
     const colName = `channel_${channel}`;
@@ -454,7 +445,7 @@ export const ManualControlView: React.FC = () => {
       setRelayTableStatus((prev) => ({ ...prev, [channel]: turnOn }));
       setLastRelayUpdatedAt(new Date().toISOString());
 
-      if (channel === 4) {
+      if (channel === 3) {
         setActualFanStatus(turnOn ? 'ON' : 'OFF');
       }
 
@@ -786,8 +777,8 @@ export const ManualControlView: React.FC = () => {
           {[
             { ch: 1, name: 'Pompa Air', state: relayTableStatus[1] },
             { ch: 2, name: 'Solenoid Drain', state: relayTableStatus[2] },
-            { ch: 3, name: 'Lampu LED UV', state: relayTableStatus[3] },
-            { ch: 4, name: 'Kipas Blower', state: relayTableStatus[4] },
+            { ch: 3, name: 'Kipas Blower', state: relayTableStatus[3] },
+            { ch: 4, name: 'Lampu LED UV', state: relayTableStatus[4] },
           ].map((item) => (
             <div key={item.ch} className="p-2 rounded-lg bg-[#F8FAF9] border border-[#E2E8F0] flex items-center justify-between">
               <div className="min-w-0">
@@ -827,7 +818,6 @@ export const ManualControlView: React.FC = () => {
             dbColumn="channel_1"
             dbStatus={Boolean(relayTableStatus[1])}
             icon={Droplets}
-            description="Mengalirkan air bersih dari tandon cadangan ke baki penampung serangga."
             actualStatus={actualPumpStatus}
             lastCommand={getLastCommandForRelay(1)}
             isExecuting={isExecuting}
@@ -841,7 +831,6 @@ export const ManualControlView: React.FC = () => {
             ]}
             onTimedAction={(sec, label) => handleTimedRelayAction(1, sec, label)}
             activeTimer={channelTimers[1]}
-            protectionNote="Interlock Tandon ≥15% · Auto-Cutoff Maks 45s"
           />
 
           {/* 2. KATUP SOLENOID DRAIN */}
@@ -852,7 +841,6 @@ export const ManualControlView: React.FC = () => {
             dbColumn="channel_2"
             dbStatus={Boolean(relayTableStatus[2])}
             icon={ArrowDownCircle}
-            description="Membuka saluran pembuangan air kotor baki perangkap untuk menguras bangkai serangga."
             actualStatus={actualDrainStatus}
             lastCommand={getLastCommandForRelay(2)}
             isExecuting={isExecuting}
@@ -865,19 +853,17 @@ export const ManualControlView: React.FC = () => {
             ]}
             onTimedAction={(sec, label) => handleTimedRelayAction(2, sec, label)}
             activeTimer={channelTimers[2]}
-            protectionNote="Normally Closed (Aman Tertutup Saat Mati Daya)"
           />
 
-          {/* 3. LAMPU LED UV PENARIK */}
+          {/* 3. KIPAS BLOWER / AUXILIARY */}
           <ActuatorCard
             channel={3}
-            name="Lampu LED Perangkap (UV 365nm)"
-            hardwarePin="D7 / GPIO13 · High Power UV"
+            name="Kipas Blower / Port Aux"
+            hardwarePin="D7 / GPIO13 · DC Fan / Aux"
             dbColumn="channel_3"
             dbStatus={Boolean(relayTableStatus[3])}
-            icon={Lightbulb}
-            description="Menyalakan lampu ultraviolet 365nm penarik serangga nokturnal seperti wereng dan penggerek batang."
-            actualStatus={actualLampStatus}
+            icon={Fan}
+            actualStatus={fanStatus}
             lastCommand={getLastCommandForRelay(3)}
             isExecuting={isExecuting}
             canControl={canControl}
@@ -885,23 +871,21 @@ export const ManualControlView: React.FC = () => {
             onTurnOn={() => handleRelayAction(3, true)}
             onTurnOff={() => handleRelayAction(3, false)}
             timedOptions={[
-              { label: 'Uji Nyala 60s', seconds: 60 },
+              { label: 'Nyalakan 30s', seconds: 30 },
             ]}
             onTimedAction={(sec, label) => handleTimedRelayAction(3, sec, label)}
             activeTimer={channelTimers[3]}
-            protectionNote="Driver Arus ~850 mA · Saklar Relay ON/OFF"
           />
 
-          {/* 4. KIPAS BLOWER / AUXILIARY */}
+          {/* 4. LAMPU LED UV PENARIK */}
           <ActuatorCard
             channel={4}
-            name="Kipas Blower / Port Aux"
-            hardwarePin="D0 / GPIO16 · DC Fan / Aux"
+            name="Lampu LED Perangkap (UV 365nm)"
+            hardwarePin="D0 / GPIO16 · High Power UV"
             dbColumn="channel_4"
             dbStatus={Boolean(relayTableStatus[4])}
-            icon={Fan}
-            description="Mengaktifkan kipas sirkulasi blower atau port cadangan untuk ventilasi dan anti-embun."
-            actualStatus={fanStatus}
+            icon={Lightbulb}
+            actualStatus={actualLampStatus}
             lastCommand={getLastCommandForRelay(4)}
             isExecuting={isExecuting}
             canControl={canControl}
@@ -909,11 +893,10 @@ export const ManualControlView: React.FC = () => {
             onTurnOn={() => handleRelayAction(4, true)}
             onTurnOff={() => handleRelayAction(4, false)}
             timedOptions={[
-              { label: 'Nyalakan 30s', seconds: 30 },
+              { label: 'Uji Nyala 60s', seconds: 60 },
             ]}
             onTimedAction={(sec, label) => handleTimedRelayAction(4, sec, label)}
             activeTimer={channelTimers[4]}
-            protectionNote="Saklar Relay ON/OFF"
           />
         </div>
       </div>
@@ -921,14 +904,11 @@ export const ManualControlView: React.FC = () => {
       {/* Makro Lapangan, Kamera, & Reboot */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Card 1: Kamera Manual Snapshot */}
-        <div className="p-3.5 rounded-xl border border-[#E2E8F0] bg-white shadow-2xs hover:border-[#D1DCD6] transition-colors space-y-2">
+        <div className="p-3.5 rounded-xl border border-[#E2E8F0] bg-white shadow-2xs hover:border-[#D1DCD6] transition-colors space-y-3">
           <div className="flex items-center gap-2 text-[#192A20]">
             <Camera className="h-4 w-4 text-[#2D6A4F]" />
             <h3 className="font-semibold text-xs text-[#192A20]">Kamera Baki OV5640</h3>
           </div>
-          <p className="text-[11px] text-[#718096] leading-normal">
-            Ambil foto kondisi baki dan serangga secara instan di luar jadwal rutin.
-          </p>
           <button
             type="button"
             disabled={!canControl || !isDeviceOnline || isExecuting}
@@ -941,14 +921,11 @@ export const ManualControlView: React.FC = () => {
         </div>
 
         {/* Card 2: Siklus Cuci & Kuras Lengkap */}
-        <div className="p-3.5 rounded-xl border border-[#E2E8F0] bg-white shadow-2xs hover:border-[#D1DCD6] transition-colors space-y-2">
+        <div className="p-3.5 rounded-xl border border-[#E2E8F0] bg-white shadow-2xs hover:border-[#D1DCD6] transition-colors space-y-3">
           <div className="flex items-center gap-2 text-[#192A20]">
             <RefreshCw className="h-4 w-4 text-[#2D6A4F]" />
             <h3 className="font-semibold text-xs text-[#192A20]">Siklus Cuci Baki Lengkap</h3>
           </div>
-          <p className="text-[11px] text-[#718096] leading-normal">
-            Buka drain baki 25s untuk membuang air kotor, lalu isi ulang 5L air bersih dari tandon.
-          </p>
           <button
             type="button"
             disabled={!canControl || !isDeviceOnline || isExecuting}
@@ -960,15 +937,12 @@ export const ManualControlView: React.FC = () => {
           </button>
         </div>
 
-            {/* Card 3: Soft Restart ESP8266 */}
-        <div className="p-3.5 rounded-xl border border-[#E2E8F0] bg-white shadow-2xs hover:border-[#D1DCD6] transition-colors space-y-2">
+        {/* Card 3: Soft Restart ESP8266 */}
+        <div className="p-3.5 rounded-xl border border-[#E2E8F0] bg-white shadow-2xs hover:border-[#D1DCD6] transition-colors space-y-3">
           <div className="flex items-center gap-2 text-[#192A20]">
             <RotateCcw className="h-4 w-4 text-[#52796F]" />
             <h3 className="font-semibold text-xs text-[#192A20]">Soft Restart ESP8266</h3>
           </div>
-          <p className="text-[11px] text-[#718096] leading-normal">
-            Restart firmware NodeMCU tanpa menghapus konfigurasi kalibrasi &amp; Wi-Fi.
-          </p>
           <button
             type="button"
             disabled={!canControl || !isDeviceOnline || isExecuting}

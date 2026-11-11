@@ -85,8 +85,8 @@
 // ============================================================================
 #define PIN_RELAY_1               D1 // GPIO 5  - Pompa Pengisi Baki
 #define PIN_RELAY_2               D2 // GPIO 4  - Katup Solenoid Drain
-#define PIN_RELAY_3               D7 // GPIO 13 - Lampu LED Penarik Serangga UV
-#define PIN_RELAY_4               D0 // GPIO 16 - Kipas Blower / Beban Aux
+#define PIN_RELAY_3               D7 // GPIO 13 - Kipas Blower / Beban Aux
+#define PIN_RELAY_4               D0 // GPIO 16 - Lampu LED Penarik Serangga UV
 #define PIN_LED_BUILDIN           D4 // GPIO 2  - LED Internal NodeMCU (Active LOW)
 
 #define RELAY_ACTIVE_LEVEL        LOW  // 0V = ON
@@ -107,8 +107,8 @@ const char* const RELAY_NAMES[NUM_RELAYS] = {
 const char* const RELAY_LABELS[NUM_RELAYS] = {
   "Relay 1 (D1/GPIO5 - Pompa Baki)",
   "Relay 2 (D2/GPIO4 - Solenoid Drain)",
-  "Relay 3 (D7/GPIO13 - Lampu LED UV)",
-  "Relay 4 (D0/GPIO16 - Kipas / Aux)"
+  "Relay 3 (D7/GPIO13 - Kipas / Aux)",
+  "Relay 4 (D0/GPIO16 - Lampu LED UV)"
 };
 
 // ============================================================================
@@ -1558,9 +1558,9 @@ void executeSetRelay(const char* cmdId, int relayNum, const String& stateStr) {
   saveCommandHistoryToEEPROM();
 }
 
-// B. TOGGLE_LAMP: Mengendalikan Relay 3 (Lampu LED UV 365nm)
+// B. TOGGLE_LAMP: Mengendalikan Relay 4 (Lampu LED UV 365nm)
 void executeToggleLamp(const char* cmdId) {
-  int channelIndex = 2; // Relay 3 (D7 / GPIO 13)
+  int channelIndex = 3; // Relay 4 (D0 / GPIO 16)
   bool nextState = !gRelayStates[channelIndex];
   setRelayPhysical(channelIndex, nextState);
 
@@ -1570,13 +1570,13 @@ void executeToggleLamp(const char* cmdId) {
   bool verified = (pinRead == expectedLevel);
   String finalState = nextState ? "ON" : "OFF";
   
-  String msg = String("Lampu UV (Relay 3, GPIO13) diset ke ") + finalState +
+  String msg = String("Lampu UV (Relay 4, GPIO16) diset ke ") + finalState +
                ". Register: " + (pinRead == 0 ? "0V (LOW)" : "3.3V (HIGH)") +
                ". Status logis: " + finalState +
                ". Beban fisik: UNMONITORED (tanpa sensor arus).";
 
-  gCommandHistory.add(cmdId, "completed", 3, finalState.c_str(), verified, pinRead, false);
-  gAckQueue.enqueue(cmdId, "completed", msg.c_str(), 3, finalState.c_str(), verified, pinRead);
+  gCommandHistory.add(cmdId, "completed", 4, finalState.c_str(), verified, pinRead, false);
+  gAckQueue.enqueue(cmdId, "completed", msg.c_str(), 4, finalState.c_str(), verified, pinRead);
   saveCommandHistoryToEEPROM();
 }
 
