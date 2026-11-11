@@ -72,8 +72,16 @@ export const OverviewView: React.FC = () => {
       ? Math.round(((todayTrend.totalTarget - yesterdayTrend.totalTarget) / yesterdayTrend.totalTarget) * 100)
       : 0;
 
-  const maxPestCount =
-    pestTrends.length > 0 ? Math.max(...pestTrends.map((d) => d.totalAll), 10) : 10;
+  const highestPest =
+    pestTrends.length > 0 ? Math.max(...pestTrends.map((d) => d.totalAll), 0) : 0;
+  const maxPestCount = Math.max(Math.ceil((highestPest || 10) / 10) * 10, 20);
+  const gridSteps = [
+    0,
+    Math.round(maxPestCount * 0.25),
+    Math.round(maxPestCount * 0.5),
+    Math.round(maxPestCount * 0.75),
+    maxPestCount,
+  ];
 
   return (
     <div className="space-y-4">
@@ -259,9 +267,9 @@ export const OverviewView: React.FC = () => {
             </div>
           ) : (
             <div className="h-56 w-full">
-              <svg className="w-full h-full overflow-visible" viewBox="0 0 700 240">
+              <svg className="w-full h-full overflow-hidden" viewBox="0 0 700 240">
                 {/* Grid Lines */}
-                {[0, 60, 120, 180, 240].map((val, idx) => {
+                {gridSteps.map((val, idx) => {
                   const y = 200 - (val / Math.max(maxPestCount, 1)) * 180;
                   return (
                     <g key={idx}>
@@ -287,34 +295,6 @@ export const OverviewView: React.FC = () => {
                     </g>
                   );
                 })}
-
-                {/* Economic Threshold Reference Line */}
-                {(() => {
-                  const thresholdY = 200 - (50 / Math.max(maxPestCount, 1)) * 180;
-                  return (
-                    <g>
-                      <line
-                        x1="40"
-                        y1={thresholdY}
-                        x2="690"
-                        y2={thresholdY}
-                        stroke="#DC2626"
-                        strokeWidth="1.5"
-                        strokeDasharray="6 3"
-                      />
-                      <text
-                        x="685"
-                        y={thresholdY - 5}
-                        textAnchor="end"
-                        fontSize="9"
-                        fill="#DC2626"
-                        fontWeight="bold"
-                      >
-                        Ambang Kendali PHT (50)
-                      </text>
-                    </g>
-                  );
-                })()}
 
                 {/* Stacked Bars */}
                 {pestTrends.map((item, idx) => {
