@@ -119,6 +119,12 @@ export const deviceImagesService = {
         file_path: row.file_path || '',
         trigger_source: row.trigger_source || 'manual_admin',
         captured_at: row.captured_at || new Date().toISOString(),
+        total_pests: typeof row.total_pests === 'number' ? row.total_pests : undefined,
+        target_pests_count: typeof row.target_pests_count === 'number' ? row.target_pests_count : undefined,
+        other_insects_count: typeof row.other_insects_count === 'number' ? row.other_insects_count : undefined,
+        bboxes: Array.isArray(row.bboxes) ? row.bboxes : Array.isArray(row.detection_result?.bboxes) ? row.detection_result.bboxes : undefined,
+        detection_result: row.detection_result || undefined,
+        capture_session_id: row.capture_session_id || undefined,
       }));
 
       // 2. Coba periksa file di bucket storage 'device_images/captures'

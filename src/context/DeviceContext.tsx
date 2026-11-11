@@ -263,31 +263,83 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setAlerts(fetchedAlerts || []);
       setCommands(fetchedCommands || []);
 
-      // Petakan gambar dari tabel public.device_images & bucket Supabase ke CaptureImage
-      const mappedDbImages: CaptureImage[] = (fetchedDbImages || []).map((img) => ({
-        id: `IMG-DB-${img.id}`,
-        deviceId: img.device_id || 'SLT-SBG-01',
-        timestamp: img.captured_at,
-        imageUrl: img.image_url,
-        resolution: '1280x720 (DroidCam HD)',
-        totalPests: 0,
-        targetPestsCount: 0,
-        otherInsectsCount: 0,
-        avgConfidence: 0.95,
-        modelVersion: `YOLOv8 (${img.trigger_source || 'Manual'})`,
-        isManuallyVerified: false,
-        bboxes: [],
-        notes: `Tersimpan di Supabase (${img.file_path || 'device_images'})`,
-        dbRecordId: img.id,
-        filePath: img.file_path,
-        triggerSource: img.trigger_source,
-      }));
-
       let customCaptures: CaptureImage[] = [];
       try {
         const custom = localStorage.getItem('slt_custom_captures');
         if (custom) customCaptures = JSON.parse(custom);
       } catch {}
+
+      // Petakan gambar dari tabel public.device_images & bucket Supabase ke CaptureImage
+      // Menggabungkan anotasi deteksi dari capture_sessions Supabase atau local cache
+      const mappedDbImages: CaptureImage[] = (fetchedDbImages || []).map((img) => {
+        const imgKey = `IMG-DB-${img.id}`;
+
+        // 1. Cari data deteksi dari local customCaptures
+        const customMatch = customCaptures.find(
+          (c) => c.dbRecordId === img.id || c.id === imgKey || (c.imageUrl && c.imageUrl === img.image_url)
+        );
+
+        // 2. Cari data deteksi dari fetchedCaptures (tabel public.capture_sessions & public.insect_detections)
+        const sessionMatch = (fetchedCaptures || []).find(
+          (s) =>
+            s.id === `SES-${imgKey}` ||
+            s.notes?.includes(img.file_path || '') ||
+            (s.imageUrl && s.imageUrl === img.image_url)
+        );
+
+        const bboxes =
+          customMatch?.bboxes && customMatch.bboxes.length > 0
+            ? customMatch.bboxes
+            : sessionMatch?.bboxes && sessionMatch.bboxes.length > 0
+            ? sessionMatch.bboxes
+            : Array.isArray(img.bboxes) && img.bboxes.length > 0
+            ? img.bboxes
+            : [];
+
+        const totalPests =
+          customMatch?.totalPests ??
+          sessionMatch?.totalPests ??
+          img.total_pests ??
+          bboxes.length;
+
+        const targetPests =
+          customMatch?.targetPestsCount ??
+          sessionMatch?.targetPestsCount ??
+          img.target_pests_count ??
+          bboxes.filter((b) => b.speciesId !== 'other_neutral' && b.speciesId !== 'unidentified').length;
+
+        const otherInsects =
+          customMatch?.otherInsectsCount ??
+          sessionMatch?.otherInsectsCount ??
+          img.other_insects_count ??
+          Math.max(0, bboxes.length - targetPests);
+
+        return {
+          id: imgKey,
+          deviceId: img.device_id || 'SLT-SBG-01',
+          timestamp: img.captured_at,
+          imageUrl: img.image_url,
+          resolution: '1280x720 (DroidCam HD)',
+          totalPests,
+          targetPestsCount: targetPests,
+          otherInsectsCount: otherInsects,
+          avgConfidence: customMatch?.avgConfidence || sessionMatch?.avgConfidence || 0.95,
+          modelVersion:
+            customMatch?.modelVersion ||
+            sessionMatch?.modelVersion ||
+            `YOLOv8 (${img.trigger_source || 'Manual'})`,
+          isManuallyVerified:
+            customMatch?.isManuallyVerified || sessionMatch?.isManuallyVerified || false,
+          bboxes,
+          notes:
+            customMatch?.notes ||
+            sessionMatch?.notes ||
+            `Tersimpan di Supabase (${img.file_path || 'device_images'})`,
+          dbRecordId: img.id,
+          filePath: img.file_path,
+          triggerSource: img.trigger_source,
+        };
+      });
 
       // Gabungkan dan hilangkan duplikasi berdasarkan ID / URL
       const combinedCaptures = [...mappedDbImages, ...customCaptures, ...(fetchedCaptures || [])];
@@ -702,6 +754,22 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           localStorage.setItem('slt_custom_captures', JSON.stringify(list));
         } catch {}
 
+        // Sinkronisasi ke Supabase database (capture_sessions, insect_detections, device_images)
+        aiDetectionService.persistToSupabase(updated, {
+          captureId: updated.id,
+          deviceId: updated.deviceId,
+          totalPests: updated.totalPests,
+          targetPestsCount: updated.targetPestsCount,
+          otherInsectsCount: updated.otherInsectsCount,
+          avgConfidence: updated.avgConfidence || 0.95,
+          modelVersion: updated.modelVersion || 'YOLOv8n-IP102-Edge v2.1',
+          bboxes: updated.bboxes,
+          executionTimeMs: 0,
+          inferenceEngine: 'client_edge_yolo',
+          notes: updated.notes || 'Kotak serangga dihapus manual',
+          speciesDistribution: {},
+        }).catch((e) => console.warn('[DeviceContext] Gagal sync delete bounding box ke Supabase:', e));
+
         return updated;
       })
     );
@@ -738,6 +806,22 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           localStorage.setItem('slt_custom_captures', JSON.stringify(list));
         } catch {}
 
+        // Sinkronisasi penambahan kotak ke Supabase database
+        aiDetectionService.persistToSupabase(updated, {
+          captureId: updated.id,
+          deviceId: updated.deviceId,
+          totalPests: updated.totalPests,
+          targetPestsCount: updated.targetPestsCount,
+          otherInsectsCount: updated.otherInsectsCount,
+          avgConfidence: updated.avgConfidence || 0.95,
+          modelVersion: updated.modelVersion || 'YOLOv8n-IP102-Edge v2.1',
+          bboxes: updated.bboxes,
+          executionTimeMs: 0,
+          inferenceEngine: 'client_edge_yolo',
+          notes: updated.notes || 'Kotak serangga manual ditambahkan',
+          speciesDistribution: {},
+        }).catch((e) => console.warn('[DeviceContext] Gagal sync add bounding box ke Supabase:', e));
+
         return updated;
       })
     );
@@ -767,6 +851,22 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }
           localStorage.setItem('slt_custom_captures', JSON.stringify(list));
         } catch {}
+
+        // Sinkronisasi pembersihan kotak ke Supabase database
+        aiDetectionService.persistToSupabase(updated, {
+          captureId: updated.id,
+          deviceId: updated.deviceId,
+          totalPests: 0,
+          targetPestsCount: 0,
+          otherInsectsCount: 0,
+          avgConfidence: 0,
+          modelVersion: updated.modelVersion || 'YOLOv8n-IP102-Edge v2.1',
+          bboxes: [],
+          executionTimeMs: 0,
+          inferenceEngine: 'client_edge_yolo',
+          notes: 'Semua kotak dibersihkan oleh pengguna',
+          speciesDistribution: {},
+        }).catch((e) => console.warn('[DeviceContext] Gagal sync clear bounding box ke Supabase:', e));
 
         return updated;
       })

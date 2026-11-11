@@ -702,15 +702,71 @@ export const aiDetectionService = {
    * Menyimpan sesi tangkapan citra dan hasil deteksi serangga ke tabel Supabase:
    * 1. public.capture_sessions
    * 2. public.insect_detections
+   * 3. public.device_images (sinkronisasi metadata foto baki)
    */
-  async persistToSupabase(capture: CaptureImage, result: AiDetectionResult): Promise<void> {
-    if (!isSupabaseConfigured) return;
+  async persistToSupabase(
+    capture: CaptureImage,
+    result: AiDetectionResult
+  ): Promise<{ success: boolean; sessionId?: string; error?: string }> {
+    if (!isSupabaseConfigured) {
+      return { success: false, error: 'Klien Supabase belum terkonfigurasi.' };
+    }
 
     try {
-      // 1. Simpan atau perbarui sesi di public.capture_sessions
+      // 1. Dapatkan UUID perangkat yang valid dari tabel public.devices
+      let deviceUuid: string | null = null;
+      const isUuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+      if (capture.deviceId && isUuidRegex.test(capture.deviceId)) {
+        deviceUuid = capture.deviceId;
+      } else {
+        const { data: devRow } = await supabase
+          .from('devices')
+          .select('id')
+          .or(`device_code.eq.${capture.deviceId || 'SLT-SBG-01'},device_code.eq.SLT-SBG-01`)
+          .limit(1)
+          .maybeSingle();
+
+        if (devRow?.id) {
+          deviceUuid = devRow.id;
+        } else {
+          // Cari sembarang perangkat aktif di tabel devices
+          const { data: anyDev } = await supabase.from('devices').select('id').limit(1).maybeSingle();
+          deviceUuid = anyDev?.id || 'a1111111-1111-1111-1111-111111111111';
+        }
+      }
+
+      // 2. Pastikan tabel master insect_species terisi agar tidak terjadi foreign key violation
+      try {
+        const speciesToEnsure = Object.entries(IP102_SUBANG_TAXONOMY).map(([code, meta]) => ({
+          id: code,
+          common_name: meta.commonName,
+          scientific_name: meta.scientificName,
+          family: meta.family,
+          is_target_pest: meta.classification === 'target_pest',
+          economic_threshold_per_night: 50,
+          risk_level: meta.classification === 'target_pest' ? 'high' : 'low',
+          preferred_wavelength_nm: 365,
+        }));
+        await supabase.from('insect_species').upsert(speciesToEnsure, { onConflict: 'id' });
+      } catch (speciesErr) {
+        console.warn('[aiDetectionService] Peringatan saat upsert insect_species:', speciesErr);
+      }
+
+      // 3. Simpan atau perbarui sesi di public.capture_sessions
+      const sessionCode = `SES-${capture.id}`;
+      let sessionId: string | null = null;
+
+      // Periksa apakah sesi sudah ada sebelumnya (idempotency check)
+      const { data: existingSession } = await supabase
+        .from('capture_sessions')
+        .select('id')
+        .eq('session_code', sessionCode)
+        .maybeSingle();
+
       const sessionPayload = {
-        device_id: capture.deviceId || 'SLT-SBG-01',
-        session_code: `SES-${capture.id}`,
+        device_id: deviceUuid,
+        session_code: sessionCode,
         captured_at: capture.timestamp || new Date().toISOString(),
         processing_status: 'completed',
         model_version: result.modelVersion,
@@ -720,21 +776,34 @@ export const aiDetectionService = {
         avg_confidence: result.avgConfidence,
         is_manually_verified: false,
         notes: result.notes,
+        updated_at: new Date().toISOString(),
       };
 
-      const { data: sessionData, error: sessionErr } = await supabase
-        .from('capture_sessions')
-        .upsert(sessionPayload, { onConflict: 'session_code' })
-        .select()
-        .single();
+      if (existingSession?.id) {
+        sessionId = existingSession.id;
+        const { error: updErr } = await supabase
+          .from('capture_sessions')
+          .update(sessionPayload)
+          .eq('id', sessionId);
 
-      if (sessionErr) {
-        console.warn('[aiDetectionService] Gagal upsert capture_sessions:', sessionErr.message);
+        if (updErr) {
+          console.warn('[aiDetectionService] Gagal update capture_sessions:', updErr.message);
+        }
+      } else {
+        const { data: newSession, error: insErr } = await supabase
+          .from('capture_sessions')
+          .insert(sessionPayload)
+          .select('id')
+          .single();
+
+        if (newSession?.id) {
+          sessionId = newSession.id;
+        } else if (insErr) {
+          console.warn('[aiDetectionService] Gagal insert capture_sessions:', insErr.message);
+        }
       }
 
-      const sessionId = sessionData?.id;
-
-      // 2. Simpan setiap bounding box ke tabel public.insect_detections
+      // 4. Simpan setiap bounding box ke tabel public.insect_detections
       if (sessionId && result.bboxes.length > 0) {
         // Hapus deteksi lama untuk sesi ini jika ada (agar tidak duplicate saat re-scan)
         await supabase
@@ -746,7 +815,7 @@ export const aiDetectionService = {
           const meta = IP102_SUBANG_TAXONOMY[box.speciesId] || IP102_SUBANG_TAXONOMY.other_neutral;
           return {
             capture_session_id: sessionId,
-            device_id: capture.deviceId || 'SLT-SBG-01',
+            device_id: deviceUuid,
             species_code: box.speciesId,
             species_name: meta.commonName,
             classification: meta.classification,
@@ -758,7 +827,7 @@ export const aiDetectionService = {
               width: box.width,
               height: box.height,
             },
-            verification_status: 'ai_detected',
+            verification_status: box.isManuallyVerified ? 'human_verified' : 'ai_detected',
             model_version: result.modelVersion,
             created_at: new Date().toISOString(),
           };
@@ -772,8 +841,51 @@ export const aiDetectionService = {
           console.warn('[aiDetectionService] Gagal insert insect_detections:', detErr.message);
         }
       }
-    } catch (err) {
-      console.warn('[aiDetectionService] Exception saat menyimpan hasil deteksi ke Supabase:', err);
+
+      // 5. Sinkronisasi ke baris foto di tabel public.device_images jika tersedia
+      if (capture.dbRecordId) {
+        try {
+          const imageUpdatePayload: Record<string, any> = {
+            total_pests: result.totalPests,
+            target_pests_count: result.targetPestsCount,
+            other_insects_count: result.otherInsectsCount,
+            bboxes: result.bboxes,
+            detection_result: {
+              modelVersion: result.modelVersion,
+              avgConfidence: result.avgConfidence,
+              notes: result.notes,
+              bboxes: result.bboxes,
+              speciesDistribution: result.speciesDistribution,
+            },
+          };
+          if (sessionId) {
+            imageUpdatePayload.capture_session_id = sessionId;
+          }
+
+          const { error: imgUpdateErr } = await supabase
+            .from('device_images')
+            .update(imageUpdatePayload)
+            .eq('id', capture.dbRecordId);
+
+          if (imgUpdateErr) {
+            // Jika kolom tambahan belum ada di tabel device_images, coba update minimal
+            await supabase
+              .from('device_images')
+              .update({ trigger_source: 'ai_detected' })
+              .eq('id', capture.dbRecordId);
+          }
+        } catch (imgSyncErr) {
+          console.warn('[aiDetectionService] Peringatan sinkronisasi device_images:', imgSyncErr);
+        }
+      }
+
+      return {
+        success: Boolean(sessionId),
+        sessionId: sessionId || undefined,
+      };
+    } catch (err: any) {
+      console.error('[aiDetectionService] Exception saat menyimpan hasil deteksi ke Supabase:', err);
+      return { success: false, error: err?.message || 'Exception' };
     }
   },
 };

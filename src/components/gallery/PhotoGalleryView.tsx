@@ -77,9 +77,9 @@ export const PhotoGalleryView: React.FC = () => {
       const updated = await runAiDetection(selectedCapture.id);
       if (updated) {
         setSaveSuccessMsg(
-          `Deteksi AI YOLOv8 IP102 berhasil: ${updated.totalPests} serangga teridentifikasi (${updated.targetPestsCount} hama target padi).`
+          `Deteksi AI YOLOv8 IP102 berhasil: ${updated.totalPests} serangga teridentifikasi (${updated.targetPestsCount} hama target padi). Data tersimpan di Supabase (capture_sessions & insect_detections).`
         );
-        setTimeout(() => setSaveSuccessMsg(null), 4000);
+        setTimeout(() => setSaveSuccessMsg(null), 4500);
       }
     } catch (err: any) {
       alert(`Gagal menjalankan deteksi AI: ${err?.message || 'Error'}`);
