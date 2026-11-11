@@ -314,6 +314,32 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           img.other_insects_count ??
           Math.max(0, bboxes.length - targetPests);
 
+        const isAiProcessed = Boolean(
+          customMatch?.isAiProcessed ||
+          sessionMatch?.isAiProcessed ||
+          sessionMatch ||
+          img.detection_result ||
+          (img.total_pests !== undefined && img.total_pests !== null) ||
+          (customMatch?.notes && (
+            customMatch.notes.includes('Deteksi AI') ||
+            customMatch.notes.includes('Baki bersih') ||
+            customMatch.notes.includes('Tidak ditemukan') ||
+            customMatch.notes.includes('terlalu gelap')
+          )) ||
+          (sessionMatch?.notes && (
+            sessionMatch.notes.includes('Deteksi AI') ||
+            sessionMatch.notes.includes('Baki bersih') ||
+            sessionMatch.notes.includes('Tidak ditemukan') ||
+            sessionMatch.notes.includes('terlalu gelap')
+          )) ||
+          ((img as any).notes && (
+            (img as any).notes.includes('Deteksi AI') ||
+            (img as any).notes.includes('Baki bersih') ||
+            (img as any).notes.includes('Tidak ditemukan') ||
+            (img as any).notes.includes('terlalu gelap')
+          ))
+        );
+
         return {
           id: imgKey,
           deviceId: img.device_id || 'SLT-SBG-01',
@@ -330,6 +356,7 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             `YOLOv8 (${img.trigger_source || 'Manual'})`,
           isManuallyVerified:
             customMatch?.isManuallyVerified || sessionMatch?.isManuallyVerified || false,
+          isAiProcessed,
           bboxes,
           notes:
             customMatch?.notes ||
@@ -922,6 +949,7 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         modelVersion: result.modelVersion,
         notes: result.notes,
         isManuallyVerified: false,
+        isAiProcessed: true,
       };
 
       setCaptures((prev) =>

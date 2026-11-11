@@ -53,8 +53,24 @@ export const PhotoGalleryView: React.FC = () => {
 
   const canVerify = hasPermission(currentUser?.role, 'action:verify_detection');
 
+  // Menentukan apakah suatu foto sudah pernah melalui proses inferensi AI
+  const isCaptureProcessed = (cap: CaptureImage) => {
+    return Boolean(
+      cap.isAiProcessed ||
+      cap.bboxes.length > 0 ||
+      (cap.modelVersion && (cap.modelVersion.includes('IP102') || cap.modelVersion.includes('Edge'))) ||
+      (cap.notes && (
+        cap.notes.includes('Deteksi AI') ||
+        cap.notes.includes('Baki bersih') ||
+        cap.notes.includes('Tidak ditemukan') ||
+        cap.notes.includes('terlalu gelap') ||
+        cap.notes.includes('dibersihkan')
+      ))
+    );
+  };
+
   const filteredCaptures = captures.filter((cap) => {
-    if (filterVerified === 'unprocessed') return cap.bboxes.length === 0;
+    if (filterVerified === 'unprocessed') return !isCaptureProcessed(cap);
     if (filterVerified === 'verified') return cap.isManuallyVerified;
     return true;
   });
@@ -215,7 +231,7 @@ export const PhotoGalleryView: React.FC = () => {
                 : 'text-[#52796F] hover:text-[#192A20]'
             }`}
           >
-            Belum Dipindai ({captures.filter((c) => c.bboxes.length === 0).length})
+            Belum Dipindai ({captures.filter((c) => !isCaptureProcessed(c)).length})
           </button>
           <button
             onClick={() => setFilterVerified('verified')}
@@ -291,19 +307,30 @@ export const PhotoGalleryView: React.FC = () => {
                     Unit: {selectedCapture.deviceId}
                   </span>
                   <span
-                    className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 ${
                       selectedCapture.bboxes.length > 0
                         ? selectedCapture.isManuallyVerified
                           ? 'bg-[#EAF4EE] text-[#2D6A4F]'
                           : 'bg-[#E0F2FE] text-[#0369A1]'
+                        : isCaptureProcessed(selectedCapture)
+                        ? 'bg-[#EAF4EE] text-[#2D6A4F] border border-emerald-200'
                         : 'bg-[#FEF3C7] text-[#D97706]'
                     }`}
                   >
-                    {selectedCapture.bboxes.length > 0
-                      ? selectedCapture.isManuallyVerified
-                        ? 'Tervalidasi'
-                        : `AI Terklasifikasi (${selectedCapture.bboxes.length} Box)`
-                      : 'Menunggu Deteksi AI'}
+                    {selectedCapture.bboxes.length > 0 ? (
+                      selectedCapture.isManuallyVerified ? (
+                        'Tervalidasi'
+                      ) : (
+                        `AI Terklasifikasi (${selectedCapture.bboxes.length} Box)`
+                      )
+                    ) : isCaptureProcessed(selectedCapture) ? (
+                      <>
+                        <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                        <span>Baki Bersih (0 Hama)</span>
+                      </>
+                    ) : (
+                      'Menunggu Deteksi AI'
+                    )}
                   </span>
                   {selectedCapture.dbRecordId && (
                     <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
@@ -326,7 +353,13 @@ export const PhotoGalleryView: React.FC = () => {
                   title="Jalankan inferensi model deteksi serangga berbasis data latih IP102"
                 >
                   <Sparkles className={`h-3.5 w-3.5 ${isDetecting ? 'animate-spin text-amber-300' : 'text-amber-400'}`} />
-                  <span>{isDetecting ? 'Menganalisis...' : selectedCapture.bboxes.length > 0 ? 'Pindai Ulang AI' : 'Deteksi Hama AI'}</span>
+                  <span>
+                    {isDetecting
+                      ? 'Menganalisis...'
+                      : isCaptureProcessed(selectedCapture)
+                      ? 'Pindai Ulang AI'
+                      : 'Deteksi Hama AI'}
+                  </span>
                 </button>
 
                 {selectedCapture.bboxes.length > 0 && (
@@ -401,8 +434,8 @@ export const PhotoGalleryView: React.FC = () => {
               </div>
             </div>
 
-            {/* Banner Perhatian jika Foto Belum Dipindai AI */}
-            {selectedCapture.bboxes.length === 0 && !isDetecting && (
+            {/* Banner jika Foto Belum Dipindai AI */}
+            {!isCaptureProcessed(selectedCapture) && !isDetecting && (
               <div className="p-3 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/80 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs animate-fadeIn">
                 <div className="flex items-center gap-2.5 text-amber-900">
                   <div className="p-1.5 bg-amber-100 rounded-lg shrink-0">
@@ -422,6 +455,26 @@ export const PhotoGalleryView: React.FC = () => {
                   <Cpu className="h-3.5 w-3.5 text-amber-300" />
                   <span>Mulai Klasifikasi AI</span>
                 </button>
+              </div>
+            )}
+
+            {/* Banner Sukses jika Foto Sudah Dipindai dan Hasilnya 0 Serangga (Baki Bersih) */}
+            {isCaptureProcessed(selectedCapture) && selectedCapture.bboxes.length === 0 && !isDetecting && (
+              <div className="p-2.5 bg-emerald-50/90 border border-emerald-200 rounded-xl flex items-center justify-between gap-2.5 text-xs text-emerald-900 animate-fadeIn">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-emerald-100 rounded-lg text-emerald-700 shrink-0">
+                    <CheckCircle2 className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <span className="font-bold">Pemindaian AI Selesai: Baki Bersih (0 Ekor).</span>
+                    <p className="text-[11px] text-emerald-700 mt-0.5">
+                      {selectedCapture.notes || 'Hasil inferensi AI menunjukkan tidak ada hama padi yang terdeteksi aktif pada baki air.'}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-200/80 text-emerald-800 shrink-0">
+                  PHT Aman (&lt;50)
+                </span>
               </div>
             )}
 
@@ -515,13 +568,17 @@ export const PhotoGalleryView: React.FC = () => {
                   <span>Klik kotak serangga untuk memeriksa spesies / koreksi anotasi</span>
                 </span>
                 <span className="font-mono text-[10px] text-[#A7D7C5]">
-                  {selectedCapture.bboxes.length} Objek Terdeteksi
+                  {selectedCapture.bboxes.length > 0
+                    ? `${selectedCapture.bboxes.length} Objek Terdeteksi`
+                    : isCaptureProcessed(selectedCapture)
+                    ? '0 Objek Terdeteksi (Baki Bersih)'
+                    : 'Belum Dipindai AI'}
                 </span>
               </div>
             </div>
 
             {/* AI Detection Summary & Taxonomy Breakdown */}
-            {selectedCapture.bboxes.length > 0 && (
+            {(selectedCapture.bboxes.length > 0 || isCaptureProcessed(selectedCapture)) && (
               <div className="p-3 bg-[#F8FAF9] rounded-xl border border-[#E2E8F0] space-y-2.5">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-[#E2E8F0] pb-2">
                   <div className="flex items-center gap-2">
@@ -533,7 +590,9 @@ export const PhotoGalleryView: React.FC = () => {
                   <div className="flex items-center gap-2 text-xs">
                     <span className="text-[#718096]">Akurasi Rata-rata:</span>
                     <span className="font-mono font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
-                      {(selectedCapture.avgConfidence * 100).toFixed(1)}%
+                      {selectedCapture.avgConfidence > 0
+                        ? `${(selectedCapture.avgConfidence * 100).toFixed(1)}%`
+                        : '100% (Bersih)'}
                     </span>
                   </div>
                 </div>
@@ -582,19 +641,26 @@ export const PhotoGalleryView: React.FC = () => {
                   <div className="text-[11px] font-semibold text-[#192A20] mb-1.5">
                     Spesies Teridentifikasi Berdasarkan Taksonomi IP102:
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {Object.entries(speciesCountMap).map(([spId, data]) => (
-                      <span
-                        key={spId}
-                        className={`text-[11px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1.5 ${data.meta.badgeColor}`}
-                      >
-                        <span>{data.meta.commonName}</span>
-                        <span className="bg-black/25 px-1.5 py-0.2 rounded-full font-mono text-[10px]">
-                          {data.count}
+                  {Object.keys(speciesCountMap).length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {Object.entries(speciesCountMap).map(([spId, data]) => (
+                        <span
+                          key={spId}
+                          className={`text-[11px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1.5 ${data.meta.badgeColor}`}
+                        >
+                          <span>{data.meta.commonName}</span>
+                          <span className="bg-black/25 px-1.5 py-0.2 rounded-full font-mono text-[10px]">
+                            {data.count}
+                          </span>
                         </span>
-                      </span>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-emerald-700 flex items-center gap-1.5 bg-emerald-50/70 p-2 rounded-lg border border-emerald-200">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                      <span>Tidak ada hama padi terdeteksi pada citra baki air ini (Baki steril/bersih).</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -722,6 +788,7 @@ export const PhotoGalleryView: React.FC = () => {
                   const isCurrent = cap.id === selectedCapture.id;
                   const isFromDb = Boolean(cap.dbRecordId || cap.filePath);
                   const isScanned = cap.bboxes.length > 0;
+                  const isCleanScanned = isCaptureProcessed(cap) && cap.bboxes.length === 0;
 
                   return (
                     <div
@@ -749,11 +816,15 @@ export const PhotoGalleryView: React.FC = () => {
                             <Camera className="h-3.5 w-3.5" />
                           </div>
                         )}
-                        {isScanned && (
+                        {isScanned ? (
                           <div className="absolute bottom-0 right-0 bg-emerald-600 text-white text-[8px] font-mono px-1 rounded-tl">
                             {cap.totalPests}
                           </div>
-                        )}
+                        ) : isCleanScanned ? (
+                          <div className="absolute bottom-0 right-0 bg-[#2D6A4F] text-white text-[8px] font-mono px-1 rounded-tl" title="Baki Bersih">
+                            0
+                          </div>
+                        ) : null}
                       </div>
 
                       <div className="min-w-0 flex-1">
@@ -763,8 +834,12 @@ export const PhotoGalleryView: React.FC = () => {
                             <span className="text-[10px] text-[#2D6A4F] shrink-0 font-bold">
                               {cap.totalPests} ekor
                             </span>
+                          ) : isCleanScanned ? (
+                            <span className="text-[9px] font-sans font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                              0 ekor (Bersih)
+                            </span>
                           ) : (
-                            <span className="text-[9px] font-sans font-semibold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 shrink-0">
+                            <span className="text-[9px] font-sans font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 shrink-0">
                               Belum Pindai
                             </span>
                           )}

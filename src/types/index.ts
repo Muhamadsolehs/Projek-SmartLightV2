@@ -53,6 +53,7 @@ export interface CaptureImage {
   dbRecordId?: number;
   filePath?: string;
   triggerSource?: string;
+  isAiProcessed?: boolean; // Menandakan apakah citra ini sudah pernah melalui inferensi model AI
 }
 
 export interface INA226Telemetry {
