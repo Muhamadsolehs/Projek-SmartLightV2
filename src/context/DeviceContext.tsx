@@ -148,8 +148,52 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [devicesError, setDevicesError] = useState<string | null>(null);
 
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('a1111111-1111-1111-1111-111111111111');
-  const [activeTab, setActiveTab] = useState<NavigationTab>('overview');
-  const [appMode, setAppModeState] = useState<'landing' | 'dashboard'>('landing');
+
+  // 1. Persistence Active Tab: Menjaga tab aktif tetap sama saat halaman direfresh
+  const [activeTab, setActiveTabState] = useState<NavigationTab>(() => {
+    try {
+      const savedTab = localStorage.getItem('slt_active_tab') as NavigationTab | null;
+      const validTabs: NavigationTab[] = [
+        'overview',
+        'devices',
+        'controls',
+        'pests',
+        'gallery',
+        'energy',
+        'water',
+        'alerts',
+        'settings',
+        'architecture',
+        'users',
+      ];
+      if (savedTab && validTabs.includes(savedTab)) {
+        return savedTab;
+      }
+    } catch {}
+    return 'overview';
+  });
+
+  const setActiveTab = (tab: NavigationTab) => {
+    setActiveTabState(tab);
+    try {
+      localStorage.setItem('slt_active_tab', tab);
+    } catch {}
+  };
+
+  // 2. Persistence App Mode: Mencegah pengguna keluar dari dashboard saat direfresh
+  const [appMode, setAppModeState] = useState<'landing' | 'dashboard'>(() => {
+    try {
+      const savedMode = localStorage.getItem('slt_app_mode') as 'landing' | 'dashboard' | null;
+      if (savedMode === 'landing' || savedMode === 'dashboard') {
+        return savedMode;
+      }
+      const savedUser = localStorage.getItem('slt_user');
+      if (savedUser) {
+        return 'dashboard';
+      }
+    } catch {}
+    return 'dashboard';
+  });
   const operationalRegion = OPERATIONAL_REGION;
   const [alerts, setAlerts] = useState<DeviceAlert[]>(() => {
     const savedSource = localStorage.getItem('slt_datasource');
@@ -524,6 +568,9 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return;
     }
     setAppModeState(mode);
+    try {
+      localStorage.setItem('slt_app_mode', mode);
+    } catch {}
   };
 
   /**
@@ -538,6 +585,7 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       try {
         localStorage.setItem('slt_user', JSON.stringify(res.user));
         localStorage.setItem('slt_datasource', 'supabase_live');
+        localStorage.setItem('slt_app_mode', 'dashboard');
       } catch {}
       setIsLoginModalOpen(false);
       setAppModeState('dashboard');
@@ -567,6 +615,7 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       try {
         localStorage.setItem('slt_user', JSON.stringify(res.user));
         localStorage.setItem('slt_datasource', 'supabase_live');
+        localStorage.setItem('slt_app_mode', 'dashboard');
       } catch {}
       setIsLoginModalOpen(false);
       setAppModeState('dashboard');
@@ -585,6 +634,7 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       localStorage.setItem('slt_user', JSON.stringify(demoUser));
       localStorage.setItem('slt_datasource', 'simulation_demo');
+      localStorage.setItem('slt_app_mode', 'dashboard');
     } catch {}
     setDevices(INITIAL_DEVICES);
     setAlerts(INITIAL_ALERTS);
@@ -605,6 +655,8 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       localStorage.removeItem('slt_user');
       localStorage.removeItem('slt_datasource');
+      localStorage.setItem('slt_app_mode', 'landing');
+      localStorage.removeItem('slt_active_tab');
     } catch {}
     setAppModeState('landing');
     setIsLoginModalOpen(false);

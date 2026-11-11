@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, Bell, ChevronRight, User, LogOut, Shield, ChevronDown } from 'lucide-react';
+import { Menu, Bell, ChevronRight, User, LogOut, Shield, ChevronDown, Globe } from 'lucide-react';
 import { useDevice, NavigationTab } from '../../context/DeviceContext';
 import { getRoleMetadata } from '../../lib/permissions';
 
@@ -23,6 +23,7 @@ export const Header: React.FC<{
   const {
     activeTab,
     setActiveTab,
+    setAppMode,
     alerts,
     devices,
     currentUser,
@@ -155,6 +156,17 @@ export const Header: React.FC<{
                   </div>
 
                   <div className="space-y-1">
+                    <button
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        setAppMode('landing');
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-[#F6F9F5] text-[#31572C] flex items-center gap-2 font-medium cursor-pointer"
+                    >
+                      <Globe className="h-3.5 w-3.5 text-[#4F772D]" />
+                      <span>Halaman Utama (Landing Page)</span>
+                    </button>
+
                     <button
                       onClick={() => {
                         setIsProfileMenuOpen(false);
