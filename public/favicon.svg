@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none">
+  <defs>
+    <!-- Background Gradient for System Badge -->
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#132A13" />
+      <stop offset="50%" stop-color="#31572C" />
+      <stop offset="100%" stop-color="#4F772D" />
+    </linearGradient>
+
+    <!-- Gradient for Rice Leaf / Agricultural Stalk -->
+    <linearGradient id="padiGrad" x1="6" y1="34" x2="20" y2="6" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#31572C" />
+      <stop offset="50%" stop-color="#90A955" />
+      <stop offset="100%" stop-color="#ECF39E" />
+    </linearGradient>
+
+    <!-- Gradient for UV Trap Light Beam -->
+    <linearGradient id="lightGrad" x1="20" y1="10" x2="20" y2="34" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ECF39E" stop-opacity="0.95" />
+      <stop offset="60%" stop-color="#90A955" stop-opacity="0.75" />
+      <stop offset="100%" stop-color="#4F772D" stop-opacity="0.1" />
+    </linearGradient>
+
+    <!-- Glow for IoT Beacon Node -->
+    <radialGradient id="beaconGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ECF39E" stop-opacity="1" />
+      <stop offset="70%" stop-color="#90A955" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#31572C" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Container Badge (Rounded Forest Green Box with Subtle Golden-Green Border) -->
+  <rect x="0.5" y="0.5" width="39" height="39" rx="9" fill="url(#bgGrad)" stroke="#90A955" stroke-width="1" stroke-opacity="0.6" />
+
+  <!-- Background Ambient Radar Waves (IoT telemetry) -->
+  <circle cx="20" cy="18" r="14" stroke="#90A955" stroke-width="0.8" stroke-dasharray="2 3" opacity="0.4" />
+  <circle cx="20" cy="18" r="9" stroke="#ECF39E" stroke-width="1" opacity="0.3" />
+
+  <!-- Phototaxis Cone Light (Cahaya penarik serangga nokturnal) -->
+  <path d="M17 14 L23 14 L27 33 L13 33 Z" fill="url(#lightGrad)" opacity="0.85" />
+
+  <!-- Left Stylized Rice Stalk (Bulir Padi Subang) -->
+  <path d="M20 34 C12 32 8 23 11 13 C12 17 15 22 20 25" stroke="url(#padiGrad)" stroke-width="2.2" stroke-linecap="round" />
+  <!-- Rice Grains (Bulir) -->
+  <ellipse cx="12" cy="15" rx="2" ry="3.5" transform="rotate(-30 12 15)" fill="#ECF39E" />
+  <ellipse cx="14" cy="21" rx="1.8" ry="3.2" transform="rotate(-25 14 21)" fill="#90A955" />
+  <ellipse cx="16.5" cy="27" rx="1.6" ry="2.8" transform="rotate(-15 16.5 27)" fill="#4F772D" />
+
+  <!-- Right Smart Sensor / Antenna Wave -->
+  <path d="M20 34 C24 30 27 24 27 16 C27 12 25 9 20 8" stroke="#90A955" stroke-width="1.8" stroke-linecap="round" />
+  <ellipse cx="27" cy="18" rx="1.8" ry="3" transform="rotate(25 27 18)" fill="#ECF39E" />
+  <ellipse cx="25" cy="24" rx="1.6" ry="2.8" transform="rotate(20 25 24)" fill="#90A955" />
+
+  <!-- Central IoT Beacon & Light Core (LED UV 365nm Lampu Perangkap) -->
+  <circle cx="20" cy="13" r="3.2" fill="url(#beaconGlow)" />
+  <circle cx="20" cy="13" r="1.5" fill="#FFFFFF" />
+
+  <!-- Base Water Basin Line (Baki Air Hidraulik) -->
+  <path d="M11 34 Q20 36 29 34" stroke="#ECF39E" stroke-width="2" stroke-linecap="round" />
+</svg>
