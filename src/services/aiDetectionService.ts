@@ -312,33 +312,52 @@ export const aiDetectionService = {
 
           const data = imgData.data;
 
-          // Evaluasi intensitas cahaya global citra untuk mendeteksi frame gelap/kosong
+          // Evaluasi intensitas cahaya global dan variansi/kontras citra
           let totalLum = 0;
+          let sumLumSq = 0;
+          let minLum = 255;
+          let maxLum = 0;
           let sampleCount = 0;
           for (let i = 0; i < data.length; i += 16) {
             const r = data[i];
             const g = data[i + 1];
             const b = data[i + 2];
-            totalLum += 0.299 * r + 0.587 * g + 0.114 * b;
+            const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+            totalLum += lum;
+            sumLumSq += lum * lum;
+            if (lum < minLum) minLum = lum;
+            if (lum > maxLum) maxLum = lum;
             sampleCount++;
           }
           const avgImageLum = sampleCount > 0 ? totalLum / sampleCount : 0;
+          const variance = sampleCount > 0 ? Math.max(0, sumLumSq / sampleCount - avgImageLum * avgImageLum) : 0;
+          const stdDevLum = Math.sqrt(variance);
 
-          // Jika citra gelap total (lensa tertutup, frame hitam kosong, atau lampu UV mati)
-          if (avgImageLum < 18) {
+          // Jika citra gelap total (lensa tertutup, frame hitam kosong, lampu UV mati, atau baki malam tanpa objek)
+          if (avgImageLum < 30 || (stdDevLum < 8 && avgImageLum < 65)) {
             resolve(
               emptyResult(
-                'Citra baki kosong / gelap (Pencahayaan rendah atau kamera tertutup). Tidak ada objek serangga terdeteksi.'
+                'Citra baki kosong / gelap (Pencahayaan rendah atau baki kosong). 0 serangga terdeteksi.'
               )
             );
             return;
           }
 
           // Jika citra mengalami over-exposure ekstrim (putih silau)
-          if (avgImageLum > 245) {
+          if (avgImageLum > 242) {
             resolve(
               emptyResult(
                 'Citra baki mengalami over-exposure (terlalu terang). Tidak ada serangga terdeteksi.'
+              )
+            );
+            return;
+          }
+
+          // Jika rentang kontras dinamis sangat datar (permukaan polos tanpa objek apapun)
+          if ((maxLum - minLum) < 22 || stdDevLum < 5.5) {
+            resolve(
+              emptyResult(
+                'Permukaan baki bersih dan seragam. Tidak ditemukan objek serangga terdeteksi.'
               )
             );
             return;
@@ -552,13 +571,26 @@ export const aiDetectionService = {
             cluster: RawCluster;
             score: number;
             speciesId: InsectSpeciesId;
+            confidence: number;
             boxX: number;
             boxY: number;
             boxW: number;
             boxH: number;
           }
 
-          const candidates: ScoredCandidate[] = mergedClusters.map((cl) => {
+          const candidates: ScoredCandidate[] = [];
+
+          for (const cl of mergedClusters) {
+            // Validasi ketat biologi serangga:
+            // Harus memiliki sel karakteristik serangga (bukan sekadar noise gelap/random)
+            const hasMothFeatures = cl.mothCells >= 2;
+            const hasWerengFeatures = cl.werengCells >= 2;
+            const hasDarkInsectFeatures = cl.darkCells >= 4 && avgImageLum > 50;
+
+            if (!hasMothFeatures && !hasWerengFeatures && !hasDarkInsectFeatures) {
+              continue; // Abaikan noise latar belakang baki air
+            }
+
             const clusterW = cl.maxX - cl.minX + 1;
             const clusterH = cl.maxY - cl.minY + 1;
 
@@ -572,15 +604,18 @@ export const aiDetectionService = {
             const score = cl.cellCount / (1.0 + normDistCenter * 1.8);
 
             // Tentukan taksonomi spesifik untuk cluster ini
-            let speciesId: InsectSpeciesId = 'nilaparvata_lugens';
-            if (cl.mothCells > cl.werengCells && cl.mothCells >= 2) {
+            let speciesId: InsectSpeciesId = 'other_neutral';
+            let calculatedConf = 0.85;
+
+            if (hasMothFeatures && cl.mothCells >= cl.werengCells) {
               speciesId = 'scirpophaga_incertulas'; // Penggerek Batang Padi Kuning
-            } else if (cl.werengCells >= cl.mothCells && cl.werengCells >= 2) {
+              calculatedConf = Math.min(0.96, 0.78 + (cl.mothCells / 10) * 0.18);
+            } else if (hasWerengFeatures) {
               speciesId = 'nilaparvata_lugens'; // Wereng Batang Coklat (WBC)
-            } else if (totalMothCells > totalWerengCells) {
-              speciesId = 'scirpophaga_incertulas';
-            } else {
-              speciesId = 'nilaparvata_lugens';
+              calculatedConf = Math.min(0.95, 0.76 + (cl.werengCells / 10) * 0.18);
+            } else if (hasDarkInsectFeatures) {
+              speciesId = 'other_neutral'; // Serangga gelap non-target
+              calculatedConf = Math.min(0.88, 0.70 + (cl.darkCells / 12) * 0.16);
             }
 
             // Koordinat persentase dengan padding rapi (1 grid sel)
@@ -591,16 +626,17 @@ export const aiDetectionService = {
             const boxW = Math.max(8, Math.min(32, Math.round(((clusterW + padX * 2) / gridW) * 100)));
             const boxH = Math.max(10, Math.min(38, Math.round(((clusterH + padY * 2) / gridH) * 100)));
 
-            return {
+            candidates.push({
               cluster: cl,
               score,
               speciesId,
+              confidence: Math.round(calculatedConf * 100) / 100,
               boxX,
               boxY,
               boxW,
               boxH,
-            };
-          });
+            });
+          }
 
           // Urutkan berdasarkan skor tertinggi (subjek serangga paling fokus)
           candidates.sort((a, b) => b.score - a.score);
@@ -613,7 +649,7 @@ export const aiDetectionService = {
             finalBoxes.push({
               id: `box-cv-${Date.now()}-1`,
               speciesId: primary.speciesId,
-              confidence: 0.96,
+              confidence: primary.confidence,
               x: primary.boxX,
               y: primary.boxY,
               width: primary.boxW,
@@ -638,7 +674,7 @@ export const aiDetectionService = {
                 finalBoxes.push({
                   id: `box-cv-${Date.now()}-2`,
                   speciesId: second.speciesId,
-                  confidence: 0.92,
+                  confidence: second.confidence,
                   x: second.boxX,
                   y: second.boxY,
                   width: second.boxW,

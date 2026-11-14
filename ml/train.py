@@ -89,16 +89,22 @@ def main():
 
     model_cfg = cfg.get("model", {})
     train_cfg = cfg.get("training", {})
+    aug_cfg = cfg.get("augmentations", {})
 
-    base_weights = args.model or model_cfg.get("base_weights", "yolov8n.pt")
+    base_weights = args.model or model_cfg.get("base_weights", "yolov8s.pt")
     data_yaml = args.data or train_cfg.get("data_yaml", "datasets/IP102_YOLO/data.yaml")
-    epochs = args.epochs or train_cfg.get("epochs", 50)
-    batch_size = args.batch or train_cfg.get("batch_size", 16)
-    imgsz = args.imgsz or train_cfg.get("image_size", 640)
-    patience = args.patience or train_cfg.get("patience", 10)
+    epochs = args.epochs or train_cfg.get("epochs", 100)
+    batch_size = args.batch or train_cfg.get("batch_size", 8)
+    imgsz = args.imgsz or train_cfg.get("image_size", 1024)
+    patience = args.patience or train_cfg.get("patience", 25)
     device = args.device or train_cfg.get("device", "auto")
+    optimizer = train_cfg.get("optimizer", "AdamW")
+    lr0 = train_cfg.get("lr0", 0.001)
+    lrf = train_cfg.get("lrf", 0.01)
+    cos_lr = train_cfg.get("cos_lr", True)
+    close_mosaic = train_cfg.get("close_mosaic", 10)
     project = train_cfg.get("project", "runs/detect")
-    name = train_cfg.get("name", "ip102_training")
+    name = train_cfg.get("name", "ip102_training_high_acc")
 
     # Pre-flight check: data.yaml must exist
     if not os.path.exists(data_yaml):
@@ -113,6 +119,16 @@ def main():
         experiment_name=name,
     )
 
+    # Gabungkan hyperparameter dan konfigurasi augmentasi
+    train_kwargs = {
+        "optimizer": optimizer,
+        "lr0": lr0,
+        "lrf": lrf,
+        "cos_lr": cos_lr,
+        "close_mosaic": close_mosaic,
+        **aug_cfg,
+    }
+
     results = trainer.train(
         data_yaml=data_yaml,
         epochs=epochs,
@@ -121,6 +137,7 @@ def main():
         imgsz=imgsz,
         device=device,
         resume=args.resume,
+        **train_kwargs,
     )
 
     print("\n" + "=" * 65)

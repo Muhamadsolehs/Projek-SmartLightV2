@@ -352,6 +352,28 @@ async def detect_insects(
     if img_h < 10 or img_w < 10:
         raise HTTPException(status_code=400, detail="Image resolution too small for insect detection.")
 
+    # Deteksi citra gelap total atau baki kosong (pencahayaan rendah / frame malam / lensa tertutup)
+    img_gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+    mean_val, std_val = cv2.meanStdDev(img_gray)
+    mean_lum = float(mean_val[0][0])
+    std_lum = float(std_val[0][0])
+
+    # Jika citra hitam/gelap total (mean < 25) atau kontras datar (std < 7 pada citra redup)
+    if mean_lum < 25.0 or (std_lum < 7.0 and mean_lum < 60.0):
+        active_version = PROD_MODEL_VERSION if is_prod else (TEST_MODEL_VERSION if model is not None else "No-Model-Active")
+        return DetectionResponse(
+            success=True,
+            model_version=active_version,
+            is_production_model=is_prod,
+            total_detected=0,
+            target_pests_count=0,
+            other_insects_count=0,
+            unmapped_count=0,
+            avg_confidence=0.0,
+            detections=[],
+            processing_time_ms=0.0,
+        )
+
     detections: List[InsectDetectionItem] = []
 
     if model is not None:
@@ -410,31 +432,8 @@ async def detect_insects(
                 )
             )
     else:
-        # Development / Technical testing fallback with verified Subang IP102 taxonomy
-        sample_classes = [4, 7, 0, 23, 7]
-        sample_boxes = [
-            (38.0, 34.0, 10.0, 12.0),
-            (58.0, 46.0, 8.0, 9.0),
-            (26.0, 52.0, 11.0, 13.0),
-            (68.0, 30.0, 9.0, 10.0),
-            (44.0, 64.0, 12.0, 14.0),
-        ]
-        for idx, (cid, (x_pct, y_pct, w_pct, h_pct)) in enumerate(zip(sample_classes, sample_boxes)):
-            tax = VERIFIED_SUBANG_TAXONOMY[cid]
-            detections.append(
-                InsectDetectionItem(
-                    class_id=cid,
-                    raw_class_name=tax["species_name"],
-                    species_code=tax["species_code"],
-                    species_name=tax["species_name"],
-                    scientific_name=tax["scientific_name"],
-                    is_target_pest=tax["is_target_pest"],
-                    classification=tax["classification"],
-                    mapping_status="mapped",
-                    confidence=round(0.95 - (idx * 0.02), 4),
-                    bbox=BoundingBox(x=x_pct, y=y_pct, width=w_pct, height=h_pct),
-                )
-            )
+        # Jika bobot model belum dimuat, laporkan 0 deteksi nyata (tanpa fabrikasi data palsu)
+        detections = []
 
     target_count = sum(1 for d in detections if d.is_target_pest)
     unmapped_count = sum(1 for d in detections if d.mapping_status == "unmapped")
