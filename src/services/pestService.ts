@@ -50,7 +50,6 @@ export const pestService = {
           model_version,
           is_manually_verified,
           notes,
-          device_images ( id, file_path, storage_path, image_url, image_width, image_height ),
           insect_detections (
             id,
             species_code,
@@ -62,7 +61,7 @@ export const pestService = {
           )
         `)
         .order('captured_at', { ascending: false })
-        .limit(50);
+        .limit(100);
 
       if (deviceId) {
         query = query.eq('device_id', deviceId);
@@ -78,62 +77,45 @@ export const pestService = {
         return [];
       }
 
-      const sessionsWithImages: CaptureImage[] = await Promise.all(
-        data.map(async (row: any) => {
-          let signedUrl = '';
-          const firstImage = row.device_images?.[0];
-          const rawPath = firstImage?.file_path || firstImage?.storage_path;
-          if (rawPath) {
-            try {
-              const sUrl = await storageService.getSignedImageUrl(rawPath);
-              if (sUrl) signedUrl = sUrl;
-            } catch {}
-          }
-          if (!signedUrl && firstImage?.image_url) {
-            signedUrl = firstImage.image_url;
-          }
+      const sessionsWithImages: CaptureImage[] = data.map((row: any) => {
+        const bboxes: BoundingBox[] = (row.insect_detections || []).map((det: any) => ({
+          id: det.id,
+          speciesId: det.species_code as InsectSpeciesId,
+          confidence: Number(det.confidence_score) || 1.0,
+          x: det.bounding_box?.x ?? 20,
+          y: det.bounding_box?.y ?? 20,
+          width: det.bounding_box?.width ?? 10,
+          height: det.bounding_box?.height ?? 10,
+          isManuallyVerified: det.verification_status !== 'ai_detected',
+          verifiedBy: det.verified_by,
+          verifiedAt: det.verified_at,
+        }));
 
-          const bboxes: BoundingBox[] = (row.insect_detections || []).map((det: any) => ({
-            id: det.id,
-            speciesId: det.species_code as InsectSpeciesId,
-            confidence: Number(det.confidence_score) || 1.0,
-            x: det.bounding_box?.x ?? 20,
-            y: det.bounding_box?.y ?? 20,
-            width: det.bounding_box?.width ?? 10,
-            height: det.bounding_box?.height ?? 10,
-            isManuallyVerified: det.verification_status !== 'ai_detected',
-            verifiedBy: det.verified_by,
-            verifiedAt: det.verified_at,
-          }));
+        const primaryId = row.session_code ? row.session_code.replace(/^SES-/, '') : row.id;
 
-          const primaryId = row.session_code ? row.session_code.replace(/^SES-/, '') : row.id;
-
-          return {
-            id: primaryId,
-            sessionCode: row.session_code,
-            sessionId: row.id,
-            deviceId: row.device_id,
-            timestamp: row.captured_at,
-            imageUrl: signedUrl,
-            resolution: `${firstImage?.image_width || 1280}x${firstImage?.image_height || 720} (DroidCam HD)`,
-            totalPests: row.total_pests ?? bboxes.length,
-            targetPestsCount:
-              row.target_pests_count ??
-              bboxes.filter((b) => b.speciesId !== 'other_neutral' && b.speciesId !== 'unidentified').length,
-            otherInsectsCount:
-              row.other_insects_count ??
-              bboxes.filter((b) => b.speciesId === 'other_neutral' || b.speciesId === 'unidentified').length,
-            avgConfidence: Number(row.avg_confidence) || 0.95,
-            modelVersion: row.model_version || 'YOLOv8n-IP102-Edge v2.1',
-            isManuallyVerified: Boolean(row.is_manually_verified || bboxes.some((b) => b.isManuallyVerified)),
-            isAiProcessed: true,
-            bboxes,
-            notes: row.notes || undefined,
-            dbRecordId: firstImage?.id,
-            filePath: rawPath,
-          };
-        })
-      );
+        return {
+          id: primaryId,
+          sessionCode: row.session_code,
+          sessionId: row.id,
+          deviceId: row.device_id,
+          timestamp: row.captured_at,
+          imageUrl: '',
+          resolution: '1280x720 (DroidCam HD)',
+          totalPests: row.total_pests ?? bboxes.length,
+          targetPestsCount:
+            row.target_pests_count ??
+            bboxes.filter((b) => b.speciesId !== 'other_neutral' && b.speciesId !== 'unidentified').length,
+          otherInsectsCount:
+            row.other_insects_count ??
+            bboxes.filter((b) => b.speciesId === 'other_neutral' || b.speciesId === 'unidentified').length,
+          avgConfidence: Number(row.avg_confidence) || 0.95,
+          modelVersion: row.model_version || 'YOLOv8n-IP102-Edge v2.1',
+          isManuallyVerified: Boolean(row.is_manually_verified || bboxes.some((b) => b.isManuallyVerified)),
+          isAiProcessed: true,
+          bboxes,
+          notes: row.notes || undefined,
+        };
+      });
 
       return sessionsWithImages;
     } catch (err: any) {

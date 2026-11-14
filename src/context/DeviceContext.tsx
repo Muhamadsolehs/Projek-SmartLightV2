@@ -379,22 +379,17 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         // 2. Cari data deteksi dari fetchedCaptures (tabel public.capture_sessions & public.insect_detections)
         const sessionMatch = cleanFetchedCaptures.find(
           (s) =>
-            (img.capture_session_id && (s.id === img.capture_session_id || (s as any).sessionId === img.capture_session_id)) ||
             s.id === imgKey ||
             s.id === `SES-${imgKey}` ||
             (s as any).sessionCode === `SES-${imgKey}` ||
             (s as any).sessionCode === imgKey ||
-            (s.dbRecordId && s.dbRecordId === img.id) ||
-            s.notes?.includes(img.file_path || '') ||
-            (s.imageUrl && s.imageUrl === img.image_url)
+            (s.notes && s.notes.includes(imgKey))
         );
 
-        // Prioritas kotak: database (sessionMatch / img.bboxes) lalu local cache (customMatch)
+        // Prioritas kotak: database Supabase (sessionMatch), fallback ke local cache (customMatch)
         const bboxes =
           sessionMatch?.bboxes && sessionMatch.bboxes.length > 0
             ? sessionMatch.bboxes
-            : Array.isArray(img.bboxes) && img.bboxes.length > 0
-            ? img.bboxes
             : customMatch?.bboxes && customMatch.bboxes.length > 0
             ? customMatch.bboxes
             : [];
@@ -403,7 +398,6 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           bboxes.length > 0
             ? bboxes.length
             : sessionMatch?.totalPests ??
-              img.total_pests ??
               customMatch?.totalPests ??
               0;
 
@@ -411,7 +405,6 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           bboxes.length > 0
             ? bboxes.filter((b) => b.speciesId !== 'other_neutral' && b.speciesId !== 'unidentified').length
             : sessionMatch?.targetPestsCount ??
-              img.target_pests_count ??
               customMatch?.targetPestsCount ??
               0;
 
@@ -419,13 +412,11 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           bboxes.length > 0
             ? Math.max(0, totalPests - targetPests)
             : sessionMatch?.otherInsectsCount ??
-              img.other_insects_count ??
               customMatch?.otherInsectsCount ??
               0;
 
         const isManuallyVerified = Boolean(
           sessionMatch?.isManuallyVerified ||
-          (img.detection_result as any)?.isManuallyVerified ||
           bboxes.some((b) => b.isManuallyVerified) ||
           customMatch?.isManuallyVerified ||
           false
@@ -433,23 +424,9 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         const isAiProcessed = Boolean(
           isManuallyVerified ||
-          customMatch?.isAiProcessed ||
-          sessionMatch?.isAiProcessed ||
           sessionMatch ||
-          img.detection_result ||
-          (img.total_pests !== undefined && img.total_pests !== null) ||
-          (customMatch?.notes && (
-            customMatch.notes.includes('Deteksi AI') ||
-            customMatch.notes.includes('Baki bersih') ||
-            customMatch.notes.includes('Tidak ditemukan') ||
-            customMatch.notes.includes('terlalu gelap')
-          )) ||
-          ((img as any).notes && (
-            (img as any).notes.includes('Deteksi AI') ||
-            (img as any).notes.includes('Baki bersih') ||
-            (img as any).notes.includes('Tidak ditemukan') ||
-            (img as any).notes.includes('terlalu gelap')
-          ))
+          customMatch?.isAiProcessed ||
+          bboxes.length > 0
         );
 
         return {
@@ -461,10 +438,9 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           totalPests,
           targetPestsCount: targetPests,
           otherInsectsCount: otherInsects,
-          avgConfidence: sessionMatch?.avgConfidence || (img.detection_result as any)?.avgConfidence || customMatch?.avgConfidence || 0.95,
+          avgConfidence: sessionMatch?.avgConfidence || customMatch?.avgConfidence || 0.95,
           modelVersion:
             sessionMatch?.modelVersion ||
-            (img.detection_result as any)?.modelVersion ||
             customMatch?.modelVersion ||
             `YOLOv8 (${img.trigger_source || 'Manual'})`,
           isManuallyVerified,
@@ -472,7 +448,6 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           bboxes,
           notes:
             sessionMatch?.notes ||
-            (img.detection_result as any)?.notes ||
             customMatch?.notes ||
             `Tersimpan di Supabase (${img.file_path || 'device_images'})`,
           dbRecordId: img.id,
@@ -482,19 +457,28 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
 
       // Prioritaskan database Supabase sebagai Sumber Kebenaran Tunggal (Single Source of Truth)
-      // Jika Supabase aktif, jangan campurkan data hantu dari localStorage yang membuat tampilan antar perangkat berbeda.
+      const existingDbKeys = new Set(mappedDbImages.map((m) => m.id));
+      const orphanedSessions = cleanFetchedCaptures.filter(
+        (s) =>
+          !existingDbKeys.has(s.id) &&
+          !existingDbKeys.has(s.id.replace(/^SES-/, '')) &&
+          Boolean(s.imageUrl)
+      );
+
       const sourceList =
-        mappedDbImages.length > 0 || cleanFetchedCaptures.length > 0
-          ? [...mappedDbImages, ...cleanFetchedCaptures]
+        mappedDbImages.length > 0
+          ? [...mappedDbImages, ...orphanedSessions]
+          : cleanFetchedCaptures.length > 0
+          ? cleanFetchedCaptures
           : customCaptures.length > 0 && !isSupabaseConfigured
           ? cleanCustomCaptures
-          : [...mappedDbImages, ...cleanFetchedCaptures];
+          : [];
 
       const seenKeys = new Set<string>();
       const dedupedCaptures: CaptureImage[] = [];
       for (const item of sourceList) {
         if (isItemDeleted(item)) continue;
-        const key = item.dbRecordId ? `db-${item.dbRecordId}` : item.imageUrl || item.id;
+        const key = item.dbRecordId ? `IMG-DB-${item.dbRecordId}` : item.id;
         if (!seenKeys.has(key)) {
           seenKeys.add(key);
           dedupedCaptures.push(item);

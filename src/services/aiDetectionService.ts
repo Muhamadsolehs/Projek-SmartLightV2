@@ -890,41 +890,20 @@ export const aiDetectionService = {
         }
       }
 
-      // 5. Sinkronisasi ke baris foto di tabel public.device_images
+      // 5. Sinkronisasi status ke baris foto di tabel public.device_images untuk memicu realtime event
       const resolvedDbId =
         capture.dbRecordId ||
         (capture.id && capture.id.startsWith('IMG-DB-')
           ? parseInt(capture.id.replace('IMG-DB-', ''), 10)
           : undefined);
 
-      const imageUpdatePayload: Record<string, any> = {
-        total_pests: result.totalPests,
-        target_pests_count: result.targetPestsCount,
-        other_insects_count: result.otherInsectsCount,
-        bboxes: result.bboxes,
-        detection_result: {
-          modelVersion: result.modelVersion,
-          avgConfidence: result.avgConfidence,
-          notes: result.notes,
-          bboxes: result.bboxes,
-          speciesDistribution: result.speciesDistribution,
-          isManuallyVerified: isVerified,
-        },
-      };
-      if (sessionId) {
-        imageUpdatePayload.capture_session_id = sessionId;
-      }
-
       if (resolvedDbId && !isNaN(resolvedDbId)) {
         try {
-          const { error: imgUpdateErr } = await supabase
+          // Update trigger_source untuk memberi sinyal update & memicu realtime subscription
+          await supabase
             .from('device_images')
-            .update(imageUpdatePayload)
+            .update({ trigger_source: isVerified ? 'human_verified' : 'ai_detected' })
             .eq('id', resolvedDbId);
-
-          if (imgUpdateErr) {
-            console.warn('[aiDetectionService] Peringatan update device_images by ID:', imgUpdateErr.message);
-          }
         } catch (imgSyncErr) {
           console.warn('[aiDetectionService] Peringatan sinkronisasi device_images:', imgSyncErr);
         }
@@ -934,7 +913,7 @@ export const aiDetectionService = {
         try {
           await supabase
             .from('device_images')
-            .update(imageUpdatePayload)
+            .update({ trigger_source: isVerified ? 'human_verified' : 'ai_detected' })
             .eq('file_path', capture.filePath);
         } catch {}
       }
