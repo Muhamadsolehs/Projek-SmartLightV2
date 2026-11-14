@@ -803,6 +803,10 @@ export const aiDetectionService = {
         .eq('session_code', sessionCode)
         .maybeSingle();
 
+      const isVerified = Boolean(
+        capture.isManuallyVerified || result.bboxes.some((b) => b.isManuallyVerified)
+      );
+
       const sessionPayload = {
         device_id: deviceUuid,
         session_code: sessionCode,
@@ -813,7 +817,7 @@ export const aiDetectionService = {
         target_pests_count: result.targetPestsCount,
         other_insects_count: result.otherInsectsCount,
         avg_confidence: result.avgConfidence,
-        is_manually_verified: false,
+        is_manually_verified: isVerified,
         notes: result.notes,
         updated_at: new Date().toISOString(),
       };
@@ -843,79 +847,96 @@ export const aiDetectionService = {
       }
 
       // 4. Simpan setiap bounding box ke tabel public.insect_detections
-      if (sessionId && result.bboxes.length > 0) {
+      if (sessionId) {
         // Hapus deteksi lama untuk sesi ini jika ada (agar tidak duplicate saat re-scan)
         await supabase
           .from('insect_detections')
           .delete()
           .eq('capture_session_id', sessionId);
 
-        const detectionRows = result.bboxes.map((box) => {
-          const meta = IP102_SUBANG_TAXONOMY[box.speciesId] || IP102_SUBANG_TAXONOMY.other_neutral;
-          return {
-            capture_session_id: sessionId,
-            device_id: deviceUuid,
-            species_code: box.speciesId,
-            species_name: meta.commonName,
-            classification: meta.classification,
-            count: 1,
-            confidence_score: box.confidence,
-            bounding_box: {
-              x: box.x,
-              y: box.y,
-              width: box.width,
-              height: box.height,
-            },
-            verification_status: box.isManuallyVerified ? 'human_verified' : 'ai_detected',
-            model_version: result.modelVersion,
-            created_at: new Date().toISOString(),
-          };
-        });
+        if (result.bboxes.length > 0) {
+          const { data: userAuth } = await supabase.auth.getUser();
+          const detectionRows = result.bboxes.map((box) => {
+            const meta = IP102_SUBANG_TAXONOMY[box.speciesId] || IP102_SUBANG_TAXONOMY.other_neutral;
+            return {
+              capture_session_id: sessionId,
+              device_id: deviceUuid,
+              species_code: box.speciesId,
+              species_name: meta.commonName,
+              classification: meta.classification,
+              count: 1,
+              confidence_score: box.confidence || 1.0,
+              bounding_box: {
+                x: box.x,
+                y: box.y,
+                width: box.width,
+                height: box.height,
+              },
+              verification_status: box.isManuallyVerified ? 'human_verified' : 'ai_detected',
+              verified_by: userAuth?.user?.id || null,
+              verified_at: box.verifiedAt || (box.isManuallyVerified ? new Date().toISOString() : null),
+              model_version: result.modelVersion,
+              created_at: new Date().toISOString(),
+            };
+          });
 
-        const { error: detErr } = await supabase
-          .from('insect_detections')
-          .insert(detectionRows);
+          const { error: detErr } = await supabase
+            .from('insect_detections')
+            .insert(detectionRows);
 
-        if (detErr) {
-          console.warn('[aiDetectionService] Gagal insert insect_detections:', detErr.message);
+          if (detErr) {
+            console.warn('[aiDetectionService] Gagal insert insect_detections:', detErr.message);
+          }
         }
       }
 
-      // 5. Sinkronisasi ke baris foto di tabel public.device_images jika tersedia
-      if (capture.dbRecordId) {
-        try {
-          const imageUpdatePayload: Record<string, any> = {
-            total_pests: result.totalPests,
-            target_pests_count: result.targetPestsCount,
-            other_insects_count: result.otherInsectsCount,
-            bboxes: result.bboxes,
-            detection_result: {
-              modelVersion: result.modelVersion,
-              avgConfidence: result.avgConfidence,
-              notes: result.notes,
-              bboxes: result.bboxes,
-              speciesDistribution: result.speciesDistribution,
-            },
-          };
-          if (sessionId) {
-            imageUpdatePayload.capture_session_id = sessionId;
-          }
+      // 5. Sinkronisasi ke baris foto di tabel public.device_images
+      const resolvedDbId =
+        capture.dbRecordId ||
+        (capture.id && capture.id.startsWith('IMG-DB-')
+          ? parseInt(capture.id.replace('IMG-DB-', ''), 10)
+          : undefined);
 
+      const imageUpdatePayload: Record<string, any> = {
+        total_pests: result.totalPests,
+        target_pests_count: result.targetPestsCount,
+        other_insects_count: result.otherInsectsCount,
+        bboxes: result.bboxes,
+        detection_result: {
+          modelVersion: result.modelVersion,
+          avgConfidence: result.avgConfidence,
+          notes: result.notes,
+          bboxes: result.bboxes,
+          speciesDistribution: result.speciesDistribution,
+          isManuallyVerified: isVerified,
+        },
+      };
+      if (sessionId) {
+        imageUpdatePayload.capture_session_id = sessionId;
+      }
+
+      if (resolvedDbId && !isNaN(resolvedDbId)) {
+        try {
           const { error: imgUpdateErr } = await supabase
             .from('device_images')
             .update(imageUpdatePayload)
-            .eq('id', capture.dbRecordId);
+            .eq('id', resolvedDbId);
 
           if (imgUpdateErr) {
-            // Jika kolom tambahan belum ada di tabel device_images, coba update minimal
-            await supabase
-              .from('device_images')
-              .update({ trigger_source: 'ai_detected' })
-              .eq('id', capture.dbRecordId);
+            console.warn('[aiDetectionService] Peringatan update device_images by ID:', imgUpdateErr.message);
           }
         } catch (imgSyncErr) {
           console.warn('[aiDetectionService] Peringatan sinkronisasi device_images:', imgSyncErr);
         }
+      }
+
+      if (capture.filePath) {
+        try {
+          await supabase
+            .from('device_images')
+            .update(imageUpdatePayload)
+            .eq('file_path', capture.filePath);
+        } catch {}
       }
 
       return {

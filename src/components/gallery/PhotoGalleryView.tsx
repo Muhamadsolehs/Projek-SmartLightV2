@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Camera,
   CheckCircle2,
@@ -20,10 +20,12 @@ import {
   ShieldCheck,
   AlertTriangle,
   RotateCw,
+  RotateCcw,
   Plus,
+  Loader2,
 } from 'lucide-react';
 import { useDevice } from '../../context/DeviceContext';
-import { CaptureImage, InsectSpeciesId } from '../../types';
+import { CaptureImage, InsectSpeciesId, BoundingBox } from '../../types';
 import { INSECT_SPECIES_LIST } from '../../data/mockData';
 import { hasPermission } from '../../lib/permissions';
 import { DroidCamLivePanel } from './DroidCamLivePanel';
@@ -33,6 +35,7 @@ export const PhotoGalleryView: React.FC = () => {
   const {
     captures,
     updateBoundingBoxLabel,
+    updateBoundingBoxCoords,
     deleteCapture,
     runAiDetection,
     deleteBoundingBox,
@@ -49,7 +52,20 @@ export const PhotoGalleryView: React.FC = () => {
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [showBoxes, setShowBoxes] = useState(true);
+
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [dragState, setDragState] = useState<{
+    boxId: string;
+    mode: 'move' | 'resize';
+    startX: number;
+    startY: number;
+    initialX: number;
+    initialY: number;
+    initialW: number;
+    initialH: number;
+  } | null>(null);
 
   const canVerify = hasPermission(currentUser?.role, 'action:verify_detection');
 
@@ -104,54 +120,137 @@ export const PhotoGalleryView: React.FC = () => {
     }
   };
 
-  const handleSaveCorrection = () => {
+  const handleSaveCorrection = async () => {
     if (!selectedCapture || !activeBoxId || !canVerify) return;
-    updateBoundingBoxLabel(
-      selectedCapture.id,
-      activeBoxId,
-      editingSpecies,
-      currentUser?.name || 'Operator Lapangan'
-    );
-    setSaveSuccessMsg('Label berhasil diverifikasi & dicatat dalam dataset pelatihan AI.');
-    setTimeout(() => setSaveSuccessMsg(null), 3000);
+    setIsSaving(true);
+    try {
+      await updateBoundingBoxLabel(
+        selectedCapture.id,
+        activeBoxId,
+        editingSpecies,
+        currentUser?.name || 'Operator Lapangan'
+      );
+      const spName = IP102_SUBANG_TAXONOMY[editingSpecies]?.commonName || 'Hama';
+      setSaveSuccessMsg(`✓ Berhasil diverifikasi sebagai "${spName}" dan disimpan ke database Supabase.`);
+      setTimeout(() => setSaveSuccessMsg(null), 3500);
+    } catch (err: any) {
+      alert(`Gagal menyimpan verifikasi ke database: ${err?.message || 'Error'}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleDeleteActiveBox = () => {
+  const handleDeleteActiveBox = async () => {
     if (!selectedCapture || !activeBoxId || !canVerify) return;
-    deleteBoundingBox(selectedCapture.id, activeBoxId);
-    setActiveBoxId(null);
-    setSaveSuccessMsg('Kotak anotasi berhasil dihapus.');
-    setTimeout(() => setSaveSuccessMsg(null), 3000);
+    try {
+      await deleteBoundingBox(selectedCapture.id, activeBoxId);
+      setActiveBoxId(null);
+      setSaveSuccessMsg('Kotak anotasi berhasil dihapus dari database.');
+      setTimeout(() => setSaveSuccessMsg(null), 3000);
+    } catch (err: any) {
+      alert(`Gagal menghapus kotak: ${err?.message || 'Error'}`);
+    }
   };
 
-  const handleClearAll = () => {
+  const handleClearAll = async () => {
     if (!selectedCapture || !canVerify) return;
-    const ok = window.confirm('Apakah Anda yakin ingin menghapus/mereset semua kotak deteksi pada foto ini?');
+    const ok = window.confirm('Apakah Anda yakin ingin menghapus/mereset semua kotak deteksi pada foto ini di database?');
     if (!ok) return;
-    clearBoundingBoxes(selectedCapture.id);
-    setActiveBoxId(null);
-    setSaveSuccessMsg('Semua kotak deteksi berhasil dibersihkan.');
-    setTimeout(() => setSaveSuccessMsg(null), 3000);
+    try {
+      await clearBoundingBoxes(selectedCapture.id);
+      setActiveBoxId(null);
+      setSaveSuccessMsg('Semua kotak deteksi berhasil dibersihkan dari database.');
+      setTimeout(() => setSaveSuccessMsg(null), 3000);
+    } catch (err: any) {
+      alert(`Gagal mereset kotak: ${err?.message || 'Error'}`);
+    }
   };
 
-  const handleAddManualBox = () => {
+  const handleAddManualBox = async () => {
     if (!selectedCapture || !canVerify) return;
     const newBox = {
       id: `box-manual-${Date.now()}`,
       speciesId: editingSpecies,
       confidence: 1.0,
-      x: 38,
-      y: 38,
-      width: 24,
-      height: 20,
+      x: 35,
+      y: 35,
+      width: 25,
+      height: 22,
       isManuallyVerified: true,
       verifiedBy: currentUser?.name || 'Operator',
       verifiedAt: new Date().toISOString(),
     };
-    addBoundingBox(selectedCapture.id, newBox);
-    setActiveBoxId(newBox.id);
-    setSaveSuccessMsg(`Kotak serangga manual (${IP102_SUBANG_TAXONOMY[editingSpecies]?.commonName || 'Hama'}) berhasil ditambahkan.`);
-    setTimeout(() => setSaveSuccessMsg(null), 3500);
+    try {
+      await addBoundingBox(selectedCapture.id, newBox);
+      setActiveBoxId(newBox.id);
+      setSaveSuccessMsg(`✓ Kotak manual (${IP102_SUBANG_TAXONOMY[editingSpecies]?.commonName || 'Hama'}) berhasil ditambahkan & disimpan ke database.`);
+      setTimeout(() => setSaveSuccessMsg(null), 3500);
+    } catch (err: any) {
+      alert(`Gagal menambahkan kotak: ${err?.message || 'Error'}`);
+    }
+  };
+
+  const handleBoxPointerDown = (
+    e: React.PointerEvent,
+    box: BoundingBox,
+    mode: 'move' | 'resize'
+  ) => {
+    if (!canVerify) return;
+    e.stopPropagation();
+    setActiveBoxId(box.id);
+    setEditingSpecies(box.speciesId);
+    try {
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {}
+
+    setDragState({
+      boxId: box.id,
+      mode,
+      startX: e.clientX,
+      startY: e.clientY,
+      initialX: box.x,
+      initialY: box.y,
+      initialW: box.width,
+      initialH: box.height,
+    });
+  };
+
+  const handleCanvasPointerMove = (e: React.PointerEvent) => {
+    if (!dragState || !canvasRef.current || !selectedCapture || !updateBoundingBoxCoords) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+
+    const dxPct = ((e.clientX - dragState.startX) / rect.width) * 100;
+    const dyPct = ((e.clientY - dragState.startY) / rect.height) * 100;
+
+    if (dragState.mode === 'move') {
+      const newX = Math.max(0, Math.min(100 - dragState.initialW, dragState.initialX + dxPct));
+      const newY = Math.max(0, Math.min(100 - dragState.initialH, dragState.initialY + dyPct));
+      updateBoundingBoxCoords(selectedCapture.id, dragState.boxId, {
+        x: newX,
+        y: newY,
+        width: dragState.initialW,
+        height: dragState.initialH,
+      });
+    } else if (dragState.mode === 'resize') {
+      const newW = Math.max(4, Math.min(100 - dragState.initialX, dragState.initialW + dxPct));
+      const newH = Math.max(4, Math.min(100 - dragState.initialY, dragState.initialH + dyPct));
+      updateBoundingBoxCoords(selectedCapture.id, dragState.boxId, {
+        x: dragState.initialX,
+        y: dragState.initialY,
+        width: newW,
+        height: newH,
+      });
+    }
+  };
+
+  const handleCanvasPointerUp = (e: React.PointerEvent) => {
+    if (dragState) {
+      try {
+        (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch {}
+      setDragState(null);
+    }
   };
 
   const handleManualRefresh = async () => {
@@ -160,6 +259,24 @@ export const PhotoGalleryView: React.FC = () => {
       await refreshData();
       setSaveSuccessMsg('Daftar foto baki berhasil disegarkan dari tabel database Supabase & bucket storage.');
       setTimeout(() => setSaveSuccessMsg(null), 3500);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleClearCacheAndSync = async () => {
+    const ok = window.confirm(
+      'Apakah Anda ingin membersihkan cache lokal browser ini dan menyinkronkan ulang data langsung dari database Supabase?'
+    );
+    if (!ok) return;
+
+    try {
+      localStorage.removeItem('slt_custom_captures');
+      localStorage.removeItem('slt_deleted_captures');
+      setIsRefreshing(true);
+      await refreshData();
+      setSaveSuccessMsg('Cache lokal browser dibersihkan. Galeri kini 100% sinkron murni dengan database Supabase.');
+      setTimeout(() => setSaveSuccessMsg(null), 4000);
     } finally {
       setIsRefreshing(false);
     }
@@ -264,16 +381,29 @@ export const PhotoGalleryView: React.FC = () => {
           </span>
         </h2>
 
-        {/* Tombol Segarkan Database */}
-        <button
-          onClick={handleManualRefresh}
-          disabled={isRefreshing}
-          className="px-3 py-1.5 rounded-xl border border-[#90A955]/40 bg-[#F6F9F5] hover:bg-white text-[#31572C] font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-60"
-          title="Muat ulang seluruh foto dari tabel public.device_images & bucket storage"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin text-emerald-600' : ''}`} />
-          <span>{isRefreshing ? 'Menyinkronkan...' : 'Segarkan Database'}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Tombol Segarkan Database */}
+          <button
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            className="px-3 py-1.5 rounded-xl border border-[#90A955]/40 bg-[#F6F9F5] hover:bg-white text-[#31572C] font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-60"
+            title="Muat ulang seluruh foto dari tabel public.device_images & bucket storage"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin text-emerald-600' : ''}`} />
+            <span>{isRefreshing ? 'Menyinkronkan...' : 'Segarkan Database'}</span>
+          </button>
+
+          {/* Tombol Bersihkan Cache Lokal & Sinkronkan Database Murni */}
+          <button
+            onClick={handleClearCacheAndSync}
+            disabled={isRefreshing}
+            className="px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-60"
+            title="Hapus cache offline browser lokal ini dan paksa sinkronisasi murni dengan Supabase"
+          >
+            <RotateCcw className="h-3.5 w-3.5 text-slate-500" />
+            <span>Bersihkan Cache</span>
+          </button>
+        </div>
       </div>
 
       {saveSuccessMsg && (
@@ -479,12 +609,18 @@ export const PhotoGalleryView: React.FC = () => {
             )}
 
             {/* Interactive Bounding Box Canvas */}
-            <div className="relative aspect-video w-full rounded-xl border border-[#CBD5E1] bg-[#121A15] overflow-hidden flex items-center justify-center shadow-inner select-none">
+            <div
+              ref={canvasRef}
+              onPointerMove={handleCanvasPointerMove}
+              onPointerUp={handleCanvasPointerUp}
+              className="relative aspect-video w-full rounded-xl border border-[#CBD5E1] bg-[#121A15] overflow-hidden flex items-center justify-center shadow-inner select-none"
+            >
               {selectedCapture.imageUrl ? (
                 <img
                   src={selectedCapture.imageUrl}
                   alt={`Tangkapan Baki ${selectedCapture.id}`}
-                  className="absolute inset-0 w-full h-full object-cover"
+                  className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                  draggable={false}
                 />
               ) : (
                 /* Illumination LED Lighting Backdrop (Tray Simulation) */
@@ -525,13 +661,15 @@ export const PhotoGalleryView: React.FC = () => {
                   return (
                     <div
                       key={box.id}
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setActiveBoxId(box.id);
                         setEditingSpecies(box.speciesId);
                       }}
-                      className={`absolute rounded-xs cursor-pointer transition-all ${
+                      onPointerDown={(e) => handleBoxPointerDown(e, box, 'move')}
+                      className={`absolute rounded-xs cursor-move transition-shadow touch-none ${
                         isSelected
-                          ? 'border-2 border-[#F59E0B] bg-[#F59E0B]/30 z-20 scale-105 shadow-[0_0_12px_#F59E0B]'
+                          ? 'border-2 border-[#F59E0B] bg-[#F59E0B]/30 z-20 shadow-[0_0_14px_#F59E0B]'
                           : isVerified
                           ? 'border-2 border-[#22C55E] bg-[#22C55E]/15 hover:bg-[#22C55E]/30 z-10'
                           : `${meta.borderColor} border-2 ${meta.bgColor} hover:brightness-125 z-10`
@@ -544,7 +682,7 @@ export const PhotoGalleryView: React.FC = () => {
                       }}
                     >
                       <div
-                        className={`absolute -top-5 left-0 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-xs whitespace-nowrap shadow-xs flex items-center gap-1 ${
+                        className={`absolute -top-5 left-0 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-xs whitespace-nowrap shadow-xs flex items-center gap-1 select-none pointer-events-none ${
                           isSelected
                             ? 'bg-[#F59E0B] text-black font-extrabold'
                             : isVerified
@@ -557,6 +695,15 @@ export const PhotoGalleryView: React.FC = () => {
                         </span>
                         <span className="opacity-90">{(box.confidence * 100).toFixed(0)}%</span>
                       </div>
+
+                      {/* Handle resize sudut kanan bawah untuk kotak terpilih */}
+                      {isSelected && canVerify && (
+                        <div
+                          onPointerDown={(e) => handleBoxPointerDown(e, box, 'resize')}
+                          className="absolute -bottom-1.5 -right-1.5 w-3.5 h-3.5 bg-[#F59E0B] border-2 border-white rounded-full cursor-nwse-resize z-30 shadow-md touch-none hover:scale-125 transition-transform"
+                          title="Geser untuk mengubah ukuran kotak serangga"
+                        />
+                      )}
                     </div>
                   );
                 })}
@@ -565,7 +712,7 @@ export const PhotoGalleryView: React.FC = () => {
               <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between text-[10px] text-white/90 bg-black/70 backdrop-blur-xs px-2.5 py-1 rounded-lg">
                 <span className="flex items-center gap-1">
                   <Eye className="h-3 w-3 text-[#4ade80]" />
-                  <span>Klik kotak serangga untuk memeriksa spesies / koreksi anotasi</span>
+                  <span>Klik &amp; geser kotak untuk mengatur posisi serangga / koreksi spesies</span>
                 </span>
                 <span className="font-mono text-[10px] text-[#A7D7C5]">
                   {selectedCapture.bboxes.length > 0
@@ -748,12 +895,16 @@ export const PhotoGalleryView: React.FC = () => {
 
                   <div className="flex items-center gap-2 pt-1">
                     <button
-                      disabled={!canVerify}
+                      disabled={!canVerify || isSaving}
                       onClick={handleSaveCorrection}
                       className="flex-1 py-2 px-3 bg-[#1B4332] text-white rounded-lg text-xs font-semibold hover:bg-[#2D6A4F] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
                     >
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      <span>Simpan Verifikasi</span>
+                      {isSaving ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                      )}
+                      <span>{isSaving ? 'Menyimpan ke DB...' : 'Simpan Verifikasi'}</span>
                     </button>
 
                     <button

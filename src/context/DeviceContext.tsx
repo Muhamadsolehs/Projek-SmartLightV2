@@ -80,15 +80,20 @@ interface DeviceContextType {
     imageUrl?: string
   ) => Promise<void>;
   runAiDetection: (captureId: string) => Promise<CaptureImage | null>;
-  deleteBoundingBox: (captureId: string, boxId: string) => void;
-  addBoundingBox: (captureId: string, box: BoundingBox) => void;
-  clearBoundingBoxes: (captureId: string) => void;
+  deleteBoundingBox: (captureId: string, boxId: string) => Promise<void> | void;
+  addBoundingBox: (captureId: string, box: BoundingBox) => Promise<void> | void;
+  clearBoundingBoxes: (captureId: string) => Promise<void> | void;
   updateBoundingBoxLabel: (
     captureId: string,
     boxId: string,
     newSpeciesId: InsectSpeciesId,
     operatorName: string
-  ) => void;
+  ) => Promise<void> | void;
+  updateBoundingBoxCoords?: (
+    captureId: string,
+    boxId: string,
+    coords: { x: number; y: number; width: number; height: number }
+  ) => Promise<void> | void;
   waterLogs: WaterChangeLog[];
   triggerHardwareSimulation: (scenario: string) => void;
   isSimulatingAction: boolean;
@@ -374,39 +379,60 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         // 2. Cari data deteksi dari fetchedCaptures (tabel public.capture_sessions & public.insect_detections)
         const sessionMatch = cleanFetchedCaptures.find(
           (s) =>
+            (img.capture_session_id && (s.id === img.capture_session_id || (s as any).sessionId === img.capture_session_id)) ||
+            s.id === imgKey ||
             s.id === `SES-${imgKey}` ||
+            (s as any).sessionCode === `SES-${imgKey}` ||
+            (s as any).sessionCode === imgKey ||
+            (s.dbRecordId && s.dbRecordId === img.id) ||
             s.notes?.includes(img.file_path || '') ||
             (s.imageUrl && s.imageUrl === img.image_url)
         );
 
+        // Prioritas kotak: database (sessionMatch / img.bboxes) lalu local cache (customMatch)
         const bboxes =
-          customMatch?.bboxes && customMatch.bboxes.length > 0
-            ? customMatch.bboxes
-            : sessionMatch?.bboxes && sessionMatch.bboxes.length > 0
+          sessionMatch?.bboxes && sessionMatch.bboxes.length > 0
             ? sessionMatch.bboxes
             : Array.isArray(img.bboxes) && img.bboxes.length > 0
             ? img.bboxes
+            : customMatch?.bboxes && customMatch.bboxes.length > 0
+            ? customMatch.bboxes
             : [];
 
         const totalPests =
-          customMatch?.totalPests ??
-          sessionMatch?.totalPests ??
-          img.total_pests ??
-          bboxes.length;
+          bboxes.length > 0
+            ? bboxes.length
+            : sessionMatch?.totalPests ??
+              img.total_pests ??
+              customMatch?.totalPests ??
+              0;
 
         const targetPests =
-          customMatch?.targetPestsCount ??
-          sessionMatch?.targetPestsCount ??
-          img.target_pests_count ??
-          bboxes.filter((b) => b.speciesId !== 'other_neutral' && b.speciesId !== 'unidentified').length;
+          bboxes.length > 0
+            ? bboxes.filter((b) => b.speciesId !== 'other_neutral' && b.speciesId !== 'unidentified').length
+            : sessionMatch?.targetPestsCount ??
+              img.target_pests_count ??
+              customMatch?.targetPestsCount ??
+              0;
 
         const otherInsects =
-          customMatch?.otherInsectsCount ??
-          sessionMatch?.otherInsectsCount ??
-          img.other_insects_count ??
-          Math.max(0, bboxes.length - targetPests);
+          bboxes.length > 0
+            ? Math.max(0, totalPests - targetPests)
+            : sessionMatch?.otherInsectsCount ??
+              img.other_insects_count ??
+              customMatch?.otherInsectsCount ??
+              0;
+
+        const isManuallyVerified = Boolean(
+          sessionMatch?.isManuallyVerified ||
+          (img.detection_result as any)?.isManuallyVerified ||
+          bboxes.some((b) => b.isManuallyVerified) ||
+          customMatch?.isManuallyVerified ||
+          false
+        );
 
         const isAiProcessed = Boolean(
+          isManuallyVerified ||
           customMatch?.isAiProcessed ||
           sessionMatch?.isAiProcessed ||
           sessionMatch ||
@@ -435,18 +461,19 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           totalPests,
           targetPestsCount: targetPests,
           otherInsectsCount: otherInsects,
-          avgConfidence: customMatch?.avgConfidence || sessionMatch?.avgConfidence || 0.95,
+          avgConfidence: sessionMatch?.avgConfidence || (img.detection_result as any)?.avgConfidence || customMatch?.avgConfidence || 0.95,
           modelVersion:
-            customMatch?.modelVersion ||
             sessionMatch?.modelVersion ||
+            (img.detection_result as any)?.modelVersion ||
+            customMatch?.modelVersion ||
             `YOLOv8 (${img.trigger_source || 'Manual'})`,
-          isManuallyVerified:
-            customMatch?.isManuallyVerified || sessionMatch?.isManuallyVerified || false,
+          isManuallyVerified,
           isAiProcessed,
           bboxes,
           notes:
-            customMatch?.notes ||
             sessionMatch?.notes ||
+            (img.detection_result as any)?.notes ||
+            customMatch?.notes ||
             `Tersimpan di Supabase (${img.file_path || 'device_images'})`,
           dbRecordId: img.id,
           filePath: img.file_path,
@@ -454,11 +481,18 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         };
       });
 
-      // Gabungkan dan hilangkan duplikasi berdasarkan ID / URL
-      const combinedCaptures = [...mappedDbImages, ...cleanCustomCaptures, ...cleanFetchedCaptures];
+      // Prioritaskan database Supabase sebagai Sumber Kebenaran Tunggal (Single Source of Truth)
+      // Jika Supabase aktif, jangan campurkan data hantu dari localStorage yang membuat tampilan antar perangkat berbeda.
+      const sourceList =
+        mappedDbImages.length > 0 || cleanFetchedCaptures.length > 0
+          ? [...mappedDbImages, ...cleanFetchedCaptures]
+          : customCaptures.length > 0 && !isSupabaseConfigured
+          ? cleanCustomCaptures
+          : [...mappedDbImages, ...cleanFetchedCaptures];
+
       const seenKeys = new Set<string>();
       const dedupedCaptures: CaptureImage[] = [];
-      for (const item of combinedCaptures) {
+      for (const item of sourceList) {
         if (isItemDeleted(item)) continue;
         const key = item.dbRecordId ? `db-${item.dbRecordId}` : item.imageUrl || item.id;
         if (!seenKeys.has(key)) {
@@ -814,185 +848,226 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       alert('Akses Ditolak: Role Anda tidak memiliki izin untuk mengoreksi label deteksi serangga.');
       return;
     }
-    await pestService.updateDetectionVerification(boxId, newSpeciesId, operatorName);
 
-    setCaptures((prev) =>
-      prev.map((cap) => {
-        if (cap.id !== captureId) return cap;
-        const updatedBoxes = cap.bboxes.map((box) =>
-          box.id === boxId
-            ? {
-                ...box,
-                speciesId: newSpeciesId,
-                isManuallyVerified: true,
-                verifiedBy: operatorName,
-                verifiedAt: new Date().toISOString(),
-              }
-            : box
-        );
-        const targetCount = updatedBoxes.filter(
-          (b) => b.speciesId !== 'other_neutral' && b.speciesId !== 'unidentified'
-        ).length;
-        const otherCount = updatedBoxes.length - targetCount;
-        return {
-          ...cap,
-          bboxes: updatedBoxes,
-          targetPestsCount: targetCount,
-          otherInsectsCount: otherCount,
-          isManuallyVerified: true,
-          notes: `Label dikoreksi manual oleh ${operatorName} pada ${new Date().toLocaleTimeString('id-ID')}`,
-        };
-      })
+    const currentCap = captures.find((c) => c.id === captureId);
+    if (!currentCap) return;
+
+    const updatedBoxes = currentCap.bboxes.map((box) =>
+      box.id === boxId
+        ? {
+            ...box,
+            speciesId: newSpeciesId,
+            confidence: 1.0,
+            isManuallyVerified: true,
+            verifiedBy: operatorName,
+            verifiedAt: new Date().toISOString(),
+          }
+        : box
     );
+
+    const targetCount = updatedBoxes.filter(
+      (b) => b.speciesId !== 'other_neutral' && b.speciesId !== 'unidentified'
+    ).length;
+    const otherCount = updatedBoxes.length - targetCount;
+    const updated: CaptureImage = {
+      ...currentCap,
+      bboxes: updatedBoxes,
+      totalPests: updatedBoxes.length,
+      targetPestsCount: targetCount,
+      otherInsectsCount: otherCount,
+      isManuallyVerified: true,
+      isAiProcessed: true,
+      notes: `Diverifikasi & dikoreksi manual oleh ${operatorName} pada ${new Date().toLocaleTimeString('id-ID')}`,
+    };
+
+    setCaptures((prev) => prev.map((cap) => (cap.id === captureId ? updated : cap)));
+
+    try {
+      const existing = localStorage.getItem('slt_custom_captures');
+      const list: CaptureImage[] = existing ? JSON.parse(existing) : [];
+      const idx = list.findIndex((c) => c.id === captureId);
+      if (idx >= 0) {
+        list[idx] = updated;
+      } else {
+        list.unshift(updated);
+      }
+      localStorage.setItem('slt_custom_captures', JSON.stringify(list));
+    } catch {}
+
+    // Simpan permanen ke Supabase Database (capture_sessions, insect_detections, device_images)
+    try {
+      await pestService.saveManualAnnotations(updated, updatedBoxes, operatorName);
+    } catch (e) {
+      console.warn('[DeviceContext] Gagal sync label verifikasi ke Supabase:', e);
+    }
   };
 
-  const deleteBoundingBox = (captureId: string, boxId: string) => {
-    setCaptures((prev) =>
-      prev.map((cap) => {
-        if (cap.id !== captureId) return cap;
-        const updatedBoxes = cap.bboxes.filter((b) => b.id !== boxId);
-        const targetCount = updatedBoxes.filter(
-          (b) => b.speciesId !== 'other_neutral' && b.speciesId !== 'unidentified'
-        ).length;
-        const otherCount = updatedBoxes.length - targetCount;
-        const updated: CaptureImage = {
-          ...cap,
-          bboxes: updatedBoxes,
-          totalPests: updatedBoxes.length,
-          targetPestsCount: targetCount,
-          otherInsectsCount: otherCount,
-          notes: `Kotak dihapus manual oleh ${currentUser?.name || 'Operator'}. Sisa: ${updatedBoxes.length} serangga.`,
-        };
+  const updateBoundingBoxCoords = async (
+    captureId: string,
+    boxId: string,
+    coords: { x: number; y: number; width: number; height: number }
+  ) => {
+    const currentCap = captures.find((c) => c.id === captureId);
+    if (!currentCap) return;
 
-        try {
-          const existing = localStorage.getItem('slt_custom_captures');
-          const list: CaptureImage[] = existing ? JSON.parse(existing) : [];
-          const idx = list.findIndex((c) => c.id === captureId);
-          if (idx >= 0) {
-            list[idx] = updated;
-          } else {
-            list.unshift(updated);
+    const updatedBoxes = currentCap.bboxes.map((box) =>
+      box.id === boxId
+        ? {
+            ...box,
+            x: Math.max(0, Math.min(95, Math.round(coords.x * 10) / 10)),
+            y: Math.max(0, Math.min(95, Math.round(coords.y * 10) / 10)),
+            width: Math.max(2, Math.min(90, Math.round(coords.width * 10) / 10)),
+            height: Math.max(2, Math.min(90, Math.round(coords.height * 10) / 10)),
+            isManuallyVerified: true,
+            verifiedBy: box.verifiedBy || currentUser?.name || 'Operator',
+            verifiedAt: box.verifiedAt || new Date().toISOString(),
           }
-          localStorage.setItem('slt_custom_captures', JSON.stringify(list));
-        } catch {}
-
-        // Sinkronisasi ke Supabase database (capture_sessions, insect_detections, device_images)
-        aiDetectionService.persistToSupabase(updated, {
-          captureId: updated.id,
-          deviceId: updated.deviceId,
-          totalPests: updated.totalPests,
-          targetPestsCount: updated.targetPestsCount,
-          otherInsectsCount: updated.otherInsectsCount,
-          avgConfidence: updated.avgConfidence || 0.95,
-          modelVersion: updated.modelVersion || 'YOLOv8n-IP102-Edge v2.1',
-          bboxes: updated.bboxes,
-          executionTimeMs: 0,
-          inferenceEngine: 'client_edge_yolo',
-          notes: updated.notes || 'Kotak serangga dihapus manual',
-          speciesDistribution: {},
-        }).catch((e) => console.warn('[DeviceContext] Gagal sync delete bounding box ke Supabase:', e));
-
-        return updated;
-      })
+        : box
     );
+
+    const updated: CaptureImage = {
+      ...currentCap,
+      bboxes: updatedBoxes,
+    };
+
+    setCaptures((prev) => prev.map((cap) => (cap.id === captureId ? updated : cap)));
+
+    try {
+      const existing = localStorage.getItem('slt_custom_captures');
+      const list: CaptureImage[] = existing ? JSON.parse(existing) : [];
+      const idx = list.findIndex((c) => c.id === captureId);
+      if (idx >= 0) {
+        list[idx] = updated;
+      } else {
+        list.unshift(updated);
+      }
+      localStorage.setItem('slt_custom_captures', JSON.stringify(list));
+    } catch {}
+
+    try {
+      await pestService.saveManualAnnotations(updated, updatedBoxes, currentUser?.name || 'Operator');
+    } catch (e) {
+      console.warn('[DeviceContext] Gagal sync koordinat kotak ke Supabase:', e);
+    }
   };
 
-  const addBoundingBox = (captureId: string, newBox: BoundingBox) => {
-    setCaptures((prev) =>
-      prev.map((cap) => {
-        if (cap.id !== captureId) return cap;
-        const updatedBoxes = [...cap.bboxes, newBox];
-        const targetCount = updatedBoxes.filter(
-          (b) => b.speciesId !== 'other_neutral' && b.speciesId !== 'unidentified'
-        ).length;
-        const otherCount = updatedBoxes.length - targetCount;
-        const updated: CaptureImage = {
-          ...cap,
-          bboxes: updatedBoxes,
-          totalPests: updatedBoxes.length,
-          targetPestsCount: targetCount,
-          otherInsectsCount: otherCount,
-          isManuallyVerified: true,
-          notes: `Ditambahkan manual oleh ${currentUser?.name || 'Operator'}. Total: ${updatedBoxes.length} serangga.`,
-        };
+  const deleteBoundingBox = async (captureId: string, boxId: string) => {
+    const currentCap = captures.find((c) => c.id === captureId);
+    if (!currentCap) return;
 
-        try {
-          const existing = localStorage.getItem('slt_custom_captures');
-          const list: CaptureImage[] = existing ? JSON.parse(existing) : [];
-          const idx = list.findIndex((c) => c.id === captureId);
-          if (idx >= 0) {
-            list[idx] = updated;
-          } else {
-            list.unshift(updated);
-          }
-          localStorage.setItem('slt_custom_captures', JSON.stringify(list));
-        } catch {}
+    const updatedBoxes = currentCap.bboxes.filter((b) => b.id !== boxId);
+    const targetCount = updatedBoxes.filter(
+      (b) => b.speciesId !== 'other_neutral' && b.speciesId !== 'unidentified'
+    ).length;
+    const otherCount = updatedBoxes.length - targetCount;
+    const updated: CaptureImage = {
+      ...currentCap,
+      bboxes: updatedBoxes,
+      totalPests: updatedBoxes.length,
+      targetPestsCount: targetCount,
+      otherInsectsCount: otherCount,
+      isManuallyVerified: true,
+      notes: `Kotak dihapus manual oleh ${currentUser?.name || 'Operator'}. Sisa: ${updatedBoxes.length} serangga.`,
+    };
 
-        // Sinkronisasi penambahan kotak ke Supabase database
-        aiDetectionService.persistToSupabase(updated, {
-          captureId: updated.id,
-          deviceId: updated.deviceId,
-          totalPests: updated.totalPests,
-          targetPestsCount: updated.targetPestsCount,
-          otherInsectsCount: updated.otherInsectsCount,
-          avgConfidence: updated.avgConfidence || 0.95,
-          modelVersion: updated.modelVersion || 'YOLOv8n-IP102-Edge v2.1',
-          bboxes: updated.bboxes,
-          executionTimeMs: 0,
-          inferenceEngine: 'client_edge_yolo',
-          notes: updated.notes || 'Kotak serangga manual ditambahkan',
-          speciesDistribution: {},
-        }).catch((e) => console.warn('[DeviceContext] Gagal sync add bounding box ke Supabase:', e));
+    setCaptures((prev) => prev.map((cap) => (cap.id === captureId ? updated : cap)));
 
-        return updated;
-      })
-    );
+    try {
+      const existing = localStorage.getItem('slt_custom_captures');
+      const list: CaptureImage[] = existing ? JSON.parse(existing) : [];
+      const idx = list.findIndex((c) => c.id === captureId);
+      if (idx >= 0) {
+        list[idx] = updated;
+      } else {
+        list.unshift(updated);
+      }
+      localStorage.setItem('slt_custom_captures', JSON.stringify(list));
+    } catch {}
+
+    // Sinkronisasi ke Supabase database (capture_sessions, insect_detections, device_images)
+    try {
+      await pestService.saveManualAnnotations(updated, updatedBoxes, currentUser?.name || 'Operator');
+    } catch (e) {
+      console.warn('[DeviceContext] Gagal sync delete bounding box ke Supabase:', e);
+    }
   };
 
-  const clearBoundingBoxes = (captureId: string) => {
-    setCaptures((prev) =>
-      prev.map((cap) => {
-        if (cap.id !== captureId) return cap;
-        const updated: CaptureImage = {
-          ...cap,
-          bboxes: [],
-          totalPests: 0,
-          targetPestsCount: 0,
-          otherInsectsCount: 0,
-          notes: 'Semua kotak anotasi dibersihkan manual.',
-        };
+  const addBoundingBox = async (captureId: string, newBox: BoundingBox) => {
+    const currentCap = captures.find((c) => c.id === captureId);
+    if (!currentCap) return;
 
-        try {
-          const existing = localStorage.getItem('slt_custom_captures');
-          const list: CaptureImage[] = existing ? JSON.parse(existing) : [];
-          const idx = list.findIndex((c) => c.id === captureId);
-          if (idx >= 0) {
-            list[idx] = updated;
-          } else {
-            list.unshift(updated);
-          }
-          localStorage.setItem('slt_custom_captures', JSON.stringify(list));
-        } catch {}
+    const updatedBoxes = [...currentCap.bboxes, newBox];
+    const targetCount = updatedBoxes.filter(
+      (b) => b.speciesId !== 'other_neutral' && b.speciesId !== 'unidentified'
+    ).length;
+    const otherCount = updatedBoxes.length - targetCount;
+    const updated: CaptureImage = {
+      ...currentCap,
+      bboxes: updatedBoxes,
+      totalPests: updatedBoxes.length,
+      targetPestsCount: targetCount,
+      otherInsectsCount: otherCount,
+      isManuallyVerified: true,
+      isAiProcessed: true,
+      notes: `Ditambahkan manual oleh ${currentUser?.name || 'Operator'}. Total: ${updatedBoxes.length} serangga.`,
+    };
 
-        // Sinkronisasi pembersihan kotak ke Supabase database
-        aiDetectionService.persistToSupabase(updated, {
-          captureId: updated.id,
-          deviceId: updated.deviceId,
-          totalPests: 0,
-          targetPestsCount: 0,
-          otherInsectsCount: 0,
-          avgConfidence: 0,
-          modelVersion: updated.modelVersion || 'YOLOv8n-IP102-Edge v2.1',
-          bboxes: [],
-          executionTimeMs: 0,
-          inferenceEngine: 'client_edge_yolo',
-          notes: 'Semua kotak dibersihkan oleh pengguna',
-          speciesDistribution: {},
-        }).catch((e) => console.warn('[DeviceContext] Gagal sync clear bounding box ke Supabase:', e));
+    setCaptures((prev) => prev.map((cap) => (cap.id === captureId ? updated : cap)));
 
-        return updated;
-      })
-    );
+    try {
+      const existing = localStorage.getItem('slt_custom_captures');
+      const list: CaptureImage[] = existing ? JSON.parse(existing) : [];
+      const idx = list.findIndex((c) => c.id === captureId);
+      if (idx >= 0) {
+        list[idx] = updated;
+      } else {
+        list.unshift(updated);
+      }
+      localStorage.setItem('slt_custom_captures', JSON.stringify(list));
+    } catch {}
+
+    // Sinkronisasi penambahan kotak ke Supabase database
+    try {
+      await pestService.saveManualAnnotations(updated, updatedBoxes, currentUser?.name || 'Operator');
+    } catch (e) {
+      console.warn('[DeviceContext] Gagal sync add bounding box ke Supabase:', e);
+    }
+  };
+
+  const clearBoundingBoxes = async (captureId: string) => {
+    const currentCap = captures.find((c) => c.id === captureId);
+    if (!currentCap) return;
+
+    const updated: CaptureImage = {
+      ...currentCap,
+      bboxes: [],
+      totalPests: 0,
+      targetPestsCount: 0,
+      otherInsectsCount: 0,
+      isManuallyVerified: true,
+      notes: `Semua kotak anotasi dibersihkan manual oleh ${currentUser?.name || 'Operator'}.`,
+    };
+
+    setCaptures((prev) => prev.map((cap) => (cap.id === captureId ? updated : cap)));
+
+    try {
+      const existing = localStorage.getItem('slt_custom_captures');
+      const list: CaptureImage[] = existing ? JSON.parse(existing) : [];
+      const idx = list.findIndex((c) => c.id === captureId);
+      if (idx >= 0) {
+        list[idx] = updated;
+      } else {
+        list.unshift(updated);
+      }
+      localStorage.setItem('slt_custom_captures', JSON.stringify(list));
+    } catch {}
+
+    // Sinkronisasi pembersihan kotak ke Supabase database
+    try {
+      await pestService.saveManualAnnotations(updated, [], currentUser?.name || 'Operator');
+    } catch (e) {
+      console.warn('[DeviceContext] Gagal sync clear bounding box ke Supabase:', e);
+    }
   };
 
   const addCapture = (newCapture: CaptureImage) => {
@@ -1366,6 +1441,7 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addBoundingBox,
         clearBoundingBoxes,
         updateBoundingBoxLabel,
+        updateBoundingBoxCoords,
         waterLogs,
         triggerHardwareSimulation,
         isSimulatingAction,

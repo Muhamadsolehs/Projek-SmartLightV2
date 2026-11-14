@@ -2,6 +2,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { InsectSpecies, CaptureImage, InsectSpeciesId, BoundingBox } from '../types';
 import { INSECT_SPECIES_LIST, MOCK_CAPTURES, MOCK_DAILY_TRENDS, DailyPestTrend } from '../data/mockData';
 import { storageService } from './storageService';
+import { aiDetectionService, IP102_SUBANG_TAXONOMY } from './aiDetectionService';
 
 export const pestService = {
   async getInsectSpecies(): Promise<InsectSpecies[]> {
@@ -39,6 +40,7 @@ export const pestService = {
         .from('capture_sessions')
         .select(`
           id,
+          session_code,
           device_id,
           captured_at,
           total_pests,
@@ -48,7 +50,7 @@ export const pestService = {
           model_version,
           is_manually_verified,
           notes,
-          device_images ( storage_path, image_width, image_height ),
+          device_images ( id, file_path, storage_path, image_url, image_width, image_height ),
           insect_detections (
             id,
             species_code,
@@ -60,7 +62,7 @@ export const pestService = {
           )
         `)
         .order('captured_at', { ascending: false })
-        .limit(20);
+        .limit(50);
 
       if (deviceId) {
         query = query.eq('device_id', deviceId);
@@ -80,37 +82,55 @@ export const pestService = {
         data.map(async (row: any) => {
           let signedUrl = '';
           const firstImage = row.device_images?.[0];
-          if (firstImage?.storage_path) {
-            signedUrl = await storageService.getSignedImageUrl(firstImage.storage_path);
+          const rawPath = firstImage?.file_path || firstImage?.storage_path;
+          if (rawPath) {
+            try {
+              const sUrl = await storageService.getSignedImageUrl(rawPath);
+              if (sUrl) signedUrl = sUrl;
+            } catch {}
+          }
+          if (!signedUrl && firstImage?.image_url) {
+            signedUrl = firstImage.image_url;
           }
 
           const bboxes: BoundingBox[] = (row.insect_detections || []).map((det: any) => ({
             id: det.id,
             speciesId: det.species_code as InsectSpeciesId,
-            confidence: Number(det.confidence_score),
-            x: det.bounding_box?.x || 20,
-            y: det.bounding_box?.y || 20,
-            width: det.bounding_box?.width || 10,
-            height: det.bounding_box?.height || 10,
+            confidence: Number(det.confidence_score) || 1.0,
+            x: det.bounding_box?.x ?? 20,
+            y: det.bounding_box?.y ?? 20,
+            width: det.bounding_box?.width ?? 10,
+            height: det.bounding_box?.height ?? 10,
             isManuallyVerified: det.verification_status !== 'ai_detected',
             verifiedBy: det.verified_by,
             verifiedAt: det.verified_at,
           }));
 
+          const primaryId = row.session_code ? row.session_code.replace(/^SES-/, '') : row.id;
+
           return {
-            id: row.id,
+            id: primaryId,
+            sessionCode: row.session_code,
+            sessionId: row.id,
             deviceId: row.device_id,
             timestamp: row.captured_at,
             imageUrl: signedUrl,
-            resolution: `${firstImage?.image_width || 1920}x${firstImage?.image_height || 1080} (OV5640 Sensor)`,
-            totalPests: row.total_pests || bboxes.length,
-            targetPestsCount: row.target_pests_count || bboxes.filter((b) => b.speciesId !== 'other_neutral').length,
-            otherInsectsCount: row.other_insects_count || bboxes.filter((b) => b.speciesId === 'other_neutral').length,
-            avgConfidence: Number(row.avg_confidence) || 0.94,
-            modelVersion: row.model_version || 'YOLOv8-AgriPest v1.4-Edge',
-            isManuallyVerified: row.is_manually_verified || false,
+            resolution: `${firstImage?.image_width || 1280}x${firstImage?.image_height || 720} (DroidCam HD)`,
+            totalPests: row.total_pests ?? bboxes.length,
+            targetPestsCount:
+              row.target_pests_count ??
+              bboxes.filter((b) => b.speciesId !== 'other_neutral' && b.speciesId !== 'unidentified').length,
+            otherInsectsCount:
+              row.other_insects_count ??
+              bboxes.filter((b) => b.speciesId === 'other_neutral' || b.speciesId === 'unidentified').length,
+            avgConfidence: Number(row.avg_confidence) || 0.95,
+            modelVersion: row.model_version || 'YOLOv8n-IP102-Edge v2.1',
+            isManuallyVerified: Boolean(row.is_manually_verified || bboxes.some((b) => b.isManuallyVerified)),
+            isAiProcessed: true,
             bboxes,
             notes: row.notes || undefined,
+            dbRecordId: firstImage?.id,
+            filePath: rawPath,
           };
         })
       );
@@ -122,6 +142,62 @@ export const pestService = {
     }
   },
 
+  /**
+   * Menyimpan anotasi kotak manual, label spesies, dan status verifikasi manusia
+   * ke database Supabase secara menyeluruh:
+   * 1. public.capture_sessions (is_manually_verified: true, counts)
+   * 2. public.insect_detections (semua kotak tersimpan dengan status 'human_verified')
+   * 3. public.device_images (bboxes, total_pests, target_pests_count, other_insects_count, detection_result)
+   * Sehingga progres dapat dibuka dan disinkronkan langsung di perangkat lain.
+   */
+  async saveManualAnnotations(
+    capture: CaptureImage,
+    bboxes: BoundingBox[],
+    operatorName = 'Operator'
+  ): Promise<{ success: boolean; sessionId?: string; error?: string }> {
+    const targetPestsCount = bboxes.filter(
+      (b) => b.speciesId !== 'other_neutral' && b.speciesId !== 'unidentified'
+    ).length;
+    const otherInsectsCount = bboxes.length - targetPestsCount;
+    const totalPests = bboxes.length;
+    const avgConfidence =
+      bboxes.length > 0
+        ? bboxes.reduce((sum, b) => sum + (b.confidence || 1.0), 0) / bboxes.length
+        : 1.0;
+
+    const speciesDistribution: Record<string, number> = {};
+    for (const b of bboxes) {
+      speciesDistribution[b.speciesId] = (speciesDistribution[b.speciesId] || 0) + 1;
+    }
+
+    const updatedCapture: CaptureImage = {
+      ...capture,
+      bboxes,
+      totalPests,
+      targetPestsCount,
+      otherInsectsCount,
+      avgConfidence,
+      isManuallyVerified: true,
+      isAiProcessed: true,
+      notes: `Diverifikasi & dikoreksi manual oleh ${operatorName} pada ${new Date().toLocaleTimeString('id-ID')}`,
+    };
+
+    return aiDetectionService.persistToSupabase(updatedCapture, {
+      captureId: updatedCapture.id,
+      deviceId: updatedCapture.deviceId,
+      totalPests,
+      targetPestsCount,
+      otherInsectsCount,
+      avgConfidence,
+      modelVersion: updatedCapture.modelVersion || 'YOLOv8n-IP102-Edge v2.1',
+      bboxes,
+      executionTimeMs: 0,
+      inferenceEngine: 'human_verified',
+      notes: updatedCapture.notes || 'Anotasi manual tersimpan',
+      speciesDistribution,
+    });
+  },
+
   async updateDetectionVerification(
     detectionId: string,
     newSpeciesId: InsectSpeciesId,
@@ -130,6 +206,12 @@ export const pestService = {
     if (!isSupabaseConfigured) return true;
 
     try {
+      const isUuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!isUuidRegex.test(detectionId)) {
+        // Jika detectionId bukan format UUID (misal box-manual-...), abaikan query id tunggal
+        return true;
+      }
+
       const { data: user } = await supabase.auth.getUser();
       const { error } = await supabase
         .from('insect_detections')
